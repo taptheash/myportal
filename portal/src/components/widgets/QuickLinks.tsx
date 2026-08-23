@@ -1,187 +1,209 @@
-import { useState } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Globe, Check, Pencil } from 'lucide-react';
+
+interface QuickLinksProps {
+  id: string;
+  config: Record<string, any>;
+  onUpdateConfig: (config: Record<string, any>) => void;
+  isEditing: boolean;
+}
 
 interface Link {
   id: string;
-  title: string;
+  label: string;
   url: string;
-  favicon?: string;
 }
 
-export default function QuickLinks() {
-  const [links, setLinks] = useState<Link[]>([
-    { id: '1', title: 'Google', url: 'https://google.com' },
-    { id: '2', title: 'GitHub', url: 'https://github.com' },
-  ]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editUrl, setEditUrl] = useState('');
-  const [showAdd, setShowAdd] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newUrl, setNewUrl] = useState('');
+const DEFAULT_LINKS: Link[] = [
+  { id: '1', label: 'GitHub', url: 'https://github.com' },
+  { id: '2', label: 'Gmail', url: 'https://mail.google.com' },
+  { id: '3', label: 'Google Calendar', url: 'https://calendar.google.com' },
+  { id: '4', label: 'YouTube', url: 'https://youtube.com' },
+  { id: '5', label: 'Google', url: 'https://google.com' },
+];
 
-  const getFaviconUrl = (url: string) => {
-    try {
-      const domain = new URL(url).hostname;
-      return `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
-    } catch {
-      return '';
-    }
+function getFaviconUrl(url: string): string {
+  try {
+    const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+  } catch {
+    return '';
+  }
+}
+
+function SiteIcon({ url, label }: { url: string; label: string }) {
+  const [failed, setFailed] = useState(false);
+  const faviconUrl = getFaviconUrl(url);
+  if (!faviconUrl || failed) {
+    return <Globe size={20} className="text-teal-600 dark:text-teal-400 flex-shrink-0" />;
+  }
+  return (
+    <img
+      src={faviconUrl}
+      alt={label}
+      width={20}
+      height={20}
+      className="flex-shrink-0 rounded-sm"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) {
+  const [links, setLinks] = useState<Link[]>(config.links || DEFAULT_LINKS);
+  const [showInlineAdd, setShowInlineAdd] = useState(config.showAdd || false);
+  const [newLabel, setNewLabel] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+
+  const saveLinks = (updatedLinks: Link[]) => {
+    setLinks(updatedLinks);
+    onUpdateConfig({ ...config, links: updatedLinks });
   };
 
-  const addLink = () => {
-    if (!newTitle.trim() || !newUrl.trim()) return;
+  const handleAddLink = () => {
+    if (!newLabel.trim() || !newUrl.trim()) {
+      setError('Both fields are required');
+      return;
+    }
     const link: Link = {
       id: Date.now().toString(),
-      title: newTitle,
-      url: newUrl,
-      favicon: getFaviconUrl(newUrl)
+      label: newLabel.trim(),
+      url: newUrl.startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`,
     };
-    setLinks([...links, link]);
-    setNewTitle('');
+    saveLinks([...links, link]);
+    setNewLabel('');
     setNewUrl('');
-    setShowAdd(false);
-    localStorage.setItem('quickLinks', JSON.stringify([...links, link]));
+    setShowInlineAdd(false);
+    setError(null);
+    onUpdateConfig({ ...config, links: [...links, link], showAdd: false });
+  };
+
+  const handleRemoveLink = (id: string) => {
+    saveLinks(links.filter((l) => l.id !== id));
   };
 
   const startEdit = (link: Link) => {
     setEditingId(link.id);
-    setEditTitle(link.title);
+    setEditLabel(link.label);
     setEditUrl(link.url);
   };
 
-  const saveEdit = (id: string) => {
-    const updated = links.map(l =>
-      l.id === id ? { ...l, title: editTitle, url: editUrl, favicon: getFaviconUrl(editUrl) } : l
-    );
-    setLinks(updated);
+  const cancelEdit = () => {
     setEditingId(null);
-    localStorage.setItem('quickLinks', JSON.stringify(updated));
+    setEditLabel('');
+    setEditUrl('');
   };
 
-  const deleteLink = (id: string) => {
-    const updated = links.filter(l => l.id !== id);
-    setLinks(updated);
-    localStorage.setItem('quickLinks', JSON.stringify(updated));
+  const saveEdit = () => {
+    if (!editLabel.trim() || !editUrl.trim() || !editingId) return;
+    const updated = links.map((l) =>
+      l.id === editingId
+        ? { ...l, label: editLabel.trim(), url: editUrl.startsWith('http') ? editUrl.trim() : `https://${editUrl.trim()}` }
+        : l
+    );
+    saveLinks(updated);
+    cancelEdit();
   };
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3">
-        {links.map((link) => (
-          <div key={link.id} className="relative group">
-            {editingId === link.id ? (
-              <div className="space-y-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-2 py-1 text-xs rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-                <input
-                  type="text"
-                  value={editUrl}
-                  onChange={(e) => setEditUrl(e.target.value)}
-                  className="w-full px-2 py-1 text-xs rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => saveEdit(link.id)}
-                    className="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="flex-1 px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500"
-                  >
-                    Cancel
-                  </button>
-                </div>
+    <div className="flex flex-col gap-2">
+
+      {/* Inline add form */}
+      {showInlineAdd && (
+        <div className="flex flex-col gap-1.5 p-2 bg-teal-50 dark:bg-slate-700 rounded-lg border border-teal-200 dark:border-slate-600">
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <input
+            type="text"
+            placeholder="Label (e.g. GitHub)"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
+            autoFocus
+          />
+          <input
+            type="text"
+            placeholder="URL (e.g. github.com)"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
+          />
+          <div className="flex gap-2">
+            <button onClick={handleAddLink} className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+              <Check size={14} /> Add
+            </button>
+            <button onClick={() => { setShowInlineAdd(false); setNewLabel(''); setNewUrl(''); setError(null); onUpdateConfig({ ...config, showAdd: false }); }}
+              className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+              <X size={14} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Links */}
+      <div className="flex flex-col gap-1.5">
+        {links.map((link) =>
+          editingId === link.id ? (
+            <div key={link.id} className="flex flex-col gap-1.5 p-2 bg-teal-50 dark:bg-slate-700 rounded-lg border border-teal-200 dark:border-slate-600">
+              <input
+                type="text"
+                value={editLabel}
+                onChange={(e) => setEditLabel(e.target.value)}
+                placeholder="Label"
+                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                autoFocus
+              />
+              <input
+                type="text"
+                value={editUrl}
+                onChange={(e) => setEditUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                placeholder="URL"
+                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
+              />
+              <div className="flex gap-2">
+                <button onClick={saveEdit} className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+                  <Check size={14} /> Save
+                </button>
+                <button onClick={cancelEdit} className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+                  <X size={14} /> Cancel
+                </button>
               </div>
-            ) : (
+            </div>
+          ) : (
+            <div key={link.id} className="flex items-center gap-1.5 group">
               <a
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-col items-center gap-2 p-3 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                className="flex-1 flex items-center gap-2.5 px-3 py-2 bg-teal-50 dark:bg-slate-700 hover:bg-teal-100 dark:hover:bg-slate-600 rounded-lg transition truncate min-w-0"
               >
-                {link.favicon && (
-                  <img
-                    src={link.favicon}
-                    alt={link.title}
-                    className="w-6 h-6"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
-                )}
-                <span className="text-xs text-center text-gray-900 dark:text-gray-100 break-words">
-                  {link.title}
-                </span>
+                <SiteIcon url={link.url} label={link.label} />
+                <span className="text-sm font-medium text-teal-900 dark:text-teal-100 truncate">{link.label}</span>
               </a>
-            )}
-            {editingId !== link.id && (
-              <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                <button
-                  onClick={() => startEdit(link)}
-                  className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  <Edit2 size={12} />
-                </button>
-                <button
-                  onClick={() => deleteLink(link.id)}
-                  className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+              <button
+                onClick={() => startEdit(link)}
+                className="p-1.5 bg-teal-100 dark:bg-slate-600 hover:bg-teal-200 dark:hover:bg-slate-500 text-teal-700 dark:text-teal-200 rounded-lg transition flex-shrink-0"
+                title="Edit link"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={() => handleRemoveLink(link.id)}
+                className="p-1.5 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-300 rounded-lg transition flex-shrink-0"
+                title="Delete link"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )
+        )}
       </div>
-
-      {showAdd ? (
-        <div className="space-y-2 p-3 bg-gray-100 dark:bg-gray-800 rounded">
-          <input
-            type="text"
-            placeholder="Title"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          />
-          <input
-            type="text"
-            placeholder="URL"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={addLink}
-              className="flex-1 px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              Add
-            </button>
-            <button
-              onClick={() => {
-                setShowAdd(false);
-                setNewTitle('');
-                setNewUrl('');
-              }}
-              className="flex-1 px-3 py-1 text-sm bg-gray-400 text-white rounded hover:bg-gray-500"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setShowAdd(true)}
-          className="w-full px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-        >
-          + Add Link
-        </button>
-      )}
     </div>
   );
 }

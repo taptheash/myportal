@@ -1,102 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, AlertCircle, ChevronRight } from 'lucide-react';
-
-interface CalendarProps {
-  id: string;
-  config: Record<string, any>;
-  onUpdateConfig: (config: Record<string, any>) => void;
-  isEditing: boolean;
-}
+import { useState, useEffect } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface CalendarEvent {
   id: string;
   summary: string;
-  start: {
+  description?: string;
+  start?: {
     dateTime?: string;
     date?: string;
   };
-  end: {
+  end?: {
     dateTime?: string;
     date?: string;
   };
 }
 
-export default function Calendar({ config, onUpdateConfig, isEditing }: CalendarProps) {
+export default function Calendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [newEvent, setNewEvent] = useState({
-    title: '',
-    date: new Date().toISOString().split('T')[0],
-    time: '10:00',
+    summary: '',
+    description: '',
+    startTime: '',
+    endTime: '',
   });
 
-  // Fetch events from backend
   useEffect(() => {
-    if (isEditing) return;
-
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/calendar/events');
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch calendar events');
-        }
-
-        const data = await response.json();
-        setEvents(data.events || []);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error fetching events');
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEvents();
-    const interval = setInterval(fetchEvents, 300000); // Refresh every 5 mins
-    return () => clearInterval(interval);
-  }, [isEditing]);
+  }, []);
 
-  const handleCreateEvent = async () => {
-    if (!newEvent.title.trim()) return;
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/calendar/events');
+      if (!response.ok) throw new Error('Failed to fetch events');
+      const data = await response.json();
+      setEvents(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error loading events');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addEvent = async () => {
+    if (!newEvent.summary.trim() || !newEvent.startTime || !newEvent.endTime) {
+      setError('Please fill in all fields');
+      return;
+    }
 
     try {
+      setLoading(true);
       const response = await fetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          summary: newEvent.title,
-          startDateTime: `${newEvent.date}T${newEvent.time}:00`,
+          summary: newEvent.summary,
+          description: newEvent.description,
+          startTime: newEvent.startTime,
+          endTime: newEvent.endTime,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create event');
-      }
-
-      // Refresh events
-      const eventsResponse = await fetch('/api/calendar/events');
-      const data = await eventsResponse.json();
-      setEvents(data.events || []);
-
-      // Reset form
-      setNewEvent({ title: '', date: new Date().toISOString().split('T')[0], time: '10:00' });
-      setShowCreateForm(false);
+      if (!response.ok) throw new Error('Failed to create event');
+      setNewEvent({ summary: '', description: '', startTime: '', endTime: '' });
+      setShowAdd(false);
+      await fetchEvents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create event');
+      setError(err instanceof Error ? err.message : 'Error creating event');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatEventTime = (event: CalendarEvent) => {
-    const start = event.start.dateTime || event.start.date;
-    if (!start) return '';
-
-    const date = new Date(start);
-    return date.toLocaleTimeString('en-US', {
+  const formatTime = (dateTimeString?: string) => {
+    if (!dateTimeString) return '';
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -104,132 +87,104 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     });
   };
 
-  if (isEditing) {
+  if (loading && events.length === 0) {
+    return <div className="text-sm text-gray-600 dark:text-gray-400">Loading...</div>;
+  }
+
+  if (error && events.length === 0) {
     return (
-      <div className="text-center text-gray-600 dark:text-gray-400 text-sm">
-        <p className="mb-3">📅 Google Calendar Setup</p>
-        <p className="text-xs leading-relaxed">
-          To enable calendar integration:
-        </p>
-        <ol className="text-xs mt-2 space-y-1 text-left text-gray-600 dark:text-gray-400">
-          <li>1. Create service account on Google Cloud</li>
-          <li>2. Enable Google Calendar API</li>
-          <li>3. Share calendar with service account email</li>
-          <li>4. Add service account JSON to backend</li>
-        </ol>
+      <div className="space-y-2">
+        <div className="text-sm text-red-600">{error}</div>
+        <button
+          onClick={fetchEvents}
+          className="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Retry
+        </button>
       </div>
     );
   }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-current"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2 text-amber-600 dark:text-amber-500">
-        <AlertCircle size={20} />
-        <p className="text-xs text-center">{error}</p>
-        <p className="text-xs text-gray-500">Check backend configuration</p>
-      </div>
-    );
-  }
-
-  // Get today's and tomorrow's events
-  const now = new Date();
-  const upcomingEvents = events
-    .filter((event) => {
-      const eventDate = new Date((event.start.dateTime || event.start.date) as string);
-      return eventDate >= now;
-    })
-    .slice(0, 5);
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Create Event Form */}
-      {showCreateForm && (
-        <div className="mb-4 p-3 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg">
+    <div className="space-y-3">
+      {/* Events list */}
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {events.length === 0 ? (
+          <div className="text-sm text-gray-600 dark:text-gray-400">No upcoming events</div>
+        ) : (
+          events.map((event) => (
+            <div
+              key={event.id}
+              className="p-2 rounded bg-gray-100 dark:bg-gray-800 text-sm"
+            >
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
+                {event.summary}
+              </div>
+              {event.description && (
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  {event.description}
+                </div>
+              )}
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {formatTime(event.start?.dateTime)}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Add event form */}
+      {showAdd ? (
+        <div className="space-y-2 p-3 bg-gray-100 dark:bg-gray-800 rounded">
           <input
             type="text"
             placeholder="Event title"
-            value={newEvent.title}
-            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-            className="w-full px-2 py-1 mb-2 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
-            autoFocus
+            value={newEvent.summary}
+            onChange={(e) => setNewEvent({ ...newEvent, summary: e.target.value })}
+            className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
-          <div className="flex gap-2 mb-2">
-            <input
-              type="date"
-              value={newEvent.date}
-              onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-              className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
-            />
-            <input
-              type="time"
-              value={newEvent.time}
-              onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-              className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Description (optional)"
+            value={newEvent.description}
+            onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+            className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            type="datetime-local"
+            value={newEvent.startTime}
+            onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
+            className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            type="datetime-local"
+            value={newEvent.endTime}
+            onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+            className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          />
           <div className="flex gap-2">
             <button
-              onClick={handleCreateEvent}
-              className="flex-1 px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm font-semibold transition"
+              onClick={addEvent}
+              className="flex-1 px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
             >
               Create
             </button>
             <button
-              onClick={() => setShowCreateForm(false)}
-              className="flex-1 px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded text-sm font-semibold transition"
+              onClick={() => setShowAdd(false)}
+              className="flex-1 px-3 py-1 text-sm bg-gray-400 text-white rounded hover:bg-gray-500"
             >
               Cancel
             </button>
           </div>
         </div>
-      )}
-
-      {/* Create Event Button */}
-      {!showCreateForm && (
+      ) : (
         <button
-          onClick={() => setShowCreateForm(true)}
-          className="mb-3 w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"
+          onClick={() => setShowAdd(true)}
+          className="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2"
         >
-          <Plus size={16} />
-          New Event
+          <Plus size={16} /> Add Event
         </button>
       )}
-
-      {/* Events List */}
-      <div className="flex-1 overflow-y-auto space-y-2">
-        {upcomingEvents.length > 0 ? (
-          upcomingEvents.map((event) => (
-            <div
-              key={event.id}
-              className="p-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-600 rounded-lg border-l-4 border-purple-500 hover:shadow-md transition"
-            >
-              <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                {event.summary}
-              </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <ChevronRight size={12} />
-                {formatEventTime(event)}
-              </p>
-            </div>
-          ))
-        ) : (
-          <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
-            No upcoming events
-          </div>
-        )}
-      </div>
-
-      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-        {events.length} events in calendar
-      </div>
     </div>
   );
 }
