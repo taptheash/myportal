@@ -80,7 +80,7 @@ export default function Notes({ id, config, onUpdateConfig }: NotesProps) {
   };
 
   return (
-    <div ref={contentRef} className="flex flex-col gap-3" style={{minHeight: "400px"}}>
+    <div ref={contentRef} className="flex flex-col gap-3">
       {notes.map((note) => (
         <div key={note.id} className="bg-amber-50 dark:bg-slate-700 rounded-lg p-3 border border-amber-200 dark:border-slate-600">
           <div className="flex justify-between items-center mb-2">

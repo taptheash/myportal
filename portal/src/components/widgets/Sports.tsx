@@ -27,6 +27,13 @@ const TEAMS: { key: string; name: string; emoji: string; accent: string; sport: 
   { key: 'bos-nhl', name: 'Bruins',   emoji: '🏒', accent: 'border-yellow-500',sport: 'hockey',     league: 'nhl', team: 'bos' },
 ];
 
+function getScore(competitor: any): string {
+  const s = competitor?.score;
+  if (s === null || s === undefined) return '';
+  if (typeof s === 'object') return s.displayValue ?? s.value ?? '';
+  return String(s);
+}
+
 function formatEvent(nextEvent: any): { line: string; detail: string } {
   try {
     const comp = nextEvent?.competitions?.[0];
@@ -42,11 +49,11 @@ function formatEvent(nextEvent: any): { line: string; detail: string } {
     if (state === 'in') {
       const home = competitors.find((c: any) => c.homeAway === 'home');
       const away = competitors.find((c: any) => c.homeAway === 'away');
-      detail = `Live: ${away?.score ?? ''}-${home?.score ?? ''} • ${detailText}`;
+      detail = `Live: ${getScore(away)}-${getScore(home)} • ${detailText}`;
     } else if (state === 'post') {
       const home = competitors.find((c: any) => c.homeAway === 'home');
       const away = competitors.find((c: any) => c.homeAway === 'away');
-      detail = `Final: ${away?.team?.abbreviation ?? ''} ${away?.score ?? ''} - ${home?.score ?? ''} ${home?.team?.abbreviation ?? ''}`;
+      detail = `Final: ${away?.team?.abbreviation ?? ''} ${getScore(away)} - ${getScore(home)} ${home?.team?.abbreviation ?? ''}`;
     }
 
     return { line, detail: detail || 'Schedule pending' };
