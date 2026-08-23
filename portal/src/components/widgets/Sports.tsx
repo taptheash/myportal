@@ -129,9 +129,6 @@ export default function Sports({ config }: SportsProps) {
           </div>
         </div>
       ))}
-      <div className="text-xs text-gray-400 dark:text-gray-500 text-center pt-1">
-        Patriots • Red Sox • Celtics • Bruins
-      </div>
     </div>
   );
 }

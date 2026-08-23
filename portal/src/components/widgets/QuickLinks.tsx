@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Globe, Check, Pencil } from 'lucide-react';
 
 interface QuickLinksProps {
@@ -59,6 +59,10 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editUrl, setEditUrl] = useState('');
+
+  useEffect(() => {
+    if (config.showAdd) setShowInlineAdd(true);
+  }, [config.showAdd]);
 
   const saveLinks = (updatedLinks: Link[]) => {
     setLinks(updatedLinks);
