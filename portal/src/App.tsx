@@ -1,183 +1,183 @@
-import React, { useState } from 'react';
-import { Moon, Sun, Plus, Minus } from 'lucide-react';
-import { useTheme } from './hooks/useTheme';
-import { useLocalStorage } from './hooks/useLocalStorage';
-
-import DailyQuote from './components/DailyQuote';
+import { useState, useEffect } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
-import Headlines from './components/widgets/Headlines';
-import TechNews from './components/widgets/TechNews';
-import LocalNews from './components/widgets/LocalNews';
-import WeirdNews from './components/widgets/WeirdNews';
 import Notes from './components/widgets/Notes';
 import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
-import SportsNews from './components/widgets/SportsNews';
+import NewsWidget from './components/widgets/NewsWidget';
 
-interface WidgetInstance {
-  id: string;
-  type: string;
-  title: string;
-  config: Record<string, any>;
-}
-
-interface WidgetDef {
-  type: string;
-  title: string;
-  component: React.ComponentType<any>;
-  color: string;
-}
-
-const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
-  weather:    { type: 'weather',    title: '☀️ Weather',           component: Weather,    color: 'from-yellow-400 to-orange-500' },
-  calendar:   { type: 'calendar',   title: '📅 Google Calendar',   component: Calendar,   color: 'from-purple-500 to-pink-500' },
-  sports:     { type: 'sports',     title: '🏆 New England Sports',component: Sports,     color: 'from-blue-800 to-red-700' },
-  sportsnews: { type: 'sportsnews', title: '📣 NE Sports News',    component: SportsNews, color: 'from-blue-700 to-cyan-600' },
-  headlines:  { type: 'headlines',  title: '🌍 Top Headlines',     component: Headlines,  color: 'from-red-500 to-orange-400' },
-  tech:       { type: 'tech',       title: '💻 Tech & AI News',    component: TechNews,   color: 'from-indigo-500 to-blue-600' },
-  local:      { type: 'local',      title: '📍 NH Local News',     component: LocalNews,  color: 'from-green-500 to-emerald-400' },
-  weird:      { type: 'weird',      title: '📰 Other News',        component: WeirdNews,  color: 'from-pink-500 to-rose-400' },
-  notes:      { type: 'notes',      title: '📝 Notes',             component: Notes,      color: 'from-amber-300 to-yellow-400' },
-  links:      { type: 'links',      title: '🔗 Quick Links',       component: QuickLinks, color: 'from-teal-500 to-cyan-400' },
-};
-
-const DEFAULT_ORDER = ['weather', 'calendar', 'notes', 'links', 'sports', 'sportsnews', 'headlines', 'tech', 'local', 'weird'];
-
-function makeDefaultWidgets(): WidgetInstance[] {
-  return DEFAULT_ORDER.map((type) => ({
-    id: type,
-    type,
-    title: WIDGET_DEFINITIONS[type].title,
-    config: {},
-  }));
-}
+const QUOTES = [
+  'The only way to do great work is to love what you do.',
+  'Innovation distinguishes between a leader and a follower.',
+  'Life is what happens when you\'re busy making other plans.',
+  'The future belongs to those who believe in the beauty of their dreams.',
+  'It is during our darkest moments that we must focus to see the light.',
+  'The way to get started is to quit talking and begin doing.',
+  'Don\'t let yesterday take up too much of today.',
+  'You learn more from failure than from success.',
+  'It\'s not whether you get knocked down, it\'s whether you get up.',
+  'Believe you can and you\'re halfway there.',
+  'The best time to plant a tree was 20 years ago. The second best time is now.',
+  'Success is not final, failure is not fatal.',
+  'You are never too old to set another goal or dream a new dream.',
+  'What lies behind us and what lies before us are tiny matters.',
+  'The only impossible journey is the one you never begin.',
+  'You can\'t use up creativity. The more you use, the more you have.',
+  'A successful person is one who can lay a firm foundation with the bricks others have thrown at him.',
+  'Do what you feel in your heart to be right.',
+  'The greatest glory in living lies not in never falling, but in rising every time we fall.',
+  'Your time is limited, don\'t waste it living someone else\'s life.',
+  'The way to get started is to quit talking and begin doing.',
+  'Don\'t let today\'s disappointments cast a shadow on tomorrow\'s dreams.',
+  'Whether you think you can, or you think you can\'t – you\'re right.',
+  'The man who moves a mountain begins by carrying away small stones.',
+  'The journey of a thousand miles begins with a single step.',
+  'Good things take time.',
+  'Progress is more important than perfection.',
+  'Your limitation—it\'s only your imagination.',
+  'Do something today that your future self will thank you for.',
+  'Little things make big days.',
+  'It\'s going to be hard, but hard does not mean impossible.',
+  'Don\'t stop when you\'re tired. Stop when you\'re done.',
+  'Wake up with determination. Go to bed with satisfaction.',
+  'Do it now. Sometimes "later" becomes never.',
+  'Great things never came from comfort zones.',
+  'Dream it. Wish it. Do it.',
+  'Success doesn\'t just find you. You have to go out and get it.',
+  'The harder you work for something, the greater you\'ll feel when you achieve it.',
+  'Dream bigger. Do bigger.',
+  'Don\'t wait for opportunity. Create it.',
+  'Sometimes we\'re tested not to show our weaknesses, but to discover our strengths.',
+  'The key to success is to focus on goals, not obstacles.',
+  'Dream it. Believe it. Build it.',
+  'Do something great.',
+  'Greatness is the result of small, consistent actions.'
+];
 
 export default function App() {
-  const { theme, toggleTheme } = useTheme();
-  const [widgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [weatherEditId, setWeatherEditId] = useState<string | null>(null);
-  const [weatherInput, setWeatherInput] = useState('');
+  const [darkMode, setDarkMode] = useState(false);
+  const [quoteIndex, setQuoteIndex] = useState(0);
 
-  const activeTypes = widgets.map((w) => w.type);
-  const availableToAdd = Object.keys(WIDGET_DEFINITIONS).filter((t) => !activeTypes.includes(t));
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode !== null) {
+      setDarkMode(JSON.parse(savedDarkMode));
+    }
+  }, []);
 
-  const handleAddWidget = (type: string) => {
-    const def = WIDGET_DEFINITIONS[type];
-    if (!def) return;
-    setWidgets([...widgets, { id: type, type, title: def.title, config: {} }]);
-    setShowAddMenu(false);
-  };
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setQuoteIndex((prev) => (prev + 1) % QUOTES.length);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
-      <div className="bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100">
-
+    <div className={darkMode ? 'dark' : ''}>
+      <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition">
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 shadow-md">
-          <div className="px-6 py-4 flex justify-between items-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent flex-shrink-0">
-              ✨ Doug's Portal
-            </h1>
-            <DailyQuote />
-            <div className="flex gap-3 items-center flex-shrink-0">
-              {availableToAdd.length > 0 && (
-                <div className="relative">
-                  <button onClick={() => setShowAddMenu(!showAddMenu)}
-                    className="p-2.5 rounded-lg bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 transition-all" title="Add widget">
-                    <Plus size={20} className="text-green-600 dark:text-green-400" />
-                  </button>
-                  {showAddMenu && (
-                    <div className="absolute right-0 top-12 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 z-50 min-w-48">
-                      {availableToAdd.map((type) => (
-                        <button key={type} onClick={() => handleAddWidget(type)}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-                          {WIDGET_DEFINITIONS[type].title}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <button onClick={toggleTheme}
-                className="p-2.5 rounded-lg bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all" title="Toggle theme">
-                {theme === 'dark' ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-slate-600" />}
-              </button>
+        <header className="sticky top-0 z-50 bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex-1 text-center">
+              <p className="text-sm font-light italic opacity-90">{QUOTES[quoteIndex]}</p>
             </div>
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="ml-4 p-2 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition"
+              aria-label="Toggle dark mode"
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </header>
 
-        {/* Dashboard Grid — fixed order, sized to content */}
-        <main className="p-6 bg-gray-50 dark:bg-slate-900 min-h-screen">
+        {/* Main Grid */}
+        <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="grid grid-cols-12 gap-4 items-start">
-            {widgets.map((widget) => {
-              const def = WIDGET_DEFINITIONS[widget.type];
-              if (!def) return null;
-              const Component = def.component;
+            {/* Weather - Col 1 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Weather</h2>
+              <Weather />
+            </div>
 
-              return (
-                <div
-                  key={widget.id}
-                  className="rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-                  style={{ gridColumn: 'span 3' }}
-                >
-                  {/* TITLE BAR */}
-                  <div className={`bg-gradient-to-r ${def.color} text-white px-3 py-2 flex justify-between items-center text-sm font-semibold select-none`}>
-                    {widget.type === 'weather' ? (
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span>{def.title}</span>
-                        {weatherEditId === widget.id ? (
-                          <input type="text" value={weatherInput}
-                            onChange={(e) => setWeatherInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && weatherInput.trim()) {
-                                setWidgets(widgets.map((w) => w.id === widget.id ? { ...w, config: { ...w.config, location: weatherInput.trim() } } : w));
-                                setWeatherEditId(null); setWeatherInput('');
-                              }
-                              if (e.key === 'Escape') { setWeatherEditId(null); setWeatherInput(''); }
-                            }}
-                            onBlur={() => { setWeatherEditId(null); setWeatherInput(''); }}
-                            placeholder="ZIP or city"
-                            className="flex-1 px-2 py-0.5 text-xs rounded bg-white bg-opacity-20 text-white border border-white border-opacity-40 focus:outline-none"
-                            autoFocus />
-                        ) : (
-                          <button onClick={() => { setWeatherEditId(widget.id); setWeatherInput(widget.config.location || 'New Hampshire'); }}
-                            className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-0.5 rounded truncate max-w-32">
-                            📍 {widget.config.location || 'New Hampshire'}
-                          </button>
-                        )}
-                      </div>
-                    ) : <span>{def.title}</span>}
+            {/* Calendar - Col 2 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Calendar</h2>
+              <Calendar />
+            </div>
 
-                    <div className="flex items-center gap-1">
-                      {['headlines','tech','local','weird','sportsnews'].includes(widget.type) && (
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => { const c = widget.config.articleCount || 10; setWidgets(widgets.map((w) => w.id === widget.id ? { ...w, config: { ...w.config, articleCount: Math.max(1, c - 1) } } : w)); }}
-                            className="w-5 h-5 flex items-center justify-center bg-white bg-opacity-20 hover:bg-opacity-40 rounded"><Minus size={12} /></button>
-                          <span className="text-xs font-bold w-5 text-center">{widget.config.articleCount || 10}</span>
-                          <button onClick={() => { const c = widget.config.articleCount || 10; setWidgets(widgets.map((w) => w.id === widget.id ? { ...w, config: { ...w.config, articleCount: Math.min(25, c + 1) } } : w)); }}
-                            className="w-5 h-5 flex items-center justify-center bg-white bg-opacity-20 hover:bg-opacity-40 rounded"><Plus size={12} /></button>
-                        </div>
-                      )}
-                      {widget.type === 'links' && (
-                        <button onClick={() => setWidgets(widgets.map((w) => w.id === widget.id ? { ...w, config: { ...w.config, showAdd: true } } : w))}
-                          className="w-5 h-5 flex items-center justify-center bg-white bg-opacity-20 hover:bg-opacity-40 rounded" title="Add link">
-                          <Plus size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+            {/* Notes - Col 3 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Notes</h2>
+              <Notes />
+            </div>
 
-                  {/* CONTENT */}
-                  <div className="p-3">
-                    <Component id={widget.id} config={widget.config}
-                      onUpdateConfig={(config: any) => setWidgets(widgets.map((w) => w.id === widget.id ? { ...w, config } : w))}
-                      isEditing={false} />
-                  </div>
-                </div>
-              );
-            })}
+            {/* Quick Links - Col 4 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Quick Links</h2>
+              <QuickLinks />
+            </div>
+
+            {/* Sports - Col 5 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">NE Sports Scores</h2>
+              <Sports />
+            </div>
+
+            {/* NE Sports News - Col 6 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">NE Sports News</h2>
+              <NewsWidget
+                feedUrl="https://www.boston.com/feed"
+                defaultArticleCount={3}
+              />
+            </div>
+
+            {/* Top Headlines - Col 7 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Top Headlines</h2>
+              <NewsWidget
+                feedUrl="https://feeds.nytimes.com/services/xml/rss/nyt/homepage.xml"
+                defaultArticleCount={5}
+              />
+            </div>
+
+            {/* Tech & AI - Col 8 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Tech & AI</h2>
+              <NewsWidget
+                feedUrl="https://techcrunch.com/feed/"
+                defaultArticleCount={4}
+              />
+            </div>
+
+            {/* NH Local - Col 9 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">NH Local</h2>
+              <NewsWidget
+                feedUrl="https://www.unionleader.com/feed/"
+                defaultArticleCount={4}
+              />
+            </div>
+
+            {/* Other News - Col 10 */}
+            <div className="col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100">Other News</h2>
+              <NewsWidget
+                feedUrl="https://www.upi.com/api/rss/news/Odd.xml"
+                defaultArticleCount={4}
+              />
+            </div>
           </div>
         </main>
       </div>
