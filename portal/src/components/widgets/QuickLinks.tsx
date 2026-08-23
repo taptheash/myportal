@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Trash2, X } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 
 interface Link {
   id: string;

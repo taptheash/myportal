@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react';
 
-interface Team {
-  id: string;
-  name: string;
-  league: string;
-}
-
 interface Game {
   id: string;
   homeTeam: string;
@@ -15,13 +9,6 @@ interface Game {
   status: string;
   startTime?: string;
 }
-
-const NE_TEAMS: Team[] = [
-  { id: 'ne', name: 'Patriots', league: 'NFL' },
-  { id: 'bos', name: 'Red Sox', league: 'MLB' },
-  { id: 'cel', name: 'Celtics', league: 'NBA' },
-  { id: 'bru', name: 'Bruins', league: 'NHL' },
-];
 
 export default function Sports() {
   const [games, setGames] = useState<Game[]>([]);
@@ -44,8 +31,6 @@ export default function Sports() {
       
       if (!response.ok) throw new Error('Failed to fetch games');
       
-      // Parse and filter for NE teams
-      const data = await response.json();
       // In a real implementation, you'd parse the ESPN API response
       // For now, set placeholder games
       setGames([
