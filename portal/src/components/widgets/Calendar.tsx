@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, AlertCircle, ChevronRight } from 'lucide-react';
+import { Plus, AlertCircle, ChevronRight, Trash2, Pencil } from 'lucide-react';
 
 interface CalendarProps {
   id: string;
@@ -21,16 +21,90 @@ interface CalendarEvent {
   };
 }
 
+interface EventFormValues {
+  title: string;
+  date: string;
+  time: string;
+}
+
+function toLocalDateTimeParts(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+function EventForm({
+  values,
+  onChange,
+  onSubmit,
+  onCancel,
+  submitLabel,
+}: {
+  values: EventFormValues;
+  onChange: (values: EventFormValues) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  submitLabel: string;
+}) {
+  return (
+    <div className="p-3 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg">
+      <input
+        type="text"
+        placeholder="Event title"
+        value={values.title}
+        onChange={(e) => onChange({ ...values, title: e.target.value })}
+        className="w-full px-2 py-1 mb-2 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
+        autoFocus
+      />
+      <div className="flex gap-2 mb-2">
+        <input
+          type="date"
+          value={values.date}
+          onChange={(e) => onChange({ ...values, date: e.target.value })}
+          className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
+        />
+        <input
+          type="time"
+          value={values.time}
+          onChange={(e) => onChange({ ...values, time: e.target.value })}
+          className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
+        />
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onSubmit}
+          className="flex-1 px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm font-semibold transition"
+        >
+          {submitLabel}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex-1 px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded text-sm font-semibold transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Calendar({ config, onUpdateConfig, isEditing }: CalendarProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newEvent, setNewEvent] = useState({
+  const [newEvent, setNewEvent] = useState<EventFormValues>({
     title: '',
     date: new Date().toISOString().split('T')[0],
     time: '10:00',
   });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editEvent, setEditEvent] = useState<EventFormValues>({ title: '', date: '', time: '' });
 
   // Fetch events from backend
   useEffect(() => {
@@ -57,9 +131,15 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     };
 
     fetchEvents();
-    const interval = setInterval(fetchEvents, 300000); // Refresh every 5 mins
+    const interval = setInterval(fetchEvents, 3600000); // Refresh every hour
     return () => clearInterval(interval);
   }, [isEditing]);
+
+  const refreshEvents = async () => {
+    const response = await fetch('/api/calendar/events');
+    const data = await response.json();
+    setEvents(data.events || []);
+  };
 
   const handleCreateEvent = async () => {
     if (!newEvent.title.trim()) return;
@@ -74,20 +154,57 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create event');
-      }
+      if (!response.ok) throw new Error('Failed to create event');
 
-      // Refresh events
-      const eventsResponse = await fetch('/api/calendar/events');
-      const data = await eventsResponse.json();
-      setEvents(data.events || []);
-
-      // Reset form
+      await refreshEvents();
       setNewEvent({ title: '', date: new Date().toISOString().split('T')[0], time: '10:00' });
       setShowCreateForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
+    }
+  };
+
+  const startEdit = (event: CalendarEvent) => {
+    const source = event.start.dateTime || event.start.date;
+    const parts = source ? toLocalDateTimeParts(source) : { date: '', time: '10:00' };
+    setEditEvent({ title: event.summary, date: parts.date, time: parts.time });
+    setEditingId(event.id);
+    setShowCreateForm(false);
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!editingId || !editEvent.title.trim()) return;
+
+    try {
+      const response = await fetch(`/api/calendar/events?id=${encodeURIComponent(editingId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary: editEvent.title,
+          startDateTime: `${editEvent.date}T${editEvent.time}:00`,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update event');
+
+      await refreshEvents();
+      setEditingId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update event');
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    const previous = events;
+    setEvents(events.filter((e) => e.id !== eventId)); // optimistic
+    try {
+      const response = await fetch(`/api/calendar/events?id=${encodeURIComponent(eventId)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete event');
+    } catch (err) {
+      setEvents(previous); // revert on failure
+      setError(err instanceof Error ? err.message : 'Failed to delete event');
     }
   };
 
@@ -152,48 +269,19 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     <div className="h-full flex flex-col">
       {/* Create Event Form */}
       {showCreateForm && (
-        <div className="mb-4 p-3 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg">
-          <input
-            type="text"
-            placeholder="Event title"
-            value={newEvent.title}
-            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-            className="w-full px-2 py-1 mb-2 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
-            autoFocus
+        <div className="mb-4">
+          <EventForm
+            values={newEvent}
+            onChange={setNewEvent}
+            onSubmit={handleCreateEvent}
+            onCancel={() => setShowCreateForm(false)}
+            submitLabel="Create"
           />
-          <div className="flex gap-2 mb-2">
-            <input
-              type="date"
-              value={newEvent.date}
-              onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-              className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
-            />
-            <input
-              type="time"
-              value={newEvent.time}
-              onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-              className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCreateEvent}
-              className="flex-1 px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm font-semibold transition"
-            >
-              Create
-            </button>
-            <button
-              onClick={() => setShowCreateForm(false)}
-              className="flex-1 px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded text-sm font-semibold transition"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       )}
 
       {/* Create Event Button */}
-      {!showCreateForm && (
+      {!showCreateForm && !editingId && (
         <button
           onClick={() => setShowCreateForm(true)}
           className="mb-3 w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"
@@ -206,20 +294,49 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
       {/* Events List */}
       <div className="flex-1 overflow-y-auto space-y-2">
         {upcomingEvents.length > 0 ? (
-          upcomingEvents.map((event) => (
-            <div
-              key={event.id}
-              className="p-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-600 rounded-lg border-l-4 border-purple-500 hover:shadow-md transition"
-            >
-              <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                {event.summary}
-              </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <ChevronRight size={12} />
-                {formatEventTime(event)}
-              </p>
-            </div>
-          ))
+          upcomingEvents.map((event) =>
+            editingId === event.id ? (
+              <EventForm
+                key={event.id}
+                values={editEvent}
+                onChange={setEditEvent}
+                onSubmit={handleUpdateEvent}
+                onCancel={() => setEditingId(null)}
+                submitLabel="Save"
+              />
+            ) : (
+              <div
+                key={event.id}
+                className="group p-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-600 rounded-lg border-l-4 border-purple-500 hover:shadow-md transition flex items-start justify-between gap-2"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                    {event.summary}
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <ChevronRight size={12} />
+                    {formatEventTime(event)}
+                  </p>
+                </div>
+                <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    onClick={() => startEdit(event)}
+                    title="Edit event"
+                    className="p-1 rounded-md text-gray-400 hover:bg-purple-200 hover:text-purple-700 dark:hover:bg-purple-900/40 dark:hover:text-purple-300 transition"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteEvent(event.id)}
+                    title="Delete event"
+                    className="p-1 rounded-md text-gray-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            )
+          )
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
             No upcoming events

@@ -1,27 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+function systemPrefersDark(): boolean {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
 
 export function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const [mode, setModeState] = useState<ThemeMode>(() => {
     const stored = localStorage.getItem('portal-theme');
-    if (stored === 'light' || stored === 'dark') return stored;
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+    return 'system';
   });
 
+  const [osIsDark, setOsIsDark] = useState(systemPrefersDark);
+
   useEffect(() => {
-    localStorage.setItem('portal-theme', theme);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => setOsIsDark(e.matches);
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  const resolvedTheme: 'light' | 'dark' = mode === 'system' ? (osIsDark ? 'dark' : 'light') : mode;
 
-  return { theme, toggleTheme, setTheme };
+  useEffect(() => {
+    localStorage.setItem('portal-theme', mode);
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+  }, [mode, resolvedTheme]);
+
+  const setMode = useCallback((next: ThemeMode) => setModeState(next), []);
+
+  return { mode, resolvedTheme, setMode };
 }

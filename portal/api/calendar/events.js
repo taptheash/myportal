@@ -1,5 +1,5 @@
 // Vercel Serverless Function
-// Handles GET (list upcoming events) and POST (create event)
+// Handles GET (list upcoming events), POST (create), PATCH (edit), DELETE (remove).
 // Talks to Google Calendar using a service account — the private key
 // never touches the browser, only this server-side function.
 
@@ -74,6 +74,59 @@ module.exports = async (req, res) => {
       }
 
       return res.status(200).json(data);
+    }
+
+    if (req.method === 'PATCH') {
+      const eventId = req.query?.id;
+      const { summary, startDateTime } = req.body || {};
+      if (!eventId) {
+        return res.status(400).json({ error: 'Event id is required (?id=...)' });
+      }
+      if (!summary || !startDateTime) {
+        return res.status(400).json({ error: 'summary and startDateTime are required' });
+      }
+
+      const start = new Date(startDateTime);
+      const end = new Date(start.getTime() + 60 * 60000); // defaults to 1 hour
+
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+      const resp = await fetch(url, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary,
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+        }),
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        return res.status(resp.status).json({ error: data.error?.message || 'Google Calendar API error' });
+      }
+
+      return res.status(200).json(data);
+    }
+
+    if (req.method === 'DELETE') {
+      const eventId = req.query?.id;
+      if (!eventId) {
+        return res.status(400).json({ error: 'Event id is required (?id=...)' });
+      }
+
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+      const resp = await fetch(url, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Google returns 204 No Content with an empty body on success
+      if (!resp.ok && resp.status !== 410) {
+        const data = await resp.json().catch(() => ({}));
+        return res.status(resp.status).json({ error: data.error?.message || 'Google Calendar API error' });
+      }
+
+      return res.status(200).json({ deleted: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
