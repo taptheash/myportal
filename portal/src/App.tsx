@@ -72,6 +72,8 @@ export default function App() {
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
   const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
+  const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
+  const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -128,8 +130,13 @@ export default function App() {
     return { type: def.type, label: def.label, icon: def.icon, color: def.color, activeText: def.activeText };
   };
 
-  const toolTabs = TOOL_TYPES.map(toTabDef);
-  const newsTabs = NEWS_TYPES.map(toTabDef);
+  // Backfill guards against a stored order predating a widget type that was
+  // added later (e.g. Business News) — same defensive pattern as `widgets`.
+  const resolveOrder = (stored: string[], known: string[]) =>
+    stored.filter((t) => known.includes(t)).concat(known.filter((t) => !stored.includes(t)));
+
+  const toolTabs = resolveOrder(toolOrder, TOOL_TYPES).map(toTabDef);
+  const newsTabs = resolveOrder(newsOrder, NEWS_TYPES).map(toTabDef);
 
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
   const activeNewsWidget = widgets.find((w) => w.type === activeNews)!;
@@ -246,6 +253,7 @@ export default function App() {
                 tabs={toolTabs}
                 activeType={activeTool}
                 onSelect={setActiveTool}
+                onReorder={setToolOrder}
                 controls={renderToolControls()}
               >
                 <ToolComponent
@@ -263,6 +271,7 @@ export default function App() {
                 tabs={newsTabs}
                 activeType={activeNews}
                 onSelect={setActiveNews}
+                onReorder={setNewsOrder}
                 controls={renderNewsControls()}
               >
                 <NewsComponent
