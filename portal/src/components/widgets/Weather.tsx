@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle } from 'lucide-react';
+import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface WeatherProps {
   id: string;
@@ -78,15 +78,18 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
 
       {weather && !loading && !error && (
         <div className="flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-4xl font-bold text-gray-900 dark:text-white">{Math.round(weather.main.temp)}°F</div>
-              <div className="text-lg font-semibold text-gray-700 dark:text-gray-300 capitalize">{weather.weather[0].description}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Feels like {Math.round(weather.main.feels_like)}°F</div>
+          <div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-semibold">📍 {weather.name}</div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-4xl font-bold text-gray-900 dark:text-white">{Math.round(weather.main.temp)}°F</div>
+                <div className="text-lg font-semibold text-gray-700 dark:text-gray-300 capitalize">{weather.weather[0].description}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Feels like {Math.round(weather.main.feels_like)}°F</div>
+              </div>
+              <div>{getWeatherIcon(weather.weather[0].main)}</div>
             </div>
-            <div>{getWeatherIcon(weather.weather[0].main)}</div>
           </div>
-          <div className="grid grid-cols-2 gap-1.5 text-sm flex-shrink-0">
+          <div className="grid grid-cols-2 gap-1.5 text-sm flex-shrink-0 mb-3">
             <div className="flex items-center gap-2 bg-blue-50 dark:bg-slate-700 p-2 rounded-lg">
               <Droplets size={16} className="text-blue-500" />
               <div>
@@ -102,6 +105,14 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
               </div>
             </div>
           </div>
+          <a
+            href={`https://weather.weatherbug.com/weather/today/${encodeURIComponent(weather.name)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/60 transition text-xs font-semibold"
+          >
+            View on WeatherBug <ExternalLink size={12} />
+          </a>
         </div>
       )}
     </div>

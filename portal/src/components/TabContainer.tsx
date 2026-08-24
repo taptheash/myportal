@@ -16,6 +16,21 @@ interface TabContainerProps {
   children: React.ReactNode;
 }
 
+// Map gradient colors to light inactive variants
+const COLOR_TO_LIGHT: Record<string, { bg: string; text: string }> = {
+  'from-yellow-400 to-orange-500': { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-300' },
+  'from-amber-300 to-yellow-400': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
+  'from-purple-500 to-pink-500': { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300' },
+  'from-teal-500 to-cyan-400': { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-700 dark:text-teal-300' },
+  'from-blue-800 to-red-700': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
+  'from-blue-700 to-cyan-600': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
+  'from-red-500 to-orange-400': { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300' },
+  'from-indigo-500 to-blue-600': { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-700 dark:text-indigo-300' },
+  'from-green-500 to-emerald-400': { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300' },
+  'from-amber-500 to-yellow-600': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
+  'from-pink-500 to-rose-400': { bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-300' },
+};
+
 export default function TabContainer({
   sectionLabel,
   tabs,
@@ -36,6 +51,8 @@ export default function TabContainer({
         {tabs.map((tab) => {
           const isActive = tab.type === activeType;
           const Icon = tab.icon;
+          const lightColor = COLOR_TO_LIGHT[tab.color] || { bg: 'bg-gray-100 dark:bg-slate-800', text: 'text-gray-700 dark:text-gray-300' };
+          
           return (
             <button
               key={tab.type}
@@ -45,7 +62,7 @@ export default function TabContainer({
               className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-t-xl text-sm font-semibold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                 isActive
                   ? `bg-gradient-to-r ${tab.color} text-white shadow-md relative z-10 -mb-px`
-                  : 'bg-gray-100 dark:bg-slate-800/70 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+                  : `${lightColor.bg} ${lightColor.text} hover:opacity-80 relative`
               }`}
             >
               <Icon size={15} className="flex-shrink-0" />

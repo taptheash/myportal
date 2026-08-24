@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus,
   StickyNote, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
@@ -7,7 +7,6 @@ import {
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
-import DailyQuote from './components/DailyQuote';
 import TabContainer, { TabDef } from './components/TabContainer';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
@@ -15,6 +14,7 @@ import Headlines from './components/widgets/Headlines';
 import TechNews from './components/widgets/TechNews';
 import LocalNews from './components/widgets/LocalNews';
 import WeirdNews from './components/widgets/WeirdNews';
+import BusinessNews from './components/widgets/BusinessNews';
 import Notes from './components/widgets/Notes';
 import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
@@ -45,11 +45,12 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,  color: 'from-red-500 to-orange-400' },
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,   color: 'from-indigo-500 to-blue-600' },
   local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,  color: 'from-green-500 to-emerald-400' },
+  business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: 'from-amber-500 to-yellow-600' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,  color: 'from-pink-500 to-rose-400' },
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'calendar', 'links', 'sports'];
-const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'weird'];
+const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
@@ -61,7 +62,7 @@ function makeDefaultWidgets(): WidgetInstance[] {
   }));
 }
 
-const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'tech', 'local', 'weird']);
+const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird']);
 
 export default function App() {
   const { mode, resolvedTheme, setMode } = useTheme();
@@ -70,6 +71,43 @@ export default function App() {
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  // Live clock: Full Month, Day Year HH:MM:SS
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      const month = now.toLocaleString('en-US', { month: 'long' });
+      const day = now.getDate();
+      const year = now.getFullYear();
+      const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      setCurrentTime(`${month} ${day}, ${year} ${time}`);
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Bing wallpaper of the day
+  useEffect(() => {
+    const fetchBingWallpaper = async () => {
+      try {
+        const response = await fetch('https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US');
+        const data = await response.json();
+        if (data.images && data.images.length > 0) {
+          const imageUrl = `https://www.bing.com${data.images[0].url}`;
+          document.body.style.backgroundImage = `url('${imageUrl}')`;
+          document.body.style.backgroundAttachment = 'fixed';
+          document.body.style.backgroundPosition = 'center';
+          document.body.style.backgroundRepeat = 'no-repeat';
+          document.body.style.backgroundSize = 'cover';
+        }
+      } catch (err) {
+        console.error('Failed to fetch Bing wallpaper:', err);
+      }
+    };
+    fetchBingWallpaper();
+  }, []);
 
   const byType = new Map(storedWidgets.map((w) => [w.type, w]));
   const widgets: WidgetInstance[] = ALL_TYPES.map(
@@ -151,7 +189,7 @@ export default function App() {
         </button>
         <span className="text-xs font-bold w-5 text-center text-gray-700 dark:text-gray-200">{count}</span>
         <button
-          onClick={() => updateWidgetConfig(activeNews, { ...activeNewsWidget.config, articleCount: Math.min(25, count + 1) })}
+          onClick={() => updateWidgetConfig(activeNews, { ...activeNewsWidget.config, articleCount: Math.min(100, count + 1) })}
           className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
         >
           <Plus size={13} />
@@ -168,10 +206,9 @@ export default function App() {
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100">
         <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 shadow-md">
           <div className="px-6 py-4 flex justify-between items-center gap-4">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent flex-shrink-0">
-              ✨ Doug's Portal
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex-shrink-0">
+              {currentTime || 'Loading...'}
             </h1>
-            <DailyQuote />
             <div className="flex items-center bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-0.5 flex-shrink-0">
               {(['light', 'system', 'dark'] as ThemeMode[]).map((m) => {
                 const Icon = m === 'light' ? Sun : m === 'dark' ? Moon : Monitor;
@@ -197,36 +234,40 @@ export default function App() {
         </header>
 
         <main className="p-6">
-          <div className="flex flex-col lg:flex-row gap-6 items-start max-w-7xl mx-auto">
-            <TabContainer
-              sectionLabel="Tools"
-              tabs={toolTabs}
-              activeType={activeTool}
-              onSelect={setActiveTool}
-              controls={renderToolControls()}
-            >
-              <ToolComponent
-                id={activeToolWidget.id}
-                config={activeToolWidget.config}
-                onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
-                isEditing={false}
-              />
-            </TabContainer>
+          <div className="flex flex-row gap-6 items-start w-full">
+            <div className="flex-1 min-w-0">
+              <TabContainer
+                sectionLabel="Tools"
+                tabs={toolTabs}
+                activeType={activeTool}
+                onSelect={setActiveTool}
+                controls={renderToolControls()}
+              >
+                <ToolComponent
+                  id={activeToolWidget.id}
+                  config={activeToolWidget.config}
+                  onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
+                  isEditing={false}
+                />
+              </TabContainer>
+            </div>
 
-            <TabContainer
-              sectionLabel="News"
-              tabs={newsTabs}
-              activeType={activeNews}
-              onSelect={setActiveNews}
-              controls={renderNewsControls()}
-            >
-              <NewsComponent
-                id={activeNewsWidget.id}
-                config={activeNewsWidget.config}
-                onUpdateConfig={(config: any) => updateWidgetConfig(activeNews, config)}
-                isEditing={false}
-              />
-            </TabContainer>
+            <div className="flex-1 min-w-0">
+              <TabContainer
+                sectionLabel="News"
+                tabs={newsTabs}
+                activeType={activeNews}
+                onSelect={setActiveNews}
+                controls={renderNewsControls()}
+              >
+                <NewsComponent
+                  id={activeNewsWidget.id}
+                  config={activeNewsWidget.config}
+                  onUpdateConfig={(config: any) => updateWidgetConfig(activeNews, config)}
+                  isEditing={false}
+                />
+              </TabContainer>
+            </div>
           </div>
         </main>
       </div>
