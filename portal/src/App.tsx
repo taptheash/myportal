@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus,
-  StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
+  StickyNote, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
@@ -41,10 +41,9 @@ interface WidgetDef {
 const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   weather:    { type: 'weather',    label: 'Weather',     icon: Sun,          component: Weather,      color: '#E69F00', activeText: 'black' },
   notes:      { type: 'notes',      label: 'Notes',       icon: StickyNote,   component: Notes,        color: '#F0E442', activeText: 'black' },
-  tasks:      { type: 'tasks',      label: 'Tasks',       icon: ListChecks,   component: Notes,        color: '#009E73', activeText: 'black' },
   calendar:   { type: 'calendar',   label: 'Calendar',    icon: CalendarIcon, component: Calendar,     color: '#CC79A7', activeText: 'black' },
   links:      { type: 'links',      label: 'Quick Links', icon: Link2,        component: QuickLinks,   color: '#56B4E9', activeText: 'black' },
-  sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,       color: '#F0E442', activeText: 'black' },
+  sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,       color: '#0072B2', activeText: 'white' },
   sportsnews: { type: 'sportsnews', label: 'NE Sports',   icon: Megaphone,    component: SportsNews,   color: '#56B4E9', activeText: 'black' },
   headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,    color: '#D55E00', activeText: 'black' },
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
@@ -53,8 +52,8 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
 };
 
-const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sports', 'sportsnews', 'headlines', 'tech', 'local', 'business', 'weird'];
+const TOOL_TYPES = ['weather', 'notes', 'calendar', 'links', 'sports'];
+const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
@@ -73,8 +72,6 @@ export default function App() {
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
   const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
-  const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
-  const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -83,12 +80,11 @@ export default function App() {
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
-      const dayOfWeek = now.toLocaleString('en-US', { weekday: 'long' });
       const month = now.toLocaleString('en-US', { month: 'long' });
       const day = now.getDate();
       const year = now.getFullYear();
       const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-      setCurrentTime(`${dayOfWeek} ${month} ${day} ${year} ${time}`);
+      setCurrentTime(`${month} ${day}, ${year} ${time}`);
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
@@ -132,13 +128,8 @@ export default function App() {
     return { type: def.type, label: def.label, icon: def.icon, color: def.color, activeText: def.activeText };
   };
 
-  // Backfill guards against a stored order predating a widget type that was
-  // added later (e.g. Business News) — same defensive pattern as `widgets`.
-  const resolveOrder = (stored: string[], known: string[]) =>
-    stored.filter((t) => known.includes(t)).concat(known.filter((t) => !stored.includes(t)));
-
-  const toolTabs = resolveOrder(toolOrder, TOOL_TYPES).map(toTabDef);
-  const newsTabs = resolveOrder(newsOrder, NEWS_TYPES).map(toTabDef);
+  const toolTabs = TOOL_TYPES.map(toTabDef);
+  const newsTabs = NEWS_TYPES.map(toTabDef);
 
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
   const activeNewsWidget = widgets.find((w) => w.type === activeNews)!;
@@ -255,7 +246,6 @@ export default function App() {
                 tabs={toolTabs}
                 activeType={activeTool}
                 onSelect={setActiveTool}
-                onReorder={setToolOrder}
                 controls={renderToolControls()}
               >
                 <ToolComponent
@@ -273,7 +263,6 @@ export default function App() {
                 tabs={newsTabs}
                 activeType={activeNews}
                 onSelect={setActiveNews}
-                onReorder={setNewsOrder}
                 controls={renderNewsControls()}
               >
                 <NewsComponent

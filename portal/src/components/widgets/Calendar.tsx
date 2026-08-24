@@ -256,14 +256,15 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     );
   }
 
-  // Get today's and tomorrow's events
+  // Get upcoming events, capped to the user's configured display count
   const now = new Date();
+  const eventCount = config.eventCount || 5;
   const upcomingEvents = events
     .filter((event) => {
       const eventDate = new Date((event.start.dateTime || event.start.date) as string);
       return eventDate >= now;
     })
-    .slice(0, 5);
+    .slice(0, eventCount);
 
   return (
     <div className="h-full flex flex-col">
@@ -345,7 +346,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
       </div>
 
       <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-        {events.length} events in calendar
+        {upcomingEvents.length} events shown
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ interface NewsItem { title: string; link: string; pubDate: string; }
 const FEED_URL = 'https://rss.upi.com/news/odd_news.rss';
 const SOURCE_NAME = 'UPI Odd News';
 
-export default function OtherNews({ config }: OtherNewsProps) {
+export default function OtherNews({ config, onUpdateConfig }: OtherNewsProps) {
   const [articles, setArticles] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +27,7 @@ export default function OtherNews({ config }: OtherNewsProps) {
         const items = await fetchRssWithCache(`rss-weird-${articleCount}`, FEED_URL, articleCount, 3600000);
         setArticles(items);
         setError(null);
+        onUpdateConfig({ ...config, articleCount, lastFetchedCount: items.length });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching news');
       } finally {
@@ -36,6 +37,7 @@ export default function OtherNews({ config }: OtherNewsProps) {
     fetchNews();
     const interval = setInterval(fetchNews, 3600000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articleCount]);
 
   const formatTime = (pubDate: string) => {

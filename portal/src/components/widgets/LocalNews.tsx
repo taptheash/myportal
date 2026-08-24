@@ -14,7 +14,7 @@ interface NewsItem { title: string; link: string; pubDate: string; }
 const FEED_URL = 'https://www.nhpr.org/nh-news.rss';
 const SOURCE_NAME = 'NHPR';
 
-export default function LocalNews({ config }: LocalNewsProps) {
+export default function LocalNews({ config, onUpdateConfig }: LocalNewsProps) {
   const [articles, setArticles] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +27,7 @@ export default function LocalNews({ config }: LocalNewsProps) {
         const items = await fetchRssWithCache(`rss-local-${articleCount}`, FEED_URL, articleCount, 3600000);
         setArticles(items);
         setError(null);
+        onUpdateConfig({ ...config, articleCount, lastFetchedCount: items.length });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching news');
       } finally {
@@ -36,6 +37,7 @@ export default function LocalNews({ config }: LocalNewsProps) {
     fetchNews();
     const interval = setInterval(fetchNews, 3600000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articleCount]);
 
   const formatTime = (pubDate: string) => {

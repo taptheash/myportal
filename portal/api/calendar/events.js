@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
       const timeMin = new Date().toISOString();
-      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&maxResults=10&singleEvents=true&orderBy=startTime`;
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&maxResults=25&singleEvents=true&orderBy=startTime`;
 
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json();
