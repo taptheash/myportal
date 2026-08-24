@@ -18,33 +18,26 @@ interface TabContainerProps {
   children: React.ReactNode;
 }
 
-// Same-hue lighten/darken so the active-tab gradient never crosses into a
-// different Okabe-Ito hue. Colorblind distinguishability depends on hue, not
-// lightness, so this stays exactly as safe as a flat fill while looking far
-// less static.
-function lighten(hex: string, t: number): string {
-  const n = hex.replace('#', '');
-  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
-  const mix = (c: number) => Math.round(c + (255 - c) * t);
-  return `#${mix(r).toString(16).padStart(2, '0')}${mix(g).toString(16).padStart(2, '0')}${mix(b).toString(16).padStart(2, '0')}`;
-}
+// Precomputed & WCAG-verified per-color 3-stop gradient endpoints (light tint
+// -> vivid base -> rich dark shade). Baked in rather than computed from a
+// shared formula because safe darken/lighten headroom differs a lot by hue —
+// vermillion is already dark and has almost no safe room to darken further,
+// while yellow starts bright and has plenty. Each triple's worst-case
+// contrast against its assigned text color was verified >= 4.5:1 (WCAG AA).
+const GRADIENT_STOPS: Record<string, { light: string; dark: string }> = {
+  '#E69F00': { light: '#EDBB4C', dark: '#AE7800' }, // orange
+  '#56B4E9': { light: '#88CAEF', dark: '#428AB3' }, // sky blue
+  '#009E73': { light: '#4CBB9D', dark: '#00946C' }, // bluish green
+  '#F0E442': { light: '#F4EC7A', dark: '#908827' }, // yellow
+  '#0072B2': { light: '#0C79B5', dark: '#003E61' }, // blue (white text)
+  '#D55E00': { light: '#E18E4C', dark: '#D55E00' }, // vermillion — negligible safe darken room
+  '#CC79A7': { light: '#DBA1C1', dark: '#B56B94' }, // reddish purple
+};
 
-function darken(hex: string, factor: number): string {
-  const n = hex.replace('#', '');
-  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
-  const scale = (c: number) => Math.round(c * factor);
-  return `#${scale(r).toString(16).padStart(2, '0')}${scale(g).toString(16).padStart(2, '0')}${scale(b).toString(16).padStart(2, '0')}`;
-}
-
-// Verified via computed contrast ratios: the worst-case stop in either
-// direction never drops below the already-passing base color's ratio,
-// across all 7 palette colors.
-function activeGradient(color: string, activeText: 'black' | 'white'): string {
-  const [stopA, stopB] =
-    activeText === 'black'
-      ? [lighten(color, 0.32), color]   // lighter tint -> base; contrast only improves vs black text
-      : [color, darken(color, 0.62)];   // base -> darker shade; contrast only improves vs white text
-  return `linear-gradient(135deg, ${stopA}, ${stopB})`;
+function activeGradient(color: string): string {
+  const stops = GRADIENT_STOPS[color];
+  if (!stops) return color; // safety net if an unlisted color ever shows up
+  return `linear-gradient(135deg, ${stops.light}, ${color}, ${stops.dark})`;
 }
 
 export default function TabContainer({
@@ -168,7 +161,7 @@ export default function TabContainer({
                 }`}
                 style={
                   isActive
-                    ? { backgroundImage: activeGradient(tab.color, tab.activeText), color: textColor, borderTopColor: tab.color, borderTopStyle: 'solid' }
+                    ? { backgroundImage: activeGradient(tab.color), color: textColor, borderTopColor: tab.color, borderTopStyle: 'solid', boxShadow: `0 4px 14px ${tab.color}4D` }
                     : { backgroundColor: `${tab.color}26`, borderTopColor: 'transparent', borderTopStyle: 'solid' } // ~15% tint wash
                 }
               >
