@@ -32,21 +32,24 @@ interface WidgetDef {
   label: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   component: React.ComponentType<any>;
-  color: string;
+  color: string;       // hex from the Okabe-Ito colorblind-safe palette (verified distinguishable under protanopia/deuteranopia/tritanopia)
+  activeText: 'black' | 'white'; // pre-verified WCAG AA (>=4.5:1) text color for `color`
 }
 
+// Okabe-Ito colorblind-safe palette. Reused across the two containers since only
+// same-container tabs need to be mutually distinguishable from each other.
 const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
-  weather:    { type: 'weather',    label: 'Weather',     icon: Sun,          component: Weather,    color: 'from-yellow-400 to-orange-500' },
-  notes:      { type: 'notes',      label: 'Notes',       icon: StickyNote,   component: Notes,      color: 'from-amber-300 to-yellow-400' },
-  calendar:   { type: 'calendar',   label: 'Calendar',    icon: CalendarIcon, component: Calendar,   color: 'from-purple-500 to-pink-500' },
-  links:      { type: 'links',      label: 'Quick Links', icon: Link2,        component: QuickLinks, color: 'from-teal-500 to-cyan-400' },
-  sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,     color: 'from-blue-800 to-red-700' },
-  sportsnews: { type: 'sportsnews', label: 'NE Sports',   icon: Megaphone,    component: SportsNews, color: 'from-blue-700 to-cyan-600' },
-  headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,  color: 'from-red-500 to-orange-400' },
-  tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,   color: 'from-indigo-500 to-blue-600' },
-  local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,  color: 'from-green-500 to-emerald-400' },
-  business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: 'from-amber-500 to-yellow-600' },
-  weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,  color: 'from-pink-500 to-rose-400' },
+  weather:    { type: 'weather',    label: 'Weather',     icon: Sun,          component: Weather,      color: '#E69F00', activeText: 'black' },
+  notes:      { type: 'notes',      label: 'Notes',       icon: StickyNote,   component: Notes,        color: '#F0E442', activeText: 'black' },
+  calendar:   { type: 'calendar',   label: 'Calendar',    icon: CalendarIcon, component: Calendar,     color: '#CC79A7', activeText: 'black' },
+  links:      { type: 'links',      label: 'Quick Links', icon: Link2,        component: QuickLinks,   color: '#56B4E9', activeText: 'black' },
+  sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,       color: '#0072B2', activeText: 'white' },
+  sportsnews: { type: 'sportsnews', label: 'NE Sports',   icon: Megaphone,    component: SportsNews,   color: '#56B4E9', activeText: 'black' },
+  headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,    color: '#D55E00', activeText: 'black' },
+  tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
+  local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,    color: '#009E73', activeText: 'black' },
+  business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
+  weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'calendar', 'links', 'sports'];
@@ -88,15 +91,17 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Bing wallpaper of the day
+  // Bing wallpaper of the day. Fetched via our own /api route, not bing.com
+  // directly — Bing's image endpoint doesn't send CORS headers, so a direct
+  // browser fetch from this origin gets silently blocked.
   useEffect(() => {
     const fetchBingWallpaper = async () => {
       try {
-        const response = await fetch('https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US');
+        const response = await fetch('/api/bing-wallpaper');
+        if (!response.ok) throw new Error('Failed to fetch wallpaper');
         const data = await response.json();
-        if (data.images && data.images.length > 0) {
-          const imageUrl = `https://www.bing.com${data.images[0].url}`;
-          document.body.style.backgroundImage = `url('${imageUrl}')`;
+        if (data.imageUrl) {
+          document.body.style.backgroundImage = `url('${data.imageUrl}')`;
           document.body.style.backgroundAttachment = 'fixed';
           document.body.style.backgroundPosition = 'center';
           document.body.style.backgroundRepeat = 'no-repeat';
@@ -120,7 +125,7 @@ export default function App() {
 
   const toTabDef = (type: string): TabDef => {
     const def = WIDGET_DEFINITIONS[type];
-    return { type: def.type, label: def.label, icon: def.icon, color: def.color };
+    return { type: def.type, label: def.label, icon: def.icon, color: def.color, activeText: def.activeText };
   };
 
   const toolTabs = TOOL_TYPES.map(toTabDef);
