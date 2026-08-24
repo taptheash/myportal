@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus,
-  StickyNote, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
+  StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
@@ -41,9 +41,10 @@ interface WidgetDef {
 const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   weather:    { type: 'weather',    label: 'Weather',     icon: Sun,          component: Weather,      color: '#E69F00', activeText: 'black' },
   notes:      { type: 'notes',      label: 'Notes',       icon: StickyNote,   component: Notes,        color: '#F0E442', activeText: 'black' },
+  tasks:      { type: 'tasks',      label: 'Tasks',       icon: ListChecks,   component: Notes,        color: '#009E73', activeText: 'black' },
   calendar:   { type: 'calendar',   label: 'Calendar',    icon: CalendarIcon, component: Calendar,     color: '#CC79A7', activeText: 'black' },
   links:      { type: 'links',      label: 'Quick Links', icon: Link2,        component: QuickLinks,   color: '#56B4E9', activeText: 'black' },
-  sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,       color: '#0072B2', activeText: 'white' },
+  sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,       color: '#F0E442', activeText: 'black' },
   sportsnews: { type: 'sportsnews', label: 'NE Sports',   icon: Megaphone,    component: SportsNews,   color: '#56B4E9', activeText: 'black' },
   headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,    color: '#D55E00', activeText: 'black' },
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
@@ -52,8 +53,8 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
 };
 
-const TOOL_TYPES = ['weather', 'notes', 'calendar', 'links', 'sports'];
-const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird'];
+const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
+const NEWS_TYPES = ['sports', 'sportsnews', 'headlines', 'tech', 'local', 'business', 'weird'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
