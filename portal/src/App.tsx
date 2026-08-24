@@ -83,11 +83,12 @@ export default function App() {
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
+      const dayOfWeek = now.toLocaleString('en-US', { weekday: 'long' });
       const month = now.toLocaleString('en-US', { month: 'long' });
       const day = now.getDate();
       const year = now.getFullYear();
       const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-      setCurrentTime(`${month} ${day}, ${year} ${time}`);
+      setCurrentTime(`${dayOfWeek} ${month} ${day} ${year} ${time}`);
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
