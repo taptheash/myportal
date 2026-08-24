@@ -106,7 +106,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
             </div>
           </div>
           <a
-            href={`https://weather.weatherbug.com/weather/today/${encodeURIComponent(weather.name)}`}
+            href={`https://www.weatherbug.com/search?query=${encodeURIComponent(weather.name)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/60 transition text-xs font-semibold"
