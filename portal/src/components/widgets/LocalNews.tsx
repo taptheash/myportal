@@ -11,8 +11,8 @@ interface LocalNewsProps {
 
 interface NewsItem { title: string; link: string; pubDate: string; }
 
-const FEED_URL = 'https://www.unionleader.com/search/?q=&t=article&f=rss&bl=703206';
-const SOURCE_NAME = 'Union Leader';
+const FEED_URL = 'https://www.nhpr.org/nh-news.rss';
+const SOURCE_NAME = 'NHPR';
 
 export default function LocalNews({ config }: LocalNewsProps) {
   const [articles, setArticles] = useState<NewsItem[]>([]);
