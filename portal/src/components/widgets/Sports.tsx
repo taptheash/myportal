@@ -118,9 +118,41 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         const team = data?.team;
         const record = team?.record?.items?.[0]?.summary || null;
         const nextEvent = team?.nextEvent?.[0];
-        const { line, detail } = nextEvent
-          ? formatEvent(nextEvent)
-          : { line: 'No upcoming game', detail: 'Off-season or schedule pending' };
+
+        if (!nextEvent) {
+          if (!cancelled) {
+            setResults((prev) => prev.map((r) => r.key === t.key
+              ? { ...r, status: 'ok', record, line: 'No upcoming game', detail: 'Off-season or schedule pending' }
+              : r));
+          }
+          return;
+        }
+
+        const state = nextEvent?.competitions?.[0]?.status?.type?.state;
+        let eventForFormatting = nextEvent;
+
+        // The team endpoint's nextEvent is built for schedule/record info, not
+        // real-time in-game state — it doesn't reliably carry live scores.
+        // The scoreboard endpoint is ESPN's actual live-score source, so pull
+        // from there specifically while a game is in progress.
+        if (state === 'in') {
+          try {
+            const sbRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/scoreboard`);
+            if (sbRes.ok) {
+              const sbData = await sbRes.json();
+              const liveEvent = (sbData?.events || []).find((e: any) =>
+                e?.competitions?.[0]?.competitors?.some(
+                  (c: any) => c?.team?.abbreviation?.toLowerCase() === t.team
+                )
+              );
+              if (liveEvent) eventForFormatting = liveEvent;
+            }
+          } catch {
+            // fall through and use the team endpoint's own (possibly score-less) data
+          }
+        }
+
+        const { line, detail } = formatEvent(eventForFormatting);
 
         if (!cancelled) {
           setResults((prev) => prev.map((r) => r.key === t.key ? { ...r, status: 'ok', record, line, detail } : r));
