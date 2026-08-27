@@ -9,14 +9,74 @@ interface WeatherProps {
 }
 
 interface WeatherData {
-  main: { temp: number; feels_like: number; humidity: number; };
-  weather: Array<{ main: string; description: string; }>;
-  wind: { speed: number; };
+  main: { temp: number; feels_like: number; humidity: number };
+  weather: Array<{ main: string; description: string }>;
+  wind: { speed: number };
   name: string;
 }
 
-export default function Weather({ config, onUpdateConfig }: WeatherProps) {
+interface ForecastListEntry {
+  dt: number;
+  main: { temp_min: number; temp_max: number };
+  weather: Array<{ main: string; description: string }>;
+}
+
+interface ForecastResponse {
+  list: ForecastListEntry[];
+  city: { timezone: number }; // seconds offset from UTC, for the queried location
+}
+
+interface DailyForecast {
+  label: string; // "Today" or short weekday
+  high: number;
+  low: number;
+  main: string; // weather condition, for icon selection
+}
+
+// OpenWeatherMap's free-tier forecast endpoint returns 3-hour increments
+// across ~5 days, not one entry per day — this groups those into daily
+// high/low/condition summaries, using the CITY's own timezone offset so day
+// boundaries are correct for the queried location, not the browser's.
+function aggregateForecast(data: ForecastResponse): DailyForecast[] {
+  const tzOffsetMs = data.city.timezone * 1000;
+  const localDateKey = (unixSeconds: number) =>
+    new Date(unixSeconds * 1000 + tzOffsetMs).toISOString().split('T')[0];
+
+  const groups = new Map<string, ForecastListEntry[]>();
+  data.list.forEach((entry) => {
+    const key = localDateKey(entry.dt);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(entry);
+  });
+
+  const todayKey = localDateKey(Math.floor(Date.now() / 1000));
+  const dateKeys = Array.from(groups.keys()).slice(0, 5);
+
+  return dateKeys.map((dateKey) => {
+    const entries = groups.get(dateKey)!;
+    const high = Math.round(Math.max(...entries.map((e) => e.main.temp_max)));
+    const low = Math.round(Math.min(...entries.map((e) => e.main.temp_min)));
+
+    // Use the entry closest to local midday as representative for the icon —
+    // more meaningful than an overnight reading for "what will the day look like."
+    const midday = entries.reduce((best, e) => {
+      const hour = new Date(e.dt * 1000 + tzOffsetMs).getUTCHours();
+      const bestHour = new Date(best.dt * 1000 + tzOffsetMs).getUTCHours();
+      return Math.abs(hour - 12) < Math.abs(bestHour - 12) ? e : best;
+    });
+
+    const label =
+      dateKey === todayKey
+        ? 'Today'
+        : new Date(`${dateKey}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short' });
+
+    return { label, high, low, main: midday.weather[0]?.main || 'Clouds' };
+  });
+}
+
+export default function Weather({ config }: WeatherProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,12 +92,24 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
         // If input looks like a US zip code, append ,US for accuracy
         const isZip = /^\d{5}$/.test(location.trim());
         const query = encodeURIComponent(isZip ? `${location.trim()},US` : location.trim());
-        const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${API_KEY}&units=imperial`
-        );
-        if (!response.ok) throw new Error('Location not found');
-        const data = await response.json();
-        setWeather(data);
+
+        const [currentRes, forecastRes] = await Promise.all([
+          fetch(`https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${API_KEY}&units=imperial`),
+          fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${query}&appid=${API_KEY}&units=imperial`),
+        ]);
+
+        if (!currentRes.ok) throw new Error('Location not found');
+        const currentData = await currentRes.json();
+        setWeather(currentData);
+
+        // Forecast failing shouldn't take down current conditions — degrade gracefully.
+        if (forecastRes.ok) {
+          const forecastData = await forecastRes.json();
+          setForecast(aggregateForecast(forecastData));
+        } else {
+          setForecast([]);
+        }
+
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error fetching weather');
@@ -51,12 +123,13 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
     return () => clearInterval(interval);
   }, [API_KEY, location]);
 
-  const getWeatherIcon = (main: string) => {
+  const getWeatherIcon = (main: string, size: 'lg' | 'sm' = 'lg') => {
+    const cls = size === 'lg' ? 'w-12 h-12' : 'w-5 h-5';
     switch (main.toLowerCase()) {
       case 'rain':
-      case 'drizzle': return <CloudRain className="w-12 h-12 text-blue-500" />;
-      case 'clear': return <Sun className="w-12 h-12 text-yellow-500" />;
-      default: return <Cloud className="w-12 h-12 text-gray-400" />;
+      case 'drizzle': return <CloudRain className={`${cls} text-blue-500`} />;
+      case 'clear': return <Sun className={`${cls} text-yellow-500`} />;
+      default: return <Cloud className={`${cls} text-gray-400`} />;
     }
   };
 
@@ -105,6 +178,25 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
               </div>
             </div>
           </div>
+
+          {forecast.length > 0 && (
+            <div className="grid grid-cols-5 gap-1 mb-3 flex-shrink-0">
+              {forecast.map((day) => (
+                <div
+                  key={day.label}
+                  className="flex flex-col items-center gap-1 bg-gray-50 dark:bg-slate-700 rounded-lg py-2 px-1"
+                >
+                  <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">{day.label}</div>
+                  {getWeatherIcon(day.main, 'sm')}
+                  <div className="text-xs text-center leading-tight">
+                    <div className="font-bold text-gray-900 dark:text-white">{day.high}°</div>
+                    <div className="text-gray-400 dark:text-gray-500">{day.low}°</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <a
             href="https://www.weatherbug.com/"
             target="_blank"
