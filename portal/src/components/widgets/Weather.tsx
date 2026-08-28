@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink } from 'lucide-react';
+import { MapContainer, TileLayer } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface WeatherProps {
   id: string;
@@ -13,6 +15,7 @@ interface WeatherData {
   weather: Array<{ main: string; description: string }>;
   wind: { speed: number };
   name: string;
+  coord: { lat: number; lon: number };
 }
 
 interface ForecastListEntry {
@@ -31,6 +34,11 @@ interface DailyForecast {
   high: number;
   low: number;
   main: string; // weather condition, for icon selection
+}
+
+interface RadarFrame {
+  host: string;
+  path: string;
 }
 
 // OpenWeatherMap's free-tier forecast endpoint returns 3-hour increments
@@ -57,8 +65,6 @@ function aggregateForecast(data: ForecastResponse): DailyForecast[] {
     const high = Math.round(Math.max(...entries.map((e) => e.main.temp_max)));
     const low = Math.round(Math.min(...entries.map((e) => e.main.temp_min)));
 
-    // Use the entry closest to local midday as representative for the icon —
-    // more meaningful than an overnight reading for "what will the day look like."
     const midday = entries.reduce((best, e) => {
       const hour = new Date(e.dt * 1000 + tzOffsetMs).getUTCHours();
       const bestHour = new Date(best.dt * 1000 + tzOffsetMs).getUTCHours();
@@ -79,6 +85,11 @@ export default function Weather({ config }: WeatherProps) {
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [showRadar, setShowRadar] = useState(false);
+  const [radarFrame, setRadarFrame] = useState<RadarFrame | null>(null);
+  const [radarError, setRadarError] = useState<string | null>(null);
+  const [isDark, setIsDark] = useState(false);
 
   const location = config.location || 'New Hampshire';
   const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
@@ -102,7 +113,6 @@ export default function Weather({ config }: WeatherProps) {
         const currentData = await currentRes.json();
         setWeather(currentData);
 
-        // Forecast failing shouldn't take down current conditions — degrade gracefully.
         if (forecastRes.ok) {
           const forecastData = await forecastRes.json();
           setForecast(aggregateForecast(forecastData));
@@ -122,6 +132,32 @@ export default function Weather({ config }: WeatherProps) {
     const interval = setInterval(fetchWeather, 600000);
     return () => clearInterval(interval);
   }, [API_KEY, location]);
+
+  // Radar frames only fetched once the section is actually expanded — no
+  // point polling RainViewer for a map the user hasn't opened.
+  useEffect(() => {
+    if (!showRadar) return;
+    setIsDark(document.documentElement.classList.contains('dark'));
+
+    const fetchRadar = async () => {
+      try {
+        const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+        if (!res.ok) throw new Error('failed');
+        const data = await res.json();
+        const past = data?.radar?.past;
+        const latest = past?.[past.length - 1];
+        if (!latest) throw new Error('no frames available');
+        setRadarFrame({ host: data.host, path: latest.path });
+        setRadarError(null);
+      } catch {
+        setRadarError('Radar unavailable right now');
+      }
+    };
+
+    fetchRadar();
+    const interval = setInterval(fetchRadar, 300000); // RainViewer refreshes source data every ~5 min
+    return () => clearInterval(interval);
+  }, [showRadar]);
 
   const getWeatherIcon = (main: string, size: 'lg' | 'sm' = 'lg') => {
     const cls = size === 'lg' ? 'w-12 h-12' : 'w-5 h-5';
@@ -197,11 +233,54 @@ export default function Weather({ config }: WeatherProps) {
             </div>
           )}
 
+          <button
+            onClick={() => setShowRadar(!showRadar)}
+            className="flex items-center justify-between px-3 py-2 mb-3 bg-blue-50 dark:bg-slate-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-slate-600 transition text-xs font-semibold flex-shrink-0"
+          >
+            <span>Radar Map</span>
+            {showRadar ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {showRadar && (
+            <div className="mb-3 rounded-lg overflow-hidden flex-shrink-0" style={{ height: '220px' }}>
+              {radarFrame ? (
+                <MapContainer
+                  key={`${weather.coord.lat}-${weather.coord.lon}`}
+                  center={[weather.coord.lat, weather.coord.lon]}
+                  zoom={7}
+                  style={{ height: '100%', width: '100%' }}
+                  scrollWheelZoom={false}
+                >
+                  <TileLayer
+                    url={isDark
+                      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+                    attribution={isDark
+                      ? '&copy; OpenStreetMap &copy; CARTO'
+                      : '&copy; OpenStreetMap contributors'}
+                  />
+                  <TileLayer
+                    url={`${radarFrame.host}${radarFrame.path}/256/{z}/{x}/{y}/2/1_1.png`}
+                    opacity={0.65}
+                  />
+                </MapContainer>
+              ) : radarError ? (
+                <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-slate-700 text-sm text-red-500 text-center px-4">
+                  {radarError}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-slate-700">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+            </div>
+          )}
+
           <a
             href="https://www.weatherbug.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/60 transition text-xs font-semibold"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/60 transition text-xs font-semibold flex-shrink-0"
           >
             Open WeatherBug <ExternalLink size={12} />
           </a>
