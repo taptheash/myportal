@@ -248,8 +248,9 @@ export default function Weather({ config }: WeatherProps) {
                   key={`${weather.coord.lat}-${weather.coord.lon}`}
                   center={[weather.coord.lat, weather.coord.lon]}
                   zoom={7}
+                  maxZoom={14}
                   style={{ height: '100%', width: '100%' }}
-                  scrollWheelZoom={false}
+                  scrollWheelZoom={true}
                 >
                   <TileLayer
                     url={isDark
@@ -262,6 +263,8 @@ export default function Weather({ config }: WeatherProps) {
                   <TileLayer
                     url={`${radarFrame.host}${radarFrame.path}/256/{z}/{x}/{y}/2/1_1.png`}
                     opacity={0.65}
+                    maxZoom={14}
+                    maxNativeZoom={7}
                   />
                 </MapContainer>
               ) : radarError ? (
