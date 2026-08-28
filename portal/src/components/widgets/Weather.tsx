@@ -242,7 +242,7 @@ export default function Weather({ config }: WeatherProps) {
           </button>
 
           {showRadar && (
-            <div className="mb-3 rounded-lg overflow-hidden flex-shrink-0" style={{ height: '220px' }}>
+            <div className="mb-3 rounded-lg overflow-hidden flex-shrink-0" style={{ height: '440px' }}>
               {radarFrame ? (
                 <MapContainer
                   key={`${weather.coord.lat}-${weather.coord.lon}`}
