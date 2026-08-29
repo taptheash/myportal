@@ -26,19 +26,37 @@ interface ForecastListEntry {
 
 interface ForecastResponse {
   list: ForecastListEntry[];
-  city: { timezone: number }; // seconds offset from UTC, for the queried location
+  city: { timezone: number };
 }
 
 interface DailyForecast {
-  label: string; // "Today" or short weekday
+  label: string;
   high: number;
   low: number;
-  main: string; // weather condition, for icon selection
+  main: string;
 }
 
 interface RadarFrame {
   host: string;
   path: string;
+}
+
+const US_STATE_ABBREV: Record<string, string> = {
+  alabama: 'al', alaska: 'ak', arizona: 'az', arkansas: 'ar', california: 'ca',
+  colorado: 'co', connecticut: 'ct', delaware: 'de', florida: 'fl', georgia: 'ga',
+  hawaii: 'hi', idaho: 'id', illinois: 'il', indiana: 'in', iowa: 'ia',
+  kansas: 'ks', kentucky: 'ky', louisiana: 'la', maine: 'me', maryland: 'md',
+  massachusetts: 'ma', michigan: 'mi', minnesota: 'mn', mississippi: 'ms', missouri: 'mo',
+  montana: 'mt', nebraska: 'ne', nevada: 'nv', 'new hampshire': 'nh', 'new jersey': 'nj',
+  'new mexico': 'nm', 'new york': 'ny', 'north carolina': 'nc', 'north dakota': 'nd', ohio: 'oh',
+  oklahoma: 'ok', oregon: 'or', pennsylvania: 'pa', 'rhode island': 'ri', 'south carolina': 'sc',
+  'south dakota': 'sd', tennessee: 'tn', texas: 'tx', utah: 'ut', vermont: 'vt',
+  virginia: 'va', washington: 'wa', 'west virginia': 'wv', wisconsin: 'wi', wyoming: 'wy',
+  'district of columbia': 'dc',
+};
+
+function slugify(text: string): string {
+  return text.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
 // OpenWeatherMap's free-tier forecast endpoint returns 3-hour increments
@@ -80,18 +98,34 @@ function aggregateForecast(data: ForecastResponse): DailyForecast[] {
   });
 }
 
-export default function Weather({ config }: WeatherProps) {
+// Browser geolocation is callback-based; wrap it as a Promise with a
+// reasonable timeout so a slow/unresponsive GPS doesn't hang the widget.
+function getCurrentPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
+  });
+}
+
+export default function Weather({ config, onUpdateConfig }: WeatherProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [weatherBugUrl, setWeatherBugUrl] = useState('https://www.weatherbug.com/');
 
   const [showRadar, setShowRadar] = useState(false);
   const [radarFrame, setRadarFrame] = useState<RadarFrame | null>(null);
   const [radarError, setRadarError] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
 
-  const location = config.location || 'New Hampshire';
+  // No location saved yet = use the browser's current position. Once the
+  // user manually sets one via the location control, that always wins —
+  // this only auto-detects when nothing's been explicitly chosen.
+  const hasManualLocation = Boolean(config.location);
   const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
 
   useEffect(() => {
@@ -100,24 +134,71 @@ export default function Weather({ config }: WeatherProps) {
     const fetchWeather = async () => {
       try {
         setLoading(true);
-        // If input looks like a US zip code, append ,US for accuracy
-        const isZip = /^\d{5}$/.test(location.trim());
-        const query = encodeURIComponent(isZip ? `${location.trim()},US` : location.trim());
 
-        const [currentRes, forecastRes] = await Promise.all([
-          fetch(`https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${API_KEY}&units=imperial`),
-          fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${query}&appid=${API_KEY}&units=imperial`),
-        ]);
+        let weatherUrl: string;
+        let forecastUrl: string;
+
+        if (hasManualLocation) {
+          const isZip = /^\d{5}$/.test(config.location.trim());
+          const query = encodeURIComponent(isZip ? `${config.location.trim()},US` : config.location.trim());
+          weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${API_KEY}&units=imperial`;
+          forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${query}&appid=${API_KEY}&units=imperial`;
+        } else {
+          try {
+            const pos = await getCurrentPosition();
+            const { latitude, longitude } = pos.coords;
+            weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
+            forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
+          } catch {
+            // Denied, unsupported, or timed out — fall back to a sane default
+            // rather than leaving the widget blank.
+            weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
+            forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
+          }
+        }
+
+        const [currentRes, forecastRes] = await Promise.all([fetch(weatherUrl), fetch(forecastUrl)]);
 
         if (!currentRes.ok) throw new Error('Location not found');
-        const currentData = await currentRes.json();
+        const currentData: WeatherData = await currentRes.json();
         setWeather(currentData);
+
+        // Report the actually-resolved place name back so the location pill
+        // in the control strip reflects reality (e.g. after auto-detect),
+        // not just whatever was last typed.
+        onUpdateConfig({ ...config, resolvedLocationName: currentData.name });
 
         if (forecastRes.ok) {
           const forecastData = await forecastRes.json();
           setForecast(aggregateForecast(forecastData));
         } else {
           setForecast([]);
+        }
+
+        // Build the WeatherBug deep link. Needs city + state abbreviation +
+        // zip, which OpenWeatherMap's own response doesn't include — using
+        // OpenStreetMap's free Nominatim reverse-geocoder to fill that gap.
+        // Falls back to WeatherBug's homepage if any piece isn't available.
+        try {
+          const { lat, lon } = currentData.coord;
+          const geoRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`
+          );
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            const addr = geoData?.address || {};
+            const city = addr.city || addr.town || addr.village || addr.hamlet || currentData.name;
+            const stateAbbrev = addr.state ? US_STATE_ABBREV[addr.state.toLowerCase()] : null;
+            const zip = addr.postcode;
+
+            if (city && stateAbbrev && zip) {
+              setWeatherBugUrl(`https://www.weatherbug.com/weather-forecast/now/${slugify(city)}-${stateAbbrev}-${zip}`);
+            } else {
+              setWeatherBugUrl('https://www.weatherbug.com/');
+            }
+          }
+        } catch {
+          setWeatherBugUrl('https://www.weatherbug.com/');
         }
 
         setError(null);
@@ -131,10 +212,9 @@ export default function Weather({ config }: WeatherProps) {
     fetchWeather();
     const interval = setInterval(fetchWeather, 600000);
     return () => clearInterval(interval);
-  }, [API_KEY, location]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API_KEY, hasManualLocation, config.location]);
 
-  // Radar frames only fetched once the section is actually expanded — no
-  // point polling RainViewer for a map the user hasn't opened.
   useEffect(() => {
     if (!showRadar) return;
     setIsDark(document.documentElement.classList.contains('dark'));
@@ -155,7 +235,7 @@ export default function Weather({ config }: WeatherProps) {
     };
 
     fetchRadar();
-    const interval = setInterval(fetchRadar, 300000); // RainViewer refreshes source data every ~5 min
+    const interval = setInterval(fetchRadar, 300000);
     return () => clearInterval(interval);
   }, [showRadar]);
 
@@ -171,7 +251,6 @@ export default function Weather({ config }: WeatherProps) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Weather content */}
       {loading && (
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
@@ -218,10 +297,7 @@ export default function Weather({ config }: WeatherProps) {
           {forecast.length > 0 && (
             <div className="grid grid-cols-5 gap-1 mb-3 flex-shrink-0">
               {forecast.map((day) => (
-                <div
-                  key={day.label}
-                  className="flex flex-col items-center gap-1 bg-gray-50 dark:bg-slate-700 rounded-lg py-2 px-1"
-                >
+                <div key={day.label} className="flex flex-col items-center gap-1 bg-gray-50 dark:bg-slate-700 rounded-lg py-2 px-1">
                   <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">{day.label}</div>
                   {getWeatherIcon(day.main, 'sm')}
                   <div className="text-xs text-center leading-tight">
@@ -280,7 +356,7 @@ export default function Weather({ config }: WeatherProps) {
           )}
 
           <a
-            href="https://www.weatherbug.com/"
+            href={weatherBugUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/60 transition text-xs font-semibold flex-shrink-0"

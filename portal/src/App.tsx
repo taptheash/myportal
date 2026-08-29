@@ -146,6 +146,7 @@ export default function App() {
 
   const renderToolControls = () => {
     if (activeTool === 'weather') {
+      const displayLocation = activeToolWidget.config.location || activeToolWidget.config.resolvedLocationName || 'Detecting…';
       return weatherEditing ? (
         <input
           type="text"
@@ -167,11 +168,11 @@ export default function App() {
         <button
           onClick={() => {
             setWeatherEditing(true);
-            setWeatherInput(activeToolWidget.config.location || 'New Hampshire');
+            setWeatherInput(displayLocation);
           }}
           className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition"
         >
-          <MapPin size={12} /> {activeToolWidget.config.location || 'New Hampshire'}
+          <MapPin size={12} /> {displayLocation}
         </button>
       );
     }
