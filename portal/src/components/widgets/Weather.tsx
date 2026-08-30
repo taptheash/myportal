@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 interface WeatherProps {
   id: string;
@@ -20,7 +20,7 @@ interface WeatherData {
 
 interface ForecastListEntry {
   dt: number;
-  main: { temp_min: number; temp_max: number };
+  main: { temp: number; temp_min: number; temp_max: number };
   weather: Array<{ main: string; description: string }>;
 }
 
@@ -30,10 +30,12 @@ interface ForecastResponse {
 }
 
 interface DailyForecast {
+  dateKey: string;
   label: string;
   high: number;
   low: number;
   main: string;
+  hourly: ForecastListEntry[]; // raw 3-hour-interval entries for this day
 }
 
 interface RadarFrame {
@@ -61,9 +63,11 @@ function slugify(text: string): string {
 
 // OpenWeatherMap's free-tier forecast endpoint returns 3-hour increments
 // across ~5 days, not one entry per day — this groups those into daily
-// high/low/condition summaries, using the CITY's own timezone offset so day
-// boundaries are correct for the queried location, not the browser's.
-function aggregateForecast(data: ForecastResponse): DailyForecast[] {
+// high/low/condition summaries (for the 5-day row) while KEEPING the raw
+// 3-hour entries per day too, for the click-to-expand breakdown. Uses the
+// CITY's own timezone offset so day/time boundaries are correct for the
+// queried location, not the browser's.
+function aggregateForecast(data: ForecastResponse): { days: DailyForecast[]; tzOffsetMs: number } {
   const tzOffsetMs = data.city.timezone * 1000;
   const localDateKey = (unixSeconds: number) =>
     new Date(unixSeconds * 1000 + tzOffsetMs).toISOString().split('T')[0];
@@ -78,7 +82,7 @@ function aggregateForecast(data: ForecastResponse): DailyForecast[] {
   const todayKey = localDateKey(Math.floor(Date.now() / 1000));
   const dateKeys = Array.from(groups.keys()).slice(0, 5);
 
-  return dateKeys.map((dateKey) => {
+  const days = dateKeys.map((dateKey) => {
     const entries = groups.get(dateKey)!;
     const high = Math.round(Math.max(...entries.map((e) => e.main.temp_max)));
     const low = Math.round(Math.min(...entries.map((e) => e.main.temp_min)));
@@ -94,12 +98,23 @@ function aggregateForecast(data: ForecastResponse): DailyForecast[] {
         ? 'Today'
         : new Date(`${dateKey}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short' });
 
-    return { label, high, low, main: midday.weather[0]?.main || 'Clouds' };
+    return { dateKey, label, high, low, main: midday.weather[0]?.main || 'Clouds', hourly: entries };
+  });
+
+  return { days, tzOffsetMs };
+}
+
+// The Date object here has already been shifted by tzOffsetMs, so its UTC
+// fields now represent the CITY's local time — formatting must read those
+// UTC fields directly (timeZone: 'UTC') rather than the browser's own zone.
+function formatLocalTime(unixSeconds: number, tzOffsetMs: number): string {
+  return new Date(unixSeconds * 1000 + tzOffsetMs).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    hour12: true,
+    timeZone: 'UTC',
   });
 }
 
-// Browser geolocation is callback-based; wrap it as a Promise with a
-// reasonable timeout so a slow/unresponsive GPS doesn't hang the widget.
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -113,6 +128,8 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
 export default function Weather({ config, onUpdateConfig }: WeatherProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
+  const [forecastTz, setForecastTz] = useState(0);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weatherBugUrl, setWeatherBugUrl] = useState('https://www.weatherbug.com/');
@@ -122,9 +139,6 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
   const [radarError, setRadarError] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
 
-  // No location saved yet = use the browser's current position. Once the
-  // user manually sets one via the location control, that always wins —
-  // this only auto-detects when nothing's been explicitly chosen.
   const hasManualLocation = Boolean(config.location);
   const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
 
@@ -150,8 +164,6 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
             weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
             forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
           } catch {
-            // Denied, unsupported, or timed out — fall back to a sane default
-            // rather than leaving the widget blank.
             weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
             forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
           }
@@ -162,23 +174,17 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
         if (!currentRes.ok) throw new Error('Location not found');
         const currentData: WeatherData = await currentRes.json();
         setWeather(currentData);
-
-        // Report the actually-resolved place name back so the location pill
-        // in the control strip reflects reality (e.g. after auto-detect),
-        // not just whatever was last typed.
         onUpdateConfig({ ...config, resolvedLocationName: currentData.name });
 
         if (forecastRes.ok) {
           const forecastData = await forecastRes.json();
-          setForecast(aggregateForecast(forecastData));
+          const { days, tzOffsetMs } = aggregateForecast(forecastData);
+          setForecast(days);
+          setForecastTz(tzOffsetMs);
         } else {
           setForecast([]);
         }
 
-        // Build the WeatherBug deep link. Needs city + state abbreviation +
-        // zip, which OpenWeatherMap's own response doesn't include — using
-        // OpenStreetMap's free Nominatim reverse-geocoder to fill that gap.
-        // Falls back to WeatherBug's homepage if any piece isn't available.
         try {
           const { lat, lon } = currentData.coord;
           const geoRes = await fetch(
@@ -249,6 +255,8 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
     }
   };
 
+  const expandedDayData = forecast.find((d) => d.dateKey === expandedDay);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {loading && (
@@ -295,17 +303,63 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
           </div>
 
           {forecast.length > 0 && (
-            <div className="grid grid-cols-5 gap-1 mb-3 flex-shrink-0">
+            <div className="grid grid-cols-5 gap-1 mb-1 flex-shrink-0">
               {forecast.map((day) => (
-                <div key={day.label} className="flex flex-col items-center gap-1 bg-gray-50 dark:bg-slate-700 rounded-lg py-2 px-1">
+                <button
+                  key={day.dateKey}
+                  onClick={() => setExpandedDay(expandedDay === day.dateKey ? null : day.dateKey)}
+                  className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                    expandedDay === day.dateKey
+                      ? 'bg-blue-100 dark:bg-blue-900/50 ring-2 ring-blue-400'
+                      : 'bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600'
+                  }`}
+                >
                   <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">{day.label}</div>
                   {getWeatherIcon(day.main, 'sm')}
                   <div className="text-xs text-center leading-tight">
                     <div className="font-bold text-gray-900 dark:text-white">{day.high}°</div>
                     <div className="text-gray-400 dark:text-gray-500">{day.low}°</div>
                   </div>
-                </div>
+                </button>
               ))}
+            </div>
+          )}
+
+          {expandedDayData && (
+            <div className="mb-3 rounded-lg overflow-hidden bg-blue-50 dark:bg-slate-700 flex-shrink-0">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-blue-100 dark:border-slate-600">
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
+                  {expandedDayData.label} — 3-hour breakdown
+                </span>
+                <button
+                  onClick={() => setExpandedDay(null)}
+                  className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-slate-600 text-gray-500 dark:text-gray-400"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="max-h-56 overflow-y-auto">
+                {expandedDayData.hourly.map((entry, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs border-b border-blue-100/60 dark:border-slate-600/60 last:border-0"
+                  >
+                    <span className="w-14 text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {formatLocalTime(entry.dt, forecastTz)}
+                    </span>
+                    {getWeatherIcon(entry.weather[0]?.main || 'Clouds', 'sm')}
+                    <span className="flex-1 truncate capitalize text-gray-700 dark:text-gray-300">
+                      {entry.weather[0]?.description || ''}
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-white flex-shrink-0">
+                      {Math.round(entry.main.temp)}°
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-3 py-1.5 text-[10px] text-gray-400 dark:text-gray-500 bg-blue-100/40 dark:bg-slate-800/40">
+                3-hour intervals — the free forecast tier doesn't offer true hourly data
+              </div>
             </div>
           )}
 
