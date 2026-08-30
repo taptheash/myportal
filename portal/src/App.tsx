@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Sun, Moon, Monitor, Plus, Minus,
+  Sun, Moon, Monitor, Plus, Minus, Crosshair,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -165,15 +165,31 @@ export default function App() {
           autoFocus
         />
       ) : (
-        <button
-          onClick={() => {
-            setWeatherEditing(true);
-            setWeatherInput(displayLocation);
-          }}
-          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition"
-        >
-          <MapPin size={12} /> {displayLocation}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              // Clearing location drops hasManualLocation back to false in
+              // Weather.tsx, which re-runs the same geolocation path it
+              // already uses when nothing's been manually set — no new
+              // fetch logic needed, just handing back control to it.
+              const { location, ...rest } = activeToolWidget.config;
+              updateWidgetConfig('weather', rest);
+            }}
+            title="Use current location"
+            className="flex items-center justify-center p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition"
+          >
+            <Crosshair size={14} />
+          </button>
+          <button
+            onClick={() => {
+              setWeatherEditing(true);
+              setWeatherInput(displayLocation);
+            }}
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition"
+          >
+            <MapPin size={12} /> {displayLocation}
+          </button>
+        </div>
       );
     }
 
