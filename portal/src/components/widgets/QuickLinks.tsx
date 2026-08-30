@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Check, Pencil } from 'lucide-react';
+import { X, Globe, Check, Pencil, GripVertical } from 'lucide-react';
 
 interface QuickLinksProps {
   id: string;
@@ -60,6 +60,12 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
   const [editLabel, setEditLabel] = useState('');
   const [editUrl, setEditUrl] = useState('');
 
+  // Drag-to-reorder state. A dedicated grip handle initiates the drag (not
+  // the row itself) so grabbing a link to reorder never conflicts with
+  // clicking it to actually visit the site.
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+
   useEffect(() => {
     if (config.showAdd) setShowInlineAdd(true);
   }, [config.showAdd]);
@@ -114,6 +120,61 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
     cancelEdit();
   };
 
+  const commitReorder = (from: number, to: number) => {
+    if (from === to) return;
+    const newOrder = [...links];
+    const [moved] = newOrder.splice(from, 1);
+    const insertAt = from < to ? to - 1 : to;
+    newOrder.splice(insertAt, 0, moved);
+    saveLinks(newOrder);
+  };
+
+  const handleDragStart = (index: number) => (e: React.DragEvent) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', links[index].id); // Firefox requires this to initiate drag
+  };
+
+  const handleDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const overTopHalf = e.clientY < rect.top + rect.height / 2;
+    const target = overTopHalf ? index : index + 1;
+    if (target !== draggedIndex && target !== draggedIndex + 1) {
+      setDropIndex(target);
+    } else {
+      setDropIndex(null); // would land back where it already is — no indicator
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex !== null && dropIndex !== null) {
+      commitReorder(draggedIndex, dropIndex);
+    }
+    setDraggedIndex(null);
+    setDropIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDropIndex(null);
+  };
+
+  // Keyboard fallback: with a handle focused, Alt+Up/Down moves that link
+  // one position. Drag alone would leave keyboard users no way to reorder.
+  const handleKeyDown = (index: number) => (e: React.KeyboardEvent) => {
+    if (!e.altKey) return;
+    if (e.key === 'ArrowUp' && index > 0) {
+      e.preventDefault();
+      commitReorder(index, index - 1);
+    } else if (e.key === 'ArrowDown' && index < links.length - 1) {
+      e.preventDefault();
+      commitReorder(index, index + 2);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2">
 
@@ -150,62 +211,84 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
       )}
 
       {/* Links */}
-      <div className="flex flex-col gap-1.5">
-        {links.map((link) =>
-          editingId === link.id ? (
-            <div key={link.id} className="flex flex-col gap-1.5 p-2 bg-teal-50 dark:bg-slate-700 rounded-lg border border-teal-200 dark:border-slate-600">
-              <input
-                type="text"
-                value={editLabel}
-                onChange={(e) => setEditLabel(e.target.value)}
-                placeholder="Label"
-                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                autoFocus
-              />
-              <input
-                type="text"
-                value={editUrl}
-                onChange={(e) => setEditUrl(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                placeholder="URL"
-                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
-              />
-              <div className="flex gap-2">
-                <button onClick={saveEdit} className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
-                  <Check size={14} /> Save
+      <div className="flex flex-col gap-1.5" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
+        {links.map((link, index) => (
+          <React.Fragment key={link.id}>
+            {dropIndex === index && (
+              <div className="h-0.5 mx-1 bg-blue-500 rounded-full" aria-hidden="true" />
+            )}
+            {editingId === link.id ? (
+              <div className="flex flex-col gap-1.5 p-2 bg-teal-50 dark:bg-slate-700 rounded-lg border border-teal-200 dark:border-slate-600">
+                <input
+                  type="text"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  placeholder="Label"
+                  className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  value={editUrl}
+                  onChange={(e) => setEditUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                  placeholder="URL"
+                  className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveEdit} className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+                    <Check size={14} /> Save
+                  </button>
+                  <button onClick={cancelEdit} className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+                    <X size={14} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={handleDragOver(index)}
+                className={`flex items-center gap-1 group ${draggedIndex === index ? 'opacity-40' : ''}`}
+              >
+                <button
+                  draggable
+                  onDragStart={handleDragStart(index)}
+                  onDragEnd={handleDragEnd}
+                  onKeyDown={handleKeyDown(index)}
+                  title="Drag to reorder, or focus and use Alt+Up/Down"
+                  className="p-1 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded"
+                >
+                  <GripVertical size={14} />
                 </button>
-                <button onClick={cancelEdit} className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
-                  <X size={14} /> Cancel
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  draggable={false}
+                  className="flex-1 flex items-center gap-2.5 px-3 py-2 bg-teal-50 dark:bg-slate-700 hover:bg-teal-100 dark:hover:bg-slate-600 rounded-lg transition truncate min-w-0"
+                >
+                  <SiteIcon url={link.url} label={link.label} />
+                  <span className="text-sm font-medium text-teal-900 dark:text-teal-100 truncate">{link.label}</span>
+                </a>
+                <button
+                  onClick={() => startEdit(link)}
+                  className="p-1.5 bg-teal-100 dark:bg-slate-600 hover:bg-teal-200 dark:hover:bg-slate-500 text-teal-700 dark:text-teal-200 rounded-lg transition flex-shrink-0"
+                  title="Edit link"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => handleRemoveLink(link.id)}
+                  className="p-1.5 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-300 rounded-lg transition flex-shrink-0"
+                  title="Delete link"
+                >
+                  <X size={13} />
                 </button>
               </div>
-            </div>
-          ) : (
-            <div key={link.id} className="flex items-center gap-1.5 group">
-              <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center gap-2.5 px-3 py-2 bg-teal-50 dark:bg-slate-700 hover:bg-teal-100 dark:hover:bg-slate-600 rounded-lg transition truncate min-w-0"
-              >
-                <SiteIcon url={link.url} label={link.label} />
-                <span className="text-sm font-medium text-teal-900 dark:text-teal-100 truncate">{link.label}</span>
-              </a>
-              <button
-                onClick={() => startEdit(link)}
-                className="p-1.5 bg-teal-100 dark:bg-slate-600 hover:bg-teal-200 dark:hover:bg-slate-500 text-teal-700 dark:text-teal-200 rounded-lg transition flex-shrink-0"
-                title="Edit link"
-              >
-                <Pencil size={13} />
-              </button>
-              <button
-                onClick={() => handleRemoveLink(link.id)}
-                className="p-1.5 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-300 rounded-lg transition flex-shrink-0"
-                title="Delete link"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          )
+            )}
+          </React.Fragment>
+        ))}
+        {dropIndex === links.length && (
+          <div className="h-0.5 mx-1 bg-blue-500 rounded-full" aria-hidden="true" />
         )}
       </div>
     </div>
