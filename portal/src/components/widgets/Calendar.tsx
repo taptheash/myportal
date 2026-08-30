@@ -11,6 +11,7 @@ interface CalendarProps {
 interface CalendarEvent {
   id: string;
   summary: string;
+  htmlLink?: string; // official Google-provided deep link to this event
   start: {
     dateTime?: string;
     date?: string;
@@ -310,15 +311,32 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
                 key={event.id}
                 className="group p-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-600 rounded-lg border-l-4 border-purple-500 hover:shadow-md transition flex items-start justify-between gap-2"
               >
-                <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                    {event.summary}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <ChevronRight size={12} />
-                    {formatEventTime(event)}
-                  </p>
-                </div>
+                {event.htmlLink ? (
+                  <a
+                    href={event.htmlLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 block hover:opacity-80 transition"
+                  >
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                      {event.summary}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <ChevronRight size={12} />
+                      {formatEventTime(event)}
+                    </p>
+                  </a>
+                ) : (
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                      {event.summary}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <ChevronRight size={12} />
+                      {formatEventTime(event)}
+                    </p>
+                  </div>
+                )}
                 <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                   <button
                     onClick={() => startEdit(event)}
