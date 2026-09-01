@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
-import { fetchRssWithCache } from '../../lib/rssCache';
+import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 
 interface TechNewsProps {
   id: string;
@@ -9,10 +9,17 @@ interface TechNewsProps {
   isEditing: boolean;
 }
 
-interface NewsItem { title: string; link: string; pubDate: string; }
+interface NewsItem { title: string; link: string; pubDate: string; sourceName: string; }
 
-const FEED_URL = 'https://techcrunch.com/feed/';
-const SOURCE_NAME = 'TechCrunch';
+// Note: The Verge and Ars Technica's free RSS gives excerpts only — full
+// articles are behind a metered/paid wall on their sites, same friction
+// NYT had in Headlines. Kept them in since headlines/excerpts alone are
+// still useful, but flagging this rather than pretending it's fully free.
+const SOURCES: NewsSource[] = [
+  { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
+  { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
+  { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index' },
+];
 
 export default function TechNews({ config, onUpdateConfig }: TechNewsProps) {
   const [articles, setArticles] = useState<NewsItem[]>([]);
@@ -24,7 +31,7 @@ export default function TechNews({ config, onUpdateConfig }: TechNewsProps) {
     const fetchNews = async () => {
       try {
         setLoading(true);
-        const items = await fetchRssWithCache(`rss-tech-${articleCount}`, FEED_URL, articleCount, 3600000);
+        const items = await fetchMergedRssWithCache('tech', SOURCES, 3, articleCount, 3600000);
         setArticles(items);
         setError(null);
         onUpdateConfig({ ...config, articleCount, lastFetchedCount: items.length });
@@ -50,7 +57,7 @@ export default function TechNews({ config, onUpdateConfig }: TechNewsProps) {
   };
 
   if (loading) return <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div></div>;
-  if (error) return <div className="flex flex-col items-center justify-center h-24 gap-2 text-indigo-600"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>;
+  if (error) return <div className="flex flex-col items-center justify-center h-24 gap-2 text-orange-600 dark:text-orange-400"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -61,7 +68,7 @@ export default function TechNews({ config, onUpdateConfig }: TechNewsProps) {
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">{article.title}</p>
               <div className="flex items-center gap-2 mt-1 text-xs text-gray-600 dark:text-gray-400">
-                <span className="truncate">{SOURCE_NAME}</span>
+                <span className="truncate">{article.sourceName}</span>
                 <span>•</span>
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>

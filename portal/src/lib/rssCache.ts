@@ -51,3 +51,52 @@ export async function fetchRssWithCache(
 
   return items;
 }
+
+export interface NewsSource {
+  name: string;
+  url: string;
+}
+
+// Randomly selects `count` sources from a pool — a different combination
+// each time this runs, which in practice means each poll cycle (every
+// ~hour, matching the outer widget's refresh interval).
+function pickRandomSources(pool: NewsSource[], count: number): NewsSource[] {
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(count, pool.length));
+}
+
+// Fetches a random subset of sources from the pool, tags each article with
+// which outlet it came from, and merges them into one list sorted by
+// recency. Each source still goes through the same per-source cache as
+// fetchRssWithCache, so this doesn't multiply real network calls beyond
+// what the random subset actually needs.
+export async function fetchMergedRssWithCache(
+  categoryKey: string,
+  pool: NewsSource[],
+  sourcesPerRefresh: number,
+  totalCount: number,
+  maxAgeMs: number
+): Promise<Array<any & { sourceName: string }>> {
+  const chosen = pickRandomSources(pool, sourcesPerRefresh);
+  const perSourceCount = Math.max(3, Math.ceil(totalCount / chosen.length));
+
+  const results = await Promise.allSettled(
+    chosen.map(async (source) => {
+      const items = await fetchRssWithCache(
+        `rss-${categoryKey}-${source.name}`,
+        source.url,
+        perSourceCount,
+        maxAgeMs
+      );
+      return items.map((item) => ({ ...item, sourceName: source.name }));
+    })
+  );
+
+  const merged = results
+    .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
+    .flatMap((r) => r.value);
+
+  merged.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+
+  return merged.slice(0, totalCount);
+}
