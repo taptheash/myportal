@@ -83,7 +83,7 @@ export async function fetchMergedRssWithCache(
   const results = await Promise.allSettled(
     chosen.map(async (source) => {
       const items = await fetchRssWithCache(
-        `rss-${categoryKey}-${source.name}`,
+        `rss-${categoryKey}-${source.name}-${perSourceCount}`,
         source.url,
         perSourceCount,
         maxAgeMs
