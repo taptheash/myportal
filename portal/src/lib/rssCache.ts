@@ -70,6 +70,16 @@ function pickRandomSources(pool: NewsSource[], count: number): NewsSource[] {
 // recency. Each source still goes through the same per-source cache as
 // fetchRssWithCache, so this doesn't multiply real network calls beyond
 // what the random subset actually needs.
+// Fetched once per source at a generous fixed size, then re-sliced purely
+// for display based on whatever count is currently requested. This is
+// deliberately NOT scaled to the requested total — doing that previously
+// caused uneven jumps (e.g. for 3 sources, requesting 10, 11, or 12 all
+// rounded up to the same per-source fetch size, but crossing to 13 jumped
+// to a bigger one, so a single click could suddenly surface several extra
+// articles at once). A stable, generous pool means clicking + always
+// reveals exactly one more article, evenly, up to the pool's real size.
+const PER_SOURCE_POOL_SIZE = 20;
+
 export async function fetchMergedRssWithCache(
   categoryKey: string,
   pool: NewsSource[],
@@ -78,14 +88,13 @@ export async function fetchMergedRssWithCache(
   maxAgeMs: number
 ): Promise<Array<any & { sourceName: string }>> {
   const chosen = pickRandomSources(pool, sourcesPerRefresh);
-  const perSourceCount = Math.max(3, Math.ceil(totalCount / chosen.length));
 
   const results = await Promise.allSettled(
     chosen.map(async (source) => {
       const items = await fetchRssWithCache(
-        `rss-${categoryKey}-${source.name}-${perSourceCount}`,
+        `rss-${categoryKey}-${source.name}`,
         source.url,
-        perSourceCount,
+        PER_SOURCE_POOL_SIZE,
         maxAgeMs
       );
       return items.map((item) => ({ ...item, sourceName: source.name }));
