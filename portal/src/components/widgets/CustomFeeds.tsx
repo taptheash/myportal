@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Check, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Sparkles } from 'lucide-react';
+import { Plus, X, Check, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Sparkles, Circle, CheckCircle2 } from 'lucide-react';
 import { fetchRssWithCache } from '../../lib/rssCache';
 
 interface CustomFeedsProps {
@@ -16,19 +16,28 @@ interface CustomFeed {
   collapsed: boolean;
 }
 
+interface SuggestionEntry {
+  name: string;
+  url: string;
+}
+
 interface FeedState {
   items: Array<{ title: string; link: string; pubDate: string }>;
   status: 'loading' | 'ok' | 'error';
 }
 
-// Deliberately short. Every one of these is either verified working earlier
-// in this project, or (Hacker News) established enough that its feed URL
-// hasn't changed in over a decade. Not trying to be a full directory —
-// Doug can add anything else himself (Substack: append /feed to any
-// publication's URL; WordPress blogs: usually {site}/feed/).
-const SUGGESTED_FEEDS: { name: string; url: string }[] = [
+// AP News was removed — verified it no longer offers a native RSS feed at
+// all (confirmed via a third-party project built specifically to work
+// around that gap), not just a URL that needed fixing.
+// Kept deliberately short and mixed rather than all-news: Hacker News, BBC,
+// NPR, TechCrunch, The Verge, and Ars Technica are all verified working
+// elsewhere in this project; Kottke.org (running since 1998, confirmed
+// actively posting days ago) and xkcd are genuinely different in kind —
+// independent blog and webcomic, not news at all.
+const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'Hacker News', url: 'https://news.ycombinator.com/rss' },
-  { name: 'AP News', url: 'https://apnews.com/hub/ap-top-news.rss' },
+  { name: 'Kottke.org', url: 'http://feeds.kottke.org/main' },
+  { name: 'xkcd', url: 'https://xkcd.com/rss.xml' },
   { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
   { name: 'NPR', url: 'https://feeds.npr.org/1002/rss.xml' },
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
@@ -47,12 +56,18 @@ function formatTime(pubDate: string): string {
 
 export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps) {
   const feeds: CustomFeed[] = config.feeds || [];
+  const savedSuggestions: SuggestionEntry[] = config.savedSuggestions || [];
   const [feedData, setFeedData] = useState<Record<string, FeedState>>({});
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const [showAddSuggestion, setShowAddSuggestion] = useState(false);
+  const [suggName, setSuggName] = useState('');
+  const [suggUrl, setSuggUrl] = useState('');
+  const [selectedSuggestionUrl, setSelectedSuggestionUrl] = useState<string | null>(null);
 
   const feedsKey = feeds.map((f) => f.id).join(',');
 
@@ -80,11 +95,9 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedsKey]);
 
-  const save = (updated: CustomFeed[]) => onUpdateConfig({ ...config, feeds: updated });
-
   const addFeed = (name: string, url: string) => {
     const feed: CustomFeed = { id: `feed${Date.now()}`, name, url, collapsed: false };
-    save([...feeds, feed]);
+    onUpdateConfig({ ...config, feeds: [...feeds, feed] });
   };
 
   const handleManualAdd = () => {
@@ -99,14 +112,32 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
     setError(null);
   };
 
-  const removeFeed = (id: string) => save(feeds.filter((f) => f.id !== id));
+  const removeFeed = (id: string) => onUpdateConfig({ ...config, feeds: feeds.filter((f) => f.id !== id) });
 
   const toggleCollapsed = (id: string) =>
-    save(feeds.map((f) => (f.id === id ? { ...f, collapsed: !f.collapsed } : f)));
+    onUpdateConfig({ ...config, feeds: feeds.map((f) => (f.id === id ? { ...f, collapsed: !f.collapsed } : f)) });
 
-  const availableSuggestions = SUGGESTED_FEEDS.filter(
+  // All suggestions available to pick from: built-in ones plus anything
+  // Doug has added himself, minus anything already subscribed to.
+  const allSuggestions: SuggestionEntry[] = [...BUILT_IN_SUGGESTIONS, ...savedSuggestions].filter(
     (s) => !feeds.some((f) => f.url === s.url)
   );
+
+  const handleAddSuggestion = () => {
+    if (!suggName.trim() || !suggUrl.trim()) return;
+    const url = suggUrl.startsWith('http') ? suggUrl.trim() : `https://${suggUrl.trim()}`;
+    onUpdateConfig({ ...config, savedSuggestions: [...savedSuggestions, { name: suggName.trim(), url }] });
+    setSuggName('');
+    setSuggUrl('');
+    setShowAddSuggestion(false);
+  };
+
+  const handleSubscribe = () => {
+    const picked = allSuggestions.find((s) => s.url === selectedSuggestionUrl);
+    if (!picked) return;
+    addFeed(picked.name, picked.url);
+    setSelectedSuggestionUrl(null);
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -132,22 +163,62 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
         </button>
       )}
 
-      {availableSuggestions.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 px-1">
-            <Sparkles size={12} /> Suggested
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {availableSuggestions.map((s) => (
-              <button
-                key={s.url}
-                onClick={() => addFeed(s.name, s.url)}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-sky-50 dark:bg-slate-700 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-slate-600 border border-sky-200 dark:border-slate-600 transition"
-              >
-                <Plus size={11} /> {s.name}
+      {(allSuggestions.length > 0 || showAddSuggestion) && (
+        <div className="flex flex-col gap-1.5 p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <Sparkles size={12} /> Suggested — pick one to subscribe
+            </div>
+            {!showAddSuggestion && (
+              <button onClick={() => setShowAddSuggestion(true)} className="text-xs text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-0.5">
+                <Plus size={11} /> Add to this list
               </button>
-            ))}
+            )}
           </div>
+
+          {showAddSuggestion && (
+            <div className="flex flex-col gap-1.5 p-2 bg-white dark:bg-slate-800 rounded-lg">
+              <input type="text" placeholder="Name" value={suggName} onChange={(e) => setSuggName(e.target.value)} autoFocus
+                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+              <input type="text" placeholder="Feed URL" value={suggUrl} onChange={(e) => setSuggUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSuggestion()}
+                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+              <div className="flex gap-2">
+                <button onClick={handleAddSuggestion} className="flex-1 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold transition">Add to list</button>
+                <button onClick={() => { setShowAddSuggestion(false); setSuggName(''); setSuggUrl(''); }} className="flex-1 py-1 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-xs font-semibold transition">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {allSuggestions.length > 0 && (
+            <>
+              <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto">
+                {allSuggestions.map((s) => {
+                  const selected = selectedSuggestionUrl === s.url;
+                  return (
+                    <button
+                      key={s.url}
+                      onClick={() => setSelectedSuggestionUrl(selected ? null : s.url)}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition ${
+                        selected
+                          ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100'
+                          : 'hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-sky-500" /> : <Circle size={15} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />}
+                      {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={handleSubscribe}
+                disabled={!selectedSuggestionUrl}
+                className="py-1.5 bg-sky-500 hover:bg-sky-600 disabled:bg-gray-200 dark:disabled:bg-slate-600 disabled:text-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition"
+              >
+                Subscribe
+              </button>
+            </>
+          )}
         </div>
       )}
 
