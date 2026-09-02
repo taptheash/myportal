@@ -23,6 +23,7 @@ interface TeamResult extends TeamEntry {
   status: 'loading' | 'ok' | 'error';
   line: string;
   detail: string;
+  nextGame: string | null;
 }
 
 interface EspnLeagueTeam {
@@ -92,7 +93,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
   const teamsKey = teams.map((t) => t.key).join(',');
 
   const [results, setResults] = useState<TeamResult[]>(() =>
-    teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '' }))
+    teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '', nextGame: null }))
   );
 
   // Add-team flow state
@@ -108,7 +109,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
     // (covers add/delete), then fetch fresh data for everyone — this is what
     // makes a newly added team pull its info immediately rather than waiting
     // for the next 15-minute poll.
-    setResults(teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '' })));
+    setResults(teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '', nextGame: null })));
 
     const fetchTeam = async (t: TeamEntry) => {
       try {
@@ -122,7 +123,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         if (!nextEvent) {
           if (!cancelled) {
             setResults((prev) => prev.map((r) => r.key === t.key
-              ? { ...r, status: 'ok', record, line: 'No upcoming game', detail: 'Off-season or schedule pending' }
+              ? { ...r, status: 'ok', record, line: 'No upcoming game', detail: 'Off-season or schedule pending', nextGame: null }
               : r));
           }
           return;
@@ -153,9 +154,34 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         }
 
         const { line, detail } = formatEvent(eventForFormatting);
+        let nextGame: string | null = null;
+
+        // nextEvent stays pointed at the just-concluded game for a while
+        // after it ends, rather than immediately advancing — so a Final
+        // score alone gives no sense of what's coming up. Look at the
+        // team's full schedule specifically to find the next 'pre' (not yet
+        // started) game when the current one has already finished.
+        if (state === 'post') {
+          try {
+            const schedRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/teams/${t.team}/schedule`);
+            if (schedRes.ok) {
+              const schedData = await schedRes.json();
+              const events = schedData?.events || [];
+              const upcoming = events.find(
+                (e: any) => e?.competitions?.[0]?.status?.type?.state === 'pre'
+              );
+              if (upcoming) {
+                const upcomingInfo = formatEvent(upcoming);
+                nextGame = `Next: ${upcomingInfo.line} — ${upcomingInfo.detail}`;
+              }
+            }
+          } catch {
+            // schedule lookup failed — just show the final score, no next-game line
+          }
+        }
 
         if (!cancelled) {
-          setResults((prev) => prev.map((r) => r.key === t.key ? { ...r, status: 'ok', record, line, detail } : r));
+          setResults((prev) => prev.map((r) => r.key === t.key ? { ...r, status: 'ok', record, line, detail, nextGame } : r));
         }
       } catch {
         if (!cancelled) {
@@ -312,6 +338,9 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
                   <>
                     <div className="text-xs text-gray-700 dark:text-gray-300 truncate">{r.line}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{r.detail}</div>
+                    {r.nextGame && (
+                      <div className="text-xs text-blue-500 dark:text-blue-400 truncate">{r.nextGame}</div>
+                    )}
                   </>
                 )}
               </div>
