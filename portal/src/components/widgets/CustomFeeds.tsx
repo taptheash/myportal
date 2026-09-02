@@ -102,8 +102,14 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'PetaPixel', url: 'https://petapixel.com/feed/', genre: 'Design' }, // PATTERN
   { name: 'Architectural Digest', url: 'https://www.architecturaldigest.com/feed/rss', genre: 'Design' }, // PATTERN
 
-  // Food
-  { name: 'Serious Eats', url: 'https://www.seriouseats.com/feeds/all', genre: 'Food' }, // PATTERN
+  // Food — Serious Eats' URL was actually wrong before, not just unlucky:
+  // it moved to a centralized Dotdash Meredith feed system after being
+  // acquired in 2020, so the old WordPress-style guess never had a chance.
+  // Found via a curated, categorized feed list rather than another guess.
+  { name: 'Serious Eats', url: 'https://www.seriouseats.com/rss', genre: 'Food' }, // CONFIRMED
+  { name: 'Simply Recipes', url: 'https://www.simplyrecipes.com/rss', genre: 'Food' }, // CONFIRMED
+  { name: 'Budget Bytes', url: 'https://www.budgetbytes.com/feed/', genre: 'Food' }, // CONFIRMED
+  { name: 'Smitten Kitchen', url: 'https://smittenkitchen.com/feed/', genre: 'Food' }, // CONFIRMED
 
   // Health & Fitness
   { name: "Men's Health", url: 'https://www.menshealth.com/rss/all.xml/', genre: 'Health' }, // PATTERN
