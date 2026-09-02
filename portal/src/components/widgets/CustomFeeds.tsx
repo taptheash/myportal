@@ -143,6 +143,10 @@ function formatTime(pubDate: string): string {
 export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps) {
   const feeds: CustomFeed[] = config.feeds || [];
   const savedSuggestions: SuggestionEntry[] = config.savedSuggestions || [];
+  // Built-in suggestions live in code, not per-user data, so "removing" one
+  // can't delete it from that list — instead we track dismissed URLs here
+  // and filter them out. Your own additions get deleted outright below.
+  const dismissedBuiltIns: string[] = config.dismissedBuiltIns || [];
   const [feedData, setFeedData] = useState<Record<string, FeedState>>({});
 
   const [showAdd, setShowAdd] = useState(false);
@@ -203,11 +207,14 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
   const toggleCollapsed = (id: string) =>
     onUpdateConfig({ ...config, feeds: feeds.map((f) => (f.id === id ? { ...f, collapsed: !f.collapsed } : f)) });
 
-  // All suggestions available to pick from: built-in ones plus anything
-  // Doug has added himself, minus anything already subscribed to.
-  const allSuggestions: SuggestionEntry[] = [...BUILT_IN_SUGGESTIONS, ...savedSuggestions].filter(
-    (s) => !feeds.some((f) => f.url === s.url)
-  );
+  // All suggestions available to pick from: built-in ones (minus any
+  // dismissed) plus anything Doug has added himself, minus anything already
+  // subscribed to. Tagged with isBuiltIn so removal knows which mechanism
+  // to use.
+  const allSuggestions: Array<SuggestionEntry & { isBuiltIn: boolean }> = [
+    ...BUILT_IN_SUGGESTIONS.filter((s) => !dismissedBuiltIns.includes(s.url)).map((s) => ({ ...s, isBuiltIn: true })),
+    ...savedSuggestions.map((s) => ({ ...s, isBuiltIn: false })),
+  ].filter((s) => !feeds.some((f) => f.url === s.url));
 
   const handleAddSuggestion = () => {
     if (!suggName.trim() || !suggUrl.trim()) return;
@@ -216,6 +223,15 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
     setSuggName('');
     setSuggUrl('');
     setShowAddSuggestion(false);
+  };
+
+  const removeSuggestion = (url: string, isBuiltIn: boolean) => {
+    if (isBuiltIn) {
+      onUpdateConfig({ ...config, dismissedBuiltIns: [...dismissedBuiltIns, url] });
+    } else {
+      onUpdateConfig({ ...config, savedSuggestions: savedSuggestions.filter((s) => s.url !== url) });
+    }
+    if (selectedSuggestionUrl === url) setSelectedSuggestionUrl(null);
   };
 
   const handleSubscribe = () => {
@@ -288,18 +304,26 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
                       {allSuggestions.filter((s) => s.genre === genre).map((s) => {
                         const selected = selectedSuggestionUrl === s.url;
                         return (
-                          <button
-                            key={s.url}
-                            onClick={() => setSelectedSuggestionUrl(selected ? null : s.url)}
-                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition ${
-                              selected
-                                ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100'
-                                : 'hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300'
-                            }`}
-                          >
-                            {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-sky-500" /> : <Circle size={15} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />}
-                            {s.name}
-                          </button>
+                          <div key={s.url} className="group flex items-center gap-1">
+                            <button
+                              onClick={() => setSelectedSuggestionUrl(selected ? null : s.url)}
+                              className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition ${
+                                selected
+                                  ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100'
+                                  : 'hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-sky-500" /> : <Circle size={15} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />}
+                              {s.name}
+                            </button>
+                            <button
+                              onClick={() => removeSuggestion(s.url, s.isBuiltIn)}
+                              title="Remove from suggestions"
+                              className="p-1 flex-shrink-0 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-500 transition"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
