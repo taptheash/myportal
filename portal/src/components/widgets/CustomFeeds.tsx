@@ -65,7 +65,11 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   // Sports
   { name: 'ESPN', url: 'http://www.espn.com/espn/rss/news', genre: 'Sports' },
   { name: 'Yahoo Sports', url: 'https://sports.yahoo.com/rss/', genre: 'Sports' }, // PATTERN
-  { name: 'Bleacher Report', url: 'https://bleacherreport.com/articles/feed', genre: 'Sports' }, // PATTERN
+  { name: 'CBS Sports', url: 'https://www.cbssports.com/rss/headlines', genre: 'Sports' }, // CONFIRMED — verified via a sport-specific variant returning real, current raw XML
+  // Bleacher Report removed: Warner Bros. Discovery subsidiary, recently
+  // reorganized under their new TNT Sports division — same pattern as the
+  // Dotdash Meredith failures in Food (large media conglomerate, migrating
+  // infrastructure), not worth a second guess on the URL.
 
   // Aviation
   { name: 'Simple Flying', url: 'https://simpleflying.com/feed/', genre: 'Aviation' },
