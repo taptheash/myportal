@@ -19,6 +19,7 @@ interface CustomFeed {
 interface SuggestionEntry {
   name: string;
   url: string;
+  genre: string;
 }
 
 interface FeedState {
@@ -26,23 +27,108 @@ interface FeedState {
   status: 'loading' | 'ok' | 'error';
 }
 
-// AP News was removed — verified it no longer offers a native RSS feed at
-// all (confirmed via a third-party project built specifically to work
-// around that gap), not just a URL that needed fixing.
-// Kept deliberately short and mixed rather than all-news: Hacker News, BBC,
-// NPR, TechCrunch, The Verge, and Ars Technica are all verified working
-// elsewhere in this project; Kottke.org (running since 1998, confirmed
-// actively posting days ago) and xkcd are genuinely different in kind —
-// independent blog and webcomic, not news at all.
+// Confidence varies by entry, and that's worth being upfront about rather
+// than pretending otherwise at this scale:
+// - CONFIRMED: found the exact URL directly in a real search result, often
+//   from a source dated within the last few months.
+// - PATTERN: a well-known, large, established site where I applied the
+//   standard WordPress-style /feed convention rather than finding the exact
+//   URL directly — reasonable confidence given the site's size and
+//   longevity, but not independently confirmed the way the others were.
+// If any entry here doesn't load, that failure is isolated to its own
+// card — nothing else in the widget is affected, and it's easy to spot
+// and remove.
 const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
-  { name: 'Hacker News', url: 'https://news.ycombinator.com/rss' },
-  { name: 'Kottke.org', url: 'http://feeds.kottke.org/main' },
-  { name: 'xkcd', url: 'https://xkcd.com/rss.xml' },
-  { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
-  { name: 'NPR', url: 'https://feeds.npr.org/1002/rss.xml' },
-  { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
-  { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
-  { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index' },
+  // News — World & US (CONFIRMED unless noted)
+  { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/world/rss.xml', genre: 'News' },
+  { name: 'NPR', url: 'https://feeds.npr.org/1002/rss.xml', genre: 'News' },
+  { name: 'CNN World', url: 'http://rss.cnn.com/rss/edition_world.rss', genre: 'News' },
+  { name: 'CNN US', url: 'http://rss.cnn.com/rss/edition_us.rss', genre: 'News' },
+  { name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', genre: 'News' },
+  { name: 'NBC News', url: 'https://feeds.nbcnews.com/feeds/topstories', genre: 'News' },
+  { name: 'USA Today', url: 'https://rssfeeds.usatoday.com/usatoday-newstopstories', genre: 'News' },
+  { name: 'Politico', url: 'https://www.politico.com/rss/politicopicks.xml', genre: 'News' },
+  { name: 'The Guardian World', url: 'https://www.theguardian.com/world/rss', genre: 'News' }, // PATTERN
+
+  // Business & Finance
+  { name: 'NYT Business', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', genre: 'Business' },
+  { name: 'CNBC Top News', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', genre: 'Business' }, // PATTERN
+
+  // Technology
+  { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', genre: 'Technology' },
+  { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', genre: 'Technology' },
+  { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index', genre: 'Technology' },
+  { name: 'Wired', url: 'https://www.wired.com/feed/rss', genre: 'Technology' },
+  { name: 'Hacker News', url: 'https://news.ycombinator.com/rss', genre: 'Technology' },
+  { name: 'Engadget', url: 'https://www.engadget.com/rss.xml', genre: 'Technology' }, // PATTERN
+  { name: 'Krebs on Security', url: 'https://krebsonsecurity.com/feed/', genre: 'Technology' }, // PATTERN
+
+  // Sports
+  { name: 'ESPN', url: 'http://www.espn.com/espn/rss/news', genre: 'Sports' },
+  { name: 'Yahoo Sports', url: 'https://sports.yahoo.com/rss/', genre: 'Sports' }, // PATTERN
+  { name: 'Bleacher Report', url: 'https://bleacherreport.com/articles/feed', genre: 'Sports' }, // PATTERN
+
+  // Aviation
+  { name: 'Simple Flying', url: 'https://simpleflying.com/feed/', genre: 'Aviation' },
+  { name: 'AVweb', url: 'https://www.avweb.com/feed/', genre: 'Aviation' }, // PATTERN
+  { name: 'The Aviationist', url: 'https://theaviationist.com/feed/', genre: 'Aviation' }, // PATTERN
+  { name: 'Flightradar24 Blog', url: 'https://www.flightradar24.com/blog/feed/', genre: 'Aviation' }, // PATTERN
+
+  // Entertainment & Celebrity
+  { name: 'TMZ', url: 'https://tmz.com/rss.xml', genre: 'Entertainment' },
+  { name: 'Variety', url: 'https://variety.com/feed/', genre: 'Entertainment' },
+  { name: 'The Hollywood Reporter', url: 'https://www.hollywoodreporter.com/feed/', genre: 'Entertainment' }, // PATTERN
+  { name: 'Entertainment Weekly', url: 'https://ew.com/feed/', genre: 'Entertainment' }, // PATTERN
+
+  // Movies & Film
+  { name: 'Roger Ebert', url: 'https://www.rogerebert.com/feed', genre: 'Movies' }, // PATTERN
+  { name: '/Film', url: 'https://www.slashfilm.com/feed/', genre: 'Movies' }, // PATTERN
+
+  // Gaming
+  { name: 'Polygon', url: 'https://www.polygon.com/rss/index.xml', genre: 'Gaming' }, // PATTERN
+  { name: 'Kotaku', url: 'https://kotaku.com/rss', genre: 'Gaming' }, // PATTERN
+  { name: 'IGN', url: 'https://feeds.ign.com/ign/games-all', genre: 'Gaming' }, // PATTERN
+
+  // Science & Space
+  { name: 'Phys.org', url: 'https://phys.org/rss-feed/', genre: 'Science' }, // PATTERN
+  { name: 'New Scientist', url: 'https://www.newscientist.com/feed/home/', genre: 'Science' }, // PATTERN
+  { name: 'NASA Breaking News', url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', genre: 'Science' }, // PATTERN
+
+  // Music
+  { name: 'Pitchfork', url: 'https://pitchfork.com/rss/news/', genre: 'Music' }, // PATTERN
+  { name: 'Rolling Stone', url: 'https://www.rollingstone.com/feed/', genre: 'Music' }, // PATTERN
+
+  // Design & Photography
+  { name: 'Dezeen', url: 'https://www.dezeen.com/feed/', genre: 'Design' }, // PATTERN
+  { name: 'PetaPixel', url: 'https://petapixel.com/feed/', genre: 'Design' }, // PATTERN
+  { name: 'Architectural Digest', url: 'https://www.architecturaldigest.com/feed/rss', genre: 'Design' }, // PATTERN
+
+  // Food
+  { name: 'Serious Eats', url: 'https://www.seriouseats.com/feeds/all', genre: 'Food' }, // PATTERN
+
+  // Health & Fitness
+  { name: "Men's Health", url: 'https://www.menshealth.com/rss/all.xml/', genre: 'Health' }, // PATTERN
+
+  // Travel
+  { name: 'Lonely Planet', url: 'https://www.lonelyplanet.com/news/feed', genre: 'Travel' }, // PATTERN
+
+  // Books & Literature
+  { name: 'Literary Hub', url: 'https://lithub.com/feed/', genre: 'Books' }, // PATTERN
+
+  // History
+  { name: 'HistoryExtra (BBC)', url: 'https://www.historyextra.com/feed/', genre: 'History' }, // PATTERN
+
+  // Automotive & Racing
+  { name: 'Jalopnik', url: 'https://jalopnik.com/rss', genre: 'Automotive' }, // PATTERN
+  { name: 'Autosport F1', url: 'https://www.autosport.com/rss/f1/news/', genre: 'Automotive' }, // PATTERN
+
+  // Culture & Independent Blogs
+  { name: 'Kottke.org', url: 'http://feeds.kottke.org/main', genre: 'Culture' },
+  { name: 'xkcd', url: 'https://xkcd.com/rss.xml', genre: 'Culture' },
+  { name: 'The Onion', url: 'https://www.theonion.com/rss', genre: 'Culture' }, // PATTERN
+
+  // Environment
+  { name: 'Grist', url: 'https://grist.org/feed/', genre: 'Environment' }, // PATTERN
 ];
 
 function formatTime(pubDate: string): string {
@@ -126,7 +212,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
   const handleAddSuggestion = () => {
     if (!suggName.trim() || !suggUrl.trim()) return;
     const url = suggUrl.startsWith('http') ? suggUrl.trim() : `https://${suggUrl.trim()}`;
-    onUpdateConfig({ ...config, savedSuggestions: [...savedSuggestions, { name: suggName.trim(), url }] });
+    onUpdateConfig({ ...config, savedSuggestions: [...savedSuggestions, { name: suggName.trim(), url, genre: 'My Additions' }] });
     setSuggName('');
     setSuggUrl('');
     setShowAddSuggestion(false);
@@ -191,24 +277,34 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
 
           {allSuggestions.length > 0 && (
             <>
-              <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto">
-                {allSuggestions.map((s) => {
-                  const selected = selectedSuggestionUrl === s.url;
-                  return (
-                    <button
-                      key={s.url}
-                      onClick={() => setSelectedSuggestionUrl(selected ? null : s.url)}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition ${
-                        selected
-                          ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100'
-                          : 'hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-sky-500" /> : <Circle size={15} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />}
-                      {s.name}
-                    </button>
-                  );
-                })}
+              <div className="flex flex-col gap-0.5 max-h-72 overflow-y-auto pr-1">
+                {(() => {
+                  const genres = Array.from(new Set(allSuggestions.map((s) => s.genre)));
+                  return genres.map((genre) => (
+                    <div key={genre}>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 px-2 pt-2 pb-0.5">
+                        {genre}
+                      </div>
+                      {allSuggestions.filter((s) => s.genre === genre).map((s) => {
+                        const selected = selectedSuggestionUrl === s.url;
+                        return (
+                          <button
+                            key={s.url}
+                            onClick={() => setSelectedSuggestionUrl(selected ? null : s.url)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition ${
+                              selected
+                                ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100'
+                                : 'hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-sky-500" /> : <Circle size={15} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />}
+                            {s.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
               </div>
               <button
                 onClick={handleSubscribe}
