@@ -46,7 +46,6 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'CNN US', url: 'http://rss.cnn.com/rss/edition_us.rss', genre: 'News' },
   { name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', genre: 'News' },
   { name: 'NBC News', url: 'https://feeds.nbcnews.com/feeds/topstories', genre: 'News' },
-  { name: 'USA Today', url: 'https://rssfeeds.usatoday.com/usatoday-newstopstories', genre: 'News' },
   { name: 'Politico', url: 'https://www.politico.com/rss/politicopicks.xml', genre: 'News' },
   { name: 'The Guardian World', url: 'https://www.theguardian.com/world/rss', genre: 'News' }, // PATTERN
 
