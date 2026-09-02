@@ -155,6 +155,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
   const [error, setError] = useState<string | null>(null);
 
   const [showAddSuggestion, setShowAddSuggestion] = useState(false);
+  const suggestionsExpanded = config.suggestionsExpanded !== false;
   const [suggName, setSuggName] = useState('');
   const [suggUrl, setSuggUrl] = useState('');
   const [selectedSuggestionUrl, setSelectedSuggestionUrl] = useState<string | null>(null);
@@ -268,17 +269,21 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
       {(allSuggestions.length > 0 || showAddSuggestion) && (
         <div className="flex flex-col gap-1.5 p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            <button
+              onClick={() => onUpdateConfig({ ...config, suggestionsExpanded: !suggestionsExpanded })}
+              className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
+            >
+              {suggestionsExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
               <Sparkles size={12} /> Suggested — pick one to subscribe
-            </div>
-            {!showAddSuggestion && (
+            </button>
+            {suggestionsExpanded && !showAddSuggestion && (
               <button onClick={() => setShowAddSuggestion(true)} className="text-xs text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-0.5">
                 <Plus size={11} /> Add to this list
               </button>
             )}
           </div>
 
-          {showAddSuggestion && (
+          {suggestionsExpanded && showAddSuggestion && (
             <div className="flex flex-col gap-1.5 p-2 bg-white dark:bg-slate-800 rounded-lg">
               <input type="text" placeholder="Name" value={suggName} onChange={(e) => setSuggName(e.target.value)} autoFocus
                 className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
@@ -291,7 +296,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
             </div>
           )}
 
-          {allSuggestions.length > 0 && (
+          {suggestionsExpanded && allSuggestions.length > 0 && (
             <>
               <div className="flex flex-col gap-0.5 max-h-72 overflow-y-auto pr-1">
                 {(() => {
