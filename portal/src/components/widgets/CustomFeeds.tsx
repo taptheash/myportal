@@ -79,15 +79,6 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'The Hollywood Reporter', url: 'https://www.hollywoodreporter.com/feed/', genre: 'Entertainment' }, // PATTERN
   { name: 'Entertainment Weekly', url: 'https://ew.com/feed/', genre: 'Entertainment' }, // PATTERN
 
-  // Movies & Film
-  { name: 'Roger Ebert', url: 'https://www.rogerebert.com/feed', genre: 'Movies' }, // PATTERN
-  { name: '/Film', url: 'https://www.slashfilm.com/feed/', genre: 'Movies' }, // PATTERN
-
-  // Gaming
-  { name: 'Polygon', url: 'https://www.polygon.com/rss/index.xml', genre: 'Gaming' }, // PATTERN
-  { name: 'Kotaku', url: 'https://kotaku.com/rss', genre: 'Gaming' }, // PATTERN
-  { name: 'IGN', url: 'https://feeds.ign.com/ign/games-all', genre: 'Gaming' }, // PATTERN
-
   // Science & Space
   { name: 'Phys.org', url: 'https://phys.org/rss-feed/', genre: 'Science' }, // PATTERN
   { name: 'New Scientist', url: 'https://www.newscientist.com/feed/home/', genre: 'Science' }, // PATTERN
@@ -97,19 +88,24 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'Pitchfork', url: 'https://pitchfork.com/rss/news/', genre: 'Music' }, // PATTERN
   { name: 'Rolling Stone', url: 'https://www.rollingstone.com/feed/', genre: 'Music' }, // PATTERN
 
-  // Design & Photography
-  { name: 'Dezeen', url: 'https://www.dezeen.com/feed/', genre: 'Design' }, // PATTERN
-  { name: 'PetaPixel', url: 'https://petapixel.com/feed/', genre: 'Design' }, // PATTERN
-  { name: 'Architectural Digest', url: 'https://www.architecturaldigest.com/feed/rss', genre: 'Design' }, // PATTERN
-
-  // Food — Serious Eats' URL was actually wrong before, not just unlucky:
-  // it moved to a centralized Dotdash Meredith feed system after being
-  // acquired in 2020, so the old WordPress-style guess never had a chance.
-  // Found via a curated, categorized feed list rather than another guess.
-  { name: 'Serious Eats', url: 'https://www.seriouseats.com/rss', genre: 'Food' }, // CONFIRMED
-  { name: 'Simply Recipes', url: 'https://www.simplyrecipes.com/rss', genre: 'Food' }, // CONFIRMED
+  // Food — Serious Eats and Simply Recipes removed: both Dotdash Meredith
+  // properties, both failed independently, pointing to a shared
+  // infrastructure issue rather than two unrelated mistakes. Serious Eats
+  // specifically has changed owners twice (2015, 2020) and different
+  // sources give conflicting RSS URLs from different eras.
+  // Everything below is confirmed independently-run (not corporate media):
+  // Half Baked Harvest (Tieghan Gerard), Smitten Kitchen (Deb Perelman),
+  // David Lebovitz (working pastry chef), RecipeTin Eats (Nagi), etc.
   { name: 'Budget Bytes', url: 'https://www.budgetbytes.com/feed/', genre: 'Food' }, // CONFIRMED
   { name: 'Smitten Kitchen', url: 'https://smittenkitchen.com/feed/', genre: 'Food' }, // CONFIRMED
+  { name: 'Skinnytaste', url: 'https://www.skinnytaste.com/feed/', genre: 'Food' }, // CONFIRMED
+  { name: 'Pinch of Yum', url: 'https://pinchofyum.com/feed', genre: 'Food' }, // CONFIRMED
+  { name: 'Half Baked Harvest', url: 'https://halfbakedharvest.com/feed', genre: 'Food' }, // CONFIRMED
+  { name: 'Cookie and Kate', url: 'https://cookieandkate.com/feed/', genre: 'Food' }, // PATTERN
+  { name: 'Minimalist Baker', url: 'https://minimalistbaker.com/feed/', genre: 'Food' }, // PATTERN
+  { name: 'Love and Lemons', url: 'https://www.loveandlemons.com/feed/', genre: 'Food' }, // PATTERN
+  { name: 'David Lebovitz', url: 'https://www.davidlebovitz.com/feed/', genre: 'Food' }, // PATTERN
+  { name: 'RecipeTin Eats', url: 'https://www.recipetineats.com/feed/', genre: 'Food' }, // PATTERN
 
   // Health & Fitness
   { name: "Men's Health", url: 'https://www.menshealth.com/rss/all.xml/', genre: 'Health' }, // PATTERN
