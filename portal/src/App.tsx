@@ -16,6 +16,7 @@ import LocalNews from './components/widgets/LocalNews';
 import WeirdNews from './components/widgets/WeirdNews';
 import BusinessNews from './components/widgets/BusinessNews';
 import Notes from './components/widgets/Notes';
+import FreeformNotes from './components/widgets/FreeformNotes';
 import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
 import SportsNews from './components/widgets/SportsNews';
@@ -41,7 +42,7 @@ interface WidgetDef {
 // same-container tabs need to be mutually distinguishable from each other.
 const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   weather:    { type: 'weather',    label: 'Weather',     icon: Sun,          component: Weather,      color: '#E69F00', activeText: 'black' },
-  notes:      { type: 'notes',      label: 'Notes',       icon: StickyNote,   component: Notes,        color: '#F0E442', activeText: 'black' },
+  notes:      { type: 'notes',      label: 'Notes',       icon: StickyNote,   component: FreeformNotes, color: '#F0E442', activeText: 'black' },
   tasks:      { type: 'tasks',      label: 'Tasks',       icon: ListChecks,   component: Notes,        color: '#009E73', activeText: 'black' },
   calendar:   { type: 'calendar',   label: 'Calendar',    icon: CalendarIcon, component: Calendar,     color: '#CC79A7', activeText: 'black' },
   links:      { type: 'links',      label: 'Quick Links', icon: Link2,        component: QuickLinks,   color: '#56B4E9', activeText: 'black' },
