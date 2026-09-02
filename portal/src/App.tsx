@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Sun, Moon, Monitor, Plus, Minus, Crosshair,
+  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -19,6 +19,7 @@ import Notes from './components/widgets/Notes';
 import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
 import SportsNews from './components/widgets/SportsNews';
+import CustomFeeds from './components/widgets/CustomFeeds';
 
 interface WidgetInstance {
   id: string;
@@ -49,12 +50,13 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,    color: '#D55E00', activeText: 'black' },
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
   local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,    color: '#009E73', activeText: 'black' },
+  feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sports', 'sportsnews', 'headlines', 'tech', 'local', 'business', 'weird'];
+const NEWS_TYPES = ['sports', 'sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
