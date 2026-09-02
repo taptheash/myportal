@@ -9,6 +9,25 @@ interface CacheEntry {
 
 const RSS2JSON_BASE = 'https://api.rss2json.com/v1/api.json';
 
+// Some publishers (Entertainment Weekly does this to italicize show titles)
+// embed HTML markup directly in their RSS <title> text — e.g. a title
+// containing literal <i><em>Lanterns</em></i>. When that markup is
+// XML-escaped inside the feed and rss2json passes it through without fully
+// unescaping it, the result is literal "&lt;i&gt;&lt;em&gt;" text showing
+// up on screen instead of either real formatting or clean plain text.
+// This decodes those entities and then strips any resulting tags, so
+// titles always render as plain text regardless of what the source feed
+// embedded.
+function cleanTitle(raw: string): string {
+  const decoded = raw
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"');
+  return decoded.replace(/<[^>]*>/g, '');
+}
+
 export async function fetchRssWithCache(
   cacheKey: string,
   feedUrl: string,
@@ -41,7 +60,9 @@ export async function fetchRssWithCache(
   const json = await response.json();
   if (json.status !== 'ok') throw new Error(json.message || 'RSS feed error');
 
-  const items = (json.items || []).slice(0, count);
+  const items = (json.items || [])
+    .slice(0, count)
+    .map((item: any) => ({ ...item, title: item.title ? cleanTitle(item.title) : item.title }));
 
   try {
     localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: items }));
@@ -65,11 +86,6 @@ function pickRandomSources(pool: NewsSource[], count: number): NewsSource[] {
   return shuffled.slice(0, Math.min(count, pool.length));
 }
 
-// Fetches a random subset of sources from the pool, tags each article with
-// which outlet it came from, and merges them into one list sorted by
-// recency. Each source still goes through the same per-source cache as
-// fetchRssWithCache, so this doesn't multiply real network calls beyond
-// what the random subset actually needs.
 // Fetched once per source at a generous fixed size, then re-sliced purely
 // for display based on whatever count is currently requested. This is
 // deliberately NOT scaled to the requested total — doing that previously
@@ -80,6 +96,11 @@ function pickRandomSources(pool: NewsSource[], count: number): NewsSource[] {
 // reveals exactly one more article, evenly, up to the pool's real size.
 const PER_SOURCE_POOL_SIZE = 20;
 
+// Fetches a random subset of sources from the pool, tags each article with
+// which outlet it came from, and merges them into one list sorted by
+// recency. Each source still goes through the same per-source cache as
+// fetchRssWithCache (title cleaning included), so this doesn't multiply
+// real network calls beyond what the random subset actually needs.
 export async function fetchMergedRssWithCache(
   categoryKey: string,
   pool: NewsSource[],
