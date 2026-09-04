@@ -115,7 +115,7 @@ export default function TabContainer({
   };
 
   return (
-    <section className="flex-1 min-w-0 h-full flex flex-col">
+    <section className="flex-1 min-w-0 flex flex-col">
       <h2 className="text-lg font-bold tracking-wide text-gray-900 dark:text-white uppercase mb-3 px-1">
         {sectionLabel}
       </h2>

@@ -48,7 +48,10 @@ export function makeTeamSchedule(
           const data = await res.json();
           const events = data?.events || [];
 
-          const parsed: ScheduleGame[] = events.map((e: any) => {
+          const now = Date.now();
+          const upcomingEvents = events.filter((e: any) => e?.date && new Date(e.date).getTime() >= now);
+
+          const parsed: ScheduleGame[] = upcomingEvents.map((e: any) => {
             const comp = e?.competitions?.[0];
             const competitors = comp?.competitors || [];
             const home = competitors.find((c: any) => c.homeAway === 'home');
@@ -106,7 +109,7 @@ export function makeTeamSchedule(
     return (
       <div className="flex flex-col gap-1.5">
         {games.length === 0 && (
-          <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">No schedule available.</div>
+          <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">No upcoming games scheduled.</div>
         )}
         {games.map((game) => (
           <div
