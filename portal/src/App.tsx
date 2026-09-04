@@ -21,6 +21,7 @@ import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
 import SportsNews from './components/widgets/SportsNews';
 import CustomFeeds from './components/widgets/CustomFeeds';
+import PatriotsSchedule from './components/widgets/PatriotsSchedule';
 
 interface WidgetInstance {
   id: string;
@@ -54,11 +55,13 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
+  patsSchedule: { type: 'patsSchedule', label: 'Patriots Schedule', icon: CalendarIcon, component: PatriotsSchedule, color: '#0072B2', activeText: 'white' },
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sports', 'sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds'];
-const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES];
+const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds'];
+const SPORTS_TYPES = ['sports', 'patsSchedule'];
+const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
   return ALL_TYPES.map((type) => ({
@@ -76,8 +79,10 @@ export default function App() {
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
   const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
+  const [activeSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
+  const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -143,9 +148,16 @@ export default function App() {
 
   const toolTabs = resolveOrder(toolOrder, TOOL_TYPES).map(toTabDef);
   const newsTabs = resolveOrder(newsOrder, NEWS_TYPES).map(toTabDef);
+  const sportsTabs = resolveOrder(sportsOrder, SPORTS_TYPES).map(toTabDef);
+
+  // Guards against activeNews still pointing at 'sports' from a browser
+  // that had it selected before Sports moved out of the News section —
+  // falls back to a tab that's actually still in News.
+  const safeActiveNews = NEWS_TYPES.includes(activeNews) ? activeNews : NEWS_TYPES[0];
 
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
-  const activeNewsWidget = widgets.find((w) => w.type === activeNews)!;
+  const activeNewsWidget = widgets.find((w) => w.type === safeActiveNews)!;
+  const activeSportsWidget = widgets.find((w) => w.type === activeSports)!;
 
   const renderToolControls = () => {
     if (activeTool === 'weather') {
@@ -233,17 +245,7 @@ export default function App() {
   };
 
   const renderNewsControls = () => {
-    if (activeNews === 'sports') {
-      return (
-        <button
-          onClick={() => updateWidgetConfig('sports', { ...activeNewsWidget.config, showAdd: true })}
-          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black transition"
-        >
-          <Plus size={13} /> Add team
-        </button>
-      );
-    }
-    if (!NEWS_ARTICLE_TYPES.has(activeNews)) return null;
+    if (!NEWS_ARTICLE_TYPES.has(safeActiveNews)) return null;
     const count = activeNewsWidget.config.articleCount || 10;
     // Show what's actually on screen, not just the requested target — the
     // source feed doesn't always have as many items as asked for.
@@ -252,14 +254,14 @@ export default function App() {
       <div className="flex items-center gap-1.5">
         <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Articles</span>
         <button
-          onClick={() => updateWidgetConfig(activeNews, { ...activeNewsWidget.config, articleCount: Math.max(1, count - 1) })}
+          onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.max(1, count - 1) })}
           className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
         >
           <Minus size={13} />
         </button>
         <span className="text-xs font-bold w-5 text-center text-gray-700 dark:text-gray-200">{displayCount}</span>
         <button
-          onClick={() => updateWidgetConfig(activeNews, { ...activeNewsWidget.config, articleCount: Math.min(100, count + 1) })}
+          onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.min(100, count + 1) })}
           className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
         >
           <Plus size={13} />
@@ -268,8 +270,23 @@ export default function App() {
     );
   };
 
+  const renderSportsControls = () => {
+    if (activeSports === 'sports') {
+      return (
+        <button
+          onClick={() => updateWidgetConfig('sports', { ...activeSportsWidget.config, showAdd: true })}
+          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black transition"
+        >
+          <Plus size={13} /> Add team
+        </button>
+      );
+    }
+    return null;
+  };
+
   const ToolComponent = WIDGET_DEFINITIONS[activeTool].component;
-  const NewsComponent = WIDGET_DEFINITIONS[activeNews].component;
+  const NewsComponent = WIDGET_DEFINITIONS[safeActiveNews].component;
+  const SportsComponent = WIDGET_DEFINITIONS[activeSports].component;
 
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
@@ -327,7 +344,7 @@ export default function App() {
               <TabContainer
                 sectionLabel="News"
                 tabs={newsTabs}
-                activeType={activeNews}
+                activeType={safeActiveNews}
                 onSelect={setActiveNews}
                 onReorder={setNewsOrder}
                 controls={renderNewsControls()}
@@ -335,7 +352,25 @@ export default function App() {
                 <NewsComponent
                   id={activeNewsWidget.id}
                   config={activeNewsWidget.config}
-                  onUpdateConfig={(config: any) => updateWidgetConfig(activeNews, config)}
+                  onUpdateConfig={(config: any) => updateWidgetConfig(safeActiveNews, config)}
+                  isEditing={false}
+                />
+              </TabContainer>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <TabContainer
+                sectionLabel="Sports"
+                tabs={sportsTabs}
+                activeType={activeSports}
+                onSelect={setActiveSports}
+                onReorder={setSportsOrder}
+                controls={renderSportsControls()}
+              >
+                <SportsComponent
+                  id={activeSportsWidget.id}
+                  config={activeSportsWidget.config}
+                  onUpdateConfig={(config: any) => updateWidgetConfig(activeSports, config)}
                   isEditing={false}
                 />
               </TabContainer>
