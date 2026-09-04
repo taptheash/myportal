@@ -322,22 +322,42 @@ export default function App() {
 
         <main className="p-6">
           <div className="flex flex-row gap-6 items-start w-full">
-            <div className="flex-1 min-w-0">
-              <TabContainer
-                sectionLabel="Tools"
-                tabs={toolTabs}
-                activeType={activeTool}
-                onSelect={setActiveTool}
-                onReorder={setToolOrder}
-                controls={renderToolControls()}
-              >
-                <ToolComponent
-                  id={activeToolWidget.id}
-                  config={activeToolWidget.config}
-                  onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
-                  isEditing={false}
-                />
-              </TabContainer>
+            <div className="flex-1 min-w-0 flex flex-col gap-6">
+              <div>
+                <TabContainer
+                  sectionLabel="Tools"
+                  tabs={toolTabs}
+                  activeType={activeTool}
+                  onSelect={setActiveTool}
+                  onReorder={setToolOrder}
+                  controls={renderToolControls()}
+                >
+                  <ToolComponent
+                    id={activeToolWidget.id}
+                    config={activeToolWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              </div>
+
+              <div>
+                <TabContainer
+                  sectionLabel="Sports"
+                  tabs={sportsTabs}
+                  activeType={activeSports}
+                  onSelect={setActiveSports}
+                  onReorder={setSportsOrder}
+                  controls={renderSportsControls()}
+                >
+                  <SportsComponent
+                    id={activeSportsWidget.id}
+                    config={activeSportsWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(activeSports, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              </div>
             </div>
 
             <div className="flex-1 min-w-0">
@@ -353,24 +373,6 @@ export default function App() {
                   id={activeNewsWidget.id}
                   config={activeNewsWidget.config}
                   onUpdateConfig={(config: any) => updateWidgetConfig(safeActiveNews, config)}
-                  isEditing={false}
-                />
-              </TabContainer>
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <TabContainer
-                sectionLabel="Sports"
-                tabs={sportsTabs}
-                activeType={activeSports}
-                onSelect={setActiveSports}
-                onReorder={setSportsOrder}
-                controls={renderSportsControls()}
-              >
-                <SportsComponent
-                  id={activeSportsWidget.id}
-                  config={activeSportsWidget.config}
-                  onUpdateConfig={(config: any) => updateWidgetConfig(activeSports, config)}
                   isEditing={false}
                 />
               </TabContainer>
