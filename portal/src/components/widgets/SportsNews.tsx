@@ -56,6 +56,11 @@ export default function SportsNews({ config, onUpdateConfig }: SportsNewsProps) 
 
   return (
     <div className="flex flex-col gap-1.5">
+      {articles.length === 0 && (
+        <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">
+          No articles found — the source may be temporarily unavailable.
+        </div>
+      )}
       {articles.map((article, idx) => (
         <a key={idx} href={article.link} target="_blank" rel="noopener noreferrer"
           className="block p-2 bg-blue-50 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-slate-600 rounded-lg border-l-4 border-blue-500 transition group">

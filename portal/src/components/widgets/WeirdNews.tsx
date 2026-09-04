@@ -11,11 +11,14 @@ interface OtherNewsProps {
 
 interface NewsItem { title: string; link: string; pubDate: string; sourceName: string; }
 
-// Single source — "odd/weird news" is a niche editorial angle most general
-// outlets don't run a dedicated feed for, so the realistic pool is small.
-// Same structure as the other categories for easy expansion later.
+// UPI Odd News was replaced — the URL was structurally valid but the feed
+// itself had gone stale (last article and feed timestamp both from May
+// 2026, over three months old as of this fix). Not a dead link, just
+// abandoned — which is why it showed a blank panel instead of an error.
+// All That's Interesting: confirmed active (Wikipedia lists current status
+// as Active, ~5.3M monthly visitors), independent digital publisher.
 const SOURCES: NewsSource[] = [
-  { name: 'UPI Odd News', url: 'https://rss.upi.com/news/odd_news.rss' },
+  { name: "All That's Interesting", url: 'https://allthatsinteresting.com/feed' },
 ];
 
 export default function OtherNews({ config, onUpdateConfig }: OtherNewsProps) {
@@ -58,6 +61,11 @@ export default function OtherNews({ config, onUpdateConfig }: OtherNewsProps) {
 
   return (
     <div className="flex flex-col gap-1.5">
+      {articles.length === 0 && (
+        <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">
+          No articles found — the source may be temporarily unavailable.
+        </div>
+      )}
       {articles.map((article, idx) => (
         <a key={idx} href={article.link} target="_blank" rel="noopener noreferrer"
           className="block p-2 bg-pink-50 dark:bg-slate-700 hover:bg-pink-100 dark:hover:bg-slate-600 rounded-lg border-l-4 border-pink-500 transition group">
