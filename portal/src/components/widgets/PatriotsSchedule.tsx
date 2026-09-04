@@ -26,7 +26,7 @@ export default function PatriotsSchedule(_props: PatriotsScheduleProps) {
         setLoading(true);
         const season = new Date().getFullYear();
         const res = await fetch(
-          `https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/ne/schedule?season=${season}`
+          `https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/ne/schedule?season=${season}&limit=100`
         );
         if (!res.ok) throw new Error('Failed to fetch schedule');
         const data = await res.json();
