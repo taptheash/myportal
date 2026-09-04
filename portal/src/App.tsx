@@ -21,7 +21,10 @@ import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
 import SportsNews from './components/widgets/SportsNews';
 import CustomFeeds from './components/widgets/CustomFeeds';
-import PatriotsSchedule from './components/widgets/PatriotsSchedule';
+import { makeTeamSchedule } from './components/widgets/TeamSchedule';
+
+const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
+const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
 
 interface WidgetInstance {
   id: string;
@@ -55,12 +58,13 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
-  patsSchedule: { type: 'patsSchedule', label: 'Patriots Schedule', icon: CalendarIcon, component: PatriotsSchedule, color: '#0072B2', activeText: 'white' },
+  patsSchedule: { type: 'patsSchedule', label: 'Patriots Schedule', icon: CalendarIcon, component: PatsSchedule, color: '#0072B2', activeText: 'white' },
+  soxSchedule: { type: 'soxSchedule', label: 'Red Sox Schedule', icon: CalendarIcon, component: SoxSchedule, color: '#D55E00', activeText: 'black' },
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
 const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds'];
-const SPORTS_TYPES = ['sports', 'patsSchedule'];
+const SPORTS_TYPES = ['sports', 'patsSchedule', 'soxSchedule'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
