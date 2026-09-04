@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss,
+  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -82,12 +82,23 @@ function makeDefaultWidgets(): WidgetInstance[] {
 
 const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird']);
 
+// Top-level section nav — adding a future section is one entry here, plus
+// one more conditional render branch below. No layout-width juggling needed
+// the way the old side-by-side/stacked columns required every time a
+// section was added.
+const SECTIONS = [
+  { id: 'tools', label: 'Tools', icon: Wrench },
+  { id: 'news', label: 'News', icon: Newspaper },
+  { id: 'sports', label: 'Sports', icon: Trophy },
+];
+
 export default function App() {
   const { mode, resolvedTheme, setMode } = useTheme();
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
   const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
   const [activeSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
+  const [activeSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'tools');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
@@ -330,56 +341,82 @@ export default function App() {
 
         <main className="p-6">
           <div className="flex flex-row gap-6 items-start w-full">
-            <div className="flex-1 min-w-0 flex flex-col gap-6">
-              <TabContainer
-                sectionLabel="Tools"
-                tabs={toolTabs}
-                activeType={activeTool}
-                onSelect={setActiveTool}
-                onReorder={setToolOrder}
-                controls={renderToolControls()}
-              >
-                <ToolComponent
-                  id={activeToolWidget.id}
-                  config={activeToolWidget.config}
-                  onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
-                  isEditing={false}
-                />
-              </TabContainer>
-
-              <TabContainer
-                sectionLabel="Sports"
-                tabs={sportsTabs}
-                activeType={activeSports}
-                onSelect={setActiveSports}
-                onReorder={setSportsOrder}
-                controls={renderSportsControls()}
-              >
-                <SportsComponent
-                  id={activeSportsWidget.id}
-                  config={activeSportsWidget.config}
-                  onUpdateConfig={(config: any) => updateWidgetConfig(activeSports, config)}
-                  isEditing={false}
-                />
-              </TabContainer>
-            </div>
+            <nav className="w-40 flex-shrink-0 flex flex-col gap-1.5">
+              {SECTIONS.map((section) => {
+                const isActive = activeSection === section.id;
+                const Icon = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    aria-current={isActive}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                      isActive
+                        ? 'font-bold bg-white dark:bg-slate-800 shadow-md text-gray-900 dark:text-white border-l-4 border-blue-500'
+                        : 'font-semibold text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-slate-800/60 border-l-4 border-transparent'
+                    }`}
+                  >
+                    <Icon size={16} className="flex-shrink-0" />
+                    {section.label}
+                  </button>
+                );
+              })}
+            </nav>
 
             <div className="flex-1 min-w-0">
-              <TabContainer
-                sectionLabel="News"
-                tabs={newsTabs}
-                activeType={safeActiveNews}
-                onSelect={setActiveNews}
-                onReorder={setNewsOrder}
-                controls={renderNewsControls()}
-              >
-                <NewsComponent
-                  id={activeNewsWidget.id}
-                  config={activeNewsWidget.config}
-                  onUpdateConfig={(config: any) => updateWidgetConfig(safeActiveNews, config)}
-                  isEditing={false}
-                />
-              </TabContainer>
+              {activeSection === 'tools' && (
+                <TabContainer
+                  sectionLabel="Tools"
+                  tabs={toolTabs}
+                  activeType={activeTool}
+                  onSelect={setActiveTool}
+                  onReorder={setToolOrder}
+                  controls={renderToolControls()}
+                >
+                  <ToolComponent
+                    id={activeToolWidget.id}
+                    config={activeToolWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              )}
+
+              {activeSection === 'news' && (
+                <TabContainer
+                  sectionLabel="News"
+                  tabs={newsTabs}
+                  activeType={safeActiveNews}
+                  onSelect={setActiveNews}
+                  onReorder={setNewsOrder}
+                  controls={renderNewsControls()}
+                >
+                  <NewsComponent
+                    id={activeNewsWidget.id}
+                    config={activeNewsWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(safeActiveNews, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              )}
+
+              {activeSection === 'sports' && (
+                <TabContainer
+                  sectionLabel="Sports"
+                  tabs={sportsTabs}
+                  activeType={activeSports}
+                  onSelect={setActiveSports}
+                  onReorder={setSportsOrder}
+                  controls={renderSportsControls()}
+                >
+                  <SportsComponent
+                    id={activeSportsWidget.id}
+                    config={activeSportsWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(activeSports, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              )}
             </div>
           </div>
         </main>
