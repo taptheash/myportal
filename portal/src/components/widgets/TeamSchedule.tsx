@@ -41,8 +41,12 @@ export function makeTeamSchedule(
           // defaults to a small page size (seen defaulting to 25 elsewhere)
           // unless a limit is set explicitly, which cut Patriots' schedule
           // down to 3 games the first time this was built.
+          // seasontype=2 (regular season) is required too — without it the
+          // endpoint defaults to preseason-only for that season, which is
+          // why Patriots/Celtics/Bruins showed "no upcoming games" once
+          // their preseasons had already ended for the year.
           const res = await fetch(
-            `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&limit=100`
+            `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&seasontype=2&limit=100`
           );
           if (!res.ok) throw new Error('Failed to fetch schedule');
           const data = await res.json();
