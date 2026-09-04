@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper,
+  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -22,6 +22,8 @@ import Sports from './components/widgets/Sports';
 import SportsNews from './components/widgets/SportsNews';
 import CustomFeeds from './components/widgets/CustomFeeds';
 import { makeTeamSchedule } from './components/widgets/TeamSchedule';
+import Watchlist from './components/widgets/Watchlist';
+import MarketOverview from './components/widgets/MarketOverview';
 
 const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
 const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
@@ -64,12 +66,15 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   soxSchedule: { type: 'soxSchedule', label: 'Red Sox Schedule', icon: CalendarIcon, component: SoxSchedule, color: '#D55E00', activeText: 'black' },
   celticsSchedule: { type: 'celticsSchedule', label: 'Celtics Schedule', icon: CalendarIcon, component: CelticsSchedule, color: '#009E73', activeText: 'black' },
   bruinsSchedule: { type: 'bruinsSchedule', label: 'Bruins Schedule', icon: CalendarIcon, component: BruinsSchedule, color: '#E69F00', activeText: 'black' },
+  watchlist: { type: 'watchlist', label: 'Watchlist', icon: TrendingUp, component: Watchlist, color: '#0072B2', activeText: 'white' },
+  marketOverview: { type: 'marketOverview', label: 'Market Overview', icon: BarChart3, component: MarketOverview, color: '#009E73', activeText: 'black' },
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
 const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds'];
 const SPORTS_TYPES = ['sports', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
-const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES];
+const STOCK_TYPES = ['watchlist', 'marketOverview'];
+const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
   return ALL_TYPES.map((type) => ({
@@ -90,6 +95,7 @@ const SECTIONS = [
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'news', label: 'News', icon: Newspaper },
   { id: 'sports', label: 'Sports', icon: Trophy },
+  { id: 'stocks', label: 'Stocks', icon: TrendingUp },
 ];
 
 export default function App() {
@@ -98,10 +104,12 @@ export default function App() {
   const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
   const [activeSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
+  const [activeStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
   const [activeSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'tools');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
+  const [stocksOrder, setStocksOrder] = useLocalStorage<string[]>('pw6-stocks-order', STOCK_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -168,6 +176,7 @@ export default function App() {
   const toolTabs = resolveOrder(toolOrder, TOOL_TYPES).map(toTabDef);
   const newsTabs = resolveOrder(newsOrder, NEWS_TYPES).map(toTabDef);
   const sportsTabs = resolveOrder(sportsOrder, SPORTS_TYPES).map(toTabDef);
+  const stocksTabs = resolveOrder(stocksOrder, STOCK_TYPES).map(toTabDef);
 
   // Guards against activeNews still pointing at 'sports' from a browser
   // that had it selected before Sports moved out of the News section —
@@ -177,6 +186,7 @@ export default function App() {
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
   const activeNewsWidget = widgets.find((w) => w.type === safeActiveNews)!;
   const activeSportsWidget = widgets.find((w) => w.type === activeSports)!;
+  const activeStocksWidget = widgets.find((w) => w.type === activeStocks)!;
 
   const renderToolControls = () => {
     if (activeTool === 'weather') {
@@ -303,9 +313,24 @@ export default function App() {
     return null;
   };
 
+  const renderStocksControls = () => {
+    if (activeStocks === 'watchlist') {
+      return (
+        <button
+          onClick={() => updateWidgetConfig('watchlist', { ...activeStocksWidget.config, showAdd: true })}
+          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition"
+        >
+          <Plus size={13} /> Add ticker
+        </button>
+      );
+    }
+    return null;
+  };
+
   const ToolComponent = WIDGET_DEFINITIONS[activeTool].component;
   const NewsComponent = WIDGET_DEFINITIONS[safeActiveNews].component;
   const SportsComponent = WIDGET_DEFINITIONS[activeSports].component;
+  const StocksComponent = WIDGET_DEFINITIONS[activeStocks].component;
 
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
@@ -413,6 +438,24 @@ export default function App() {
                     id={activeSportsWidget.id}
                     config={activeSportsWidget.config}
                     onUpdateConfig={(config: any) => updateWidgetConfig(activeSports, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              )}
+
+              {activeSection === 'stocks' && (
+                <TabContainer
+                  sectionLabel="Stocks"
+                  tabs={stocksTabs}
+                  activeType={activeStocks}
+                  onSelect={setActiveStocks}
+                  onReorder={setStocksOrder}
+                  controls={renderStocksControls()}
+                >
+                  <StocksComponent
+                    id={activeStocksWidget.id}
+                    config={activeStocksWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(activeStocks, config)}
                     isEditing={false}
                   />
                 </TabContainer>
