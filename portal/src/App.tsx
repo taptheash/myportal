@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3,
+  Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
   Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -21,6 +21,7 @@ import QuickLinks from './components/widgets/QuickLinks';
 import Sports from './components/widgets/Sports';
 import SportsNews from './components/widgets/SportsNews';
 import CustomFeeds from './components/widgets/CustomFeeds';
+import RedditPopular from './components/widgets/RedditPopular';
 import { makeTeamSchedule } from './components/widgets/TeamSchedule';
 import Watchlist from './components/widgets/Watchlist';
 import MarketOverview from './components/widgets/MarketOverview';
@@ -60,6 +61,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
   local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,    color: '#009E73', activeText: 'black' },
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
+  reddit:     { type: 'reddit',     label: 'Reddit Popular', icon: Flame,     component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
   patsSchedule: { type: 'patsSchedule', label: 'Patriots Schedule', icon: CalendarIcon, component: PatsSchedule, color: '#0072B2', activeText: 'white' },
@@ -71,7 +73,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds'];
+const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds', 'reddit'];
 const SPORTS_TYPES = ['sports', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
 const STOCK_TYPES = ['watchlist', 'marketOverview'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES];
