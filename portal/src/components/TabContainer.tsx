@@ -177,7 +177,6 @@ export default function TabContainer({
       </div>
 
       <div
-        key={active.type}
         role="tabpanel"
         className="panel-fade-in bg-white dark:bg-slate-800 rounded-b-2xl rounded-tr-2xl shadow-lg border border-gray-200 dark:border-slate-700 relative z-0 overflow-hidden flex-1 flex flex-col"
         style={{ borderTopColor: active.color, borderTopWidth: '4px', borderTopStyle: 'solid' }}
