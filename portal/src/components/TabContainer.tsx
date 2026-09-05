@@ -122,7 +122,7 @@ export default function TabContainer({
 
       <div
         ref={rowRef}
-        className="flex gap-1 overflow-x-auto no-scrollbar"
+        className="flex gap-1 overflow-x-hidden flex-wrap"
         role="tablist"
         aria-label={sectionLabel}
         onDrop={handleDrop}
