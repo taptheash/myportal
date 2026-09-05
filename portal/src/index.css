@@ -2,9 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+html, body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* The page itself never shows a scrollbar — widget panels (see
+     .no-scrollbar below, applied in TabContainer) handle their own
+     internal scrolling for long content instead. Without this, a
+     layout that's a few px taller than the viewport paints a native
+     page-level scrollbar track down the right edge of the window. */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hides the visible scrollbar while keeping the element scrollable —
+   used on widget content panels so long lists (schedules, news, etc.)
+   scroll without showing a scrollbar track/thumb. */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari, Edge (Chromium) */
 }

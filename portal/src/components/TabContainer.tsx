@@ -186,7 +186,7 @@ export default function TabContainer({
             {controls}
           </div>
         )}
-        <div className="p-4 flex-1 overflow-y-auto">{children}</div>
+        <div className="p-4 flex-1 overflow-y-auto no-scrollbar">{children}</div>
       </div>
     </section>
   );
