@@ -22,14 +22,17 @@ interface Quote {
   chart: ChartPoint[] | null; // null = not loaded / unavailable, distinct from an empty array
 }
 
-// ETF proxies, not the raw index values — SPY/DIA/QQQ trade as regular
-// stocks, so the same /quote endpoint works for them without needing a
-// separate indices API. Very closely tracks the underlying index, but is
-// technically the ETF's price, not the index number itself.
+// Real index tickers (Yahoo's ^-prefixed format), not ETF proxies — an ETF's
+// per-share price trades at a completely different scale than the index it
+// tracks (QQQ was ~$719/share while the Nasdaq Composite it tracks was
+// ~26,500), so showing the ETF price under an index's name was misleading
+// even though the number itself was accurate. `shortLabel` is the familiar
+// shorthand shown as the row's subtitle (no caret — that's Yahoo-specific
+// plumbing, not something a reader needs to see).
 const INDICES = [
-  { symbol: 'SPY', label: 'S&P 500' },
-  { symbol: 'DIA', label: 'Dow Jones' },
-  { symbol: 'QQQ', label: 'Nasdaq' },
+  { symbol: '^GSPC', label: 'S&P 500', shortLabel: 'SPX' },
+  { symbol: '^DJI', label: 'Dow Jones', shortLabel: 'DJI' },
+  { symbol: '^IXIC', label: 'Nasdaq', shortLabel: 'IXIC' },
 ];
 
 const emptyQuote = (): Quote => ({ price: 0, change: 0, percentChange: 0, status: 'loading', chart: null });
@@ -37,10 +40,8 @@ const emptyQuote = (): Quote => ({ price: 0, change: 0, percentChange: 0, status
 export default function MarketOverview(_props: MarketOverviewProps) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
-  const API_KEY = process.env.REACT_APP_FINNHUB_API_KEY;
 
   useEffect(() => {
-    if (!API_KEY) return;
     let cancelled = false;
 
     setQuotes(() => {
@@ -49,18 +50,36 @@ export default function MarketOverview(_props: MarketOverviewProps) {
       return next;
     });
 
-    const fetchQuote = async (symbol: string) => {
+    // One call per index gets both the live quote AND 30 days of history —
+    // the /api/stock-chart Yahoo proxy (also used by StockDetailModal)
+    // returns both in one response. This replaces two separate Finnhub
+    // calls (quote + candle) that this widget used before: Finnhub's
+    // /quote endpoint doesn't recognize Yahoo-style index tickers like
+    // ^GSPC, and its /candle endpoint 403s on this account's free tier
+    // anyway (confirmed directly while building the chart modal).
+    const fetchIndex = async (symbol: string) => {
       try {
-        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`);
+        const res = await fetch(`/api/stock-chart?symbol=${encodeURIComponent(symbol)}&range=1M`);
         if (!res.ok) throw new Error('failed');
         const data = await res.json();
-        if (!data || data.c === 0) throw new Error('no data');
-        if (!cancelled) {
-          setQuotes((prev) => ({
-            ...prev,
-            [symbol]: { ...(prev[symbol] ?? emptyQuote()), price: data.c, change: data.d, percentChange: data.dp, status: 'ok' },
-          }));
-        }
+        if (typeof data.price !== 'number' || typeof data.change !== 'number') throw new Error('no data');
+        if (cancelled) return;
+
+        const chart: ChartPoint[] | null = Array.isArray(data.points) && data.points.length > 1
+          ? data.points.map((p: { price: number }) => ({ price: p.price }))
+          : null;
+
+        setQuotes((prev) => ({
+          ...prev,
+          [symbol]: {
+            ...(prev[symbol] ?? emptyQuote()),
+            price: data.price,
+            change: data.change,
+            percentChange: data.percentChange ?? 0,
+            status: 'ok',
+            chart,
+          },
+        }));
       } catch {
         if (!cancelled) {
           setQuotes((prev) => ({ ...prev, [symbol]: { ...(prev[symbol] ?? emptyQuote()), status: 'error' } }));
@@ -68,52 +87,13 @@ export default function MarketOverview(_props: MarketOverviewProps) {
       }
     };
 
-    // Historical candles are fetched separately from the live quote, and are
-    // allowed to fail independently — confirmed this 403s on this account's
-    // Finnhub free tier (same issue Watchlist's full chart modal hit, which
-    // is why that one now goes through the /api/stock-chart Yahoo proxy
-    // instead). Left as Finnhub here since this is just a small always-on
-    // sparkline preview, not the detail view — if it fails, the price/change
-    // display above still works fine and the sparkline is simply omitted.
-    const fetchChart = async (symbol: string) => {
-      try {
-        const to = Math.floor(Date.now() / 1000);
-        const from = to - 30 * 24 * 60 * 60; // 30 days back
-        const res = await fetch(
-          `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${API_KEY}`
-        );
-        if (!res.ok) throw new Error('failed'); // catches a 403 on a restricted plan
-        const data = await res.json();
-        if (data?.s !== 'ok' || !Array.isArray(data.c) || data.c.length === 0) throw new Error('no candle data');
-        const points: ChartPoint[] = data.c.map((price: number) => ({ price }));
-        if (!cancelled) {
-          setQuotes((prev) => ({ ...prev, [symbol]: { ...(prev[symbol] ?? emptyQuote()), chart: points } }));
-        }
-      } catch {
-        // Leave chart as null — quote display is unaffected.
-      }
-    };
-
-    INDICES.forEach((i) => { fetchQuote(i.symbol); fetchChart(i.symbol); });
-    const interval = setInterval(() => INDICES.forEach((i) => fetchQuote(i.symbol)), 60000);
-    // Chart data doesn't need the same 60s cadence as price — daily candles
-    // only change once a day. Refresh hourly instead.
-    const chartInterval = setInterval(() => INDICES.forEach((i) => fetchChart(i.symbol)), 3600000);
-    return () => { cancelled = true; clearInterval(interval); clearInterval(chartInterval); };
-  }, [API_KEY]);
-
-  if (!API_KEY) {
-    return (
-      <div className="flex flex-col items-center justify-center h-32 gap-2 text-gray-400 dark:text-gray-500 text-center px-4">
-        <AlertCircle size={20} />
-        <p className="text-sm">
-          Needs a free Finnhub API key — sign up at finnhub.io, then add it as
-          <br />
-          <code className="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">REACT_APP_FINNHUB_API_KEY</code> in Vercel.
-        </p>
-      </div>
-    );
-  }
+    INDICES.forEach((i) => fetchIndex(i.symbol));
+    // Index values move throughout the trading day but not tick-by-tick at
+    // portal-widget granularity — 60s matches the polling cadence already
+    // used for Watchlist tickers.
+    const interval = setInterval(() => INDICES.forEach((i) => fetchIndex(i.symbol)), 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -134,7 +114,7 @@ export default function MarketOverview(_props: MarketOverviewProps) {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-bold text-sm text-gray-900 dark:text-white">{i.label}</div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">{i.symbol}</div>
+                <div className="text-xs text-gray-400 dark:text-gray-500">{i.shortLabel}</div>
               </div>
 
               {q?.status === 'loading' && <span className="text-xs text-gray-400">Loading…</span>}

@@ -30,7 +30,11 @@ module.exports = async (req, res) => {
     const symbol = String(req.query.symbol || '').trim().toUpperCase();
     const rangeKey = String(req.query.range || '1M').trim();
 
-    if (!symbol || !/^[A-Z0-9.\-]{1,10}$/.test(symbol)) {
+    // Leading ^ allowed for index tickers (^GSPC, ^IXIC, ^DJI) — Market
+    // Overview uses these so it shows real index values instead of an ETF's
+    // per-share price, which is a different scale (e.g. QQQ trades around
+    // $700something while the Nasdaq Composite it tracks is ~26,000).
+    if (!symbol || !/^\^?[A-Z0-9.\-]{1,10}$/.test(symbol)) {
       return res.status(400).json({ error: 'Invalid or missing symbol' });
     }
 
@@ -69,12 +73,23 @@ module.exports = async (req, res) => {
       .map((t, i) => ({ t, price: closes[i] }))
       .filter((p) => typeof p.price === 'number');
 
+    // The chart response's `meta` already carries the current price and
+    // previous close, so callers that only need a live quote (no history)
+    // can use this same endpoint instead of a separate call — Market
+    // Overview does exactly that for its index tickers, replacing what used
+    // to be a Finnhub /quote call.
+    const meta = result?.meta;
+    const price = typeof meta?.regularMarketPrice === 'number' ? meta.regularMarketPrice : null;
+    const previousClose = typeof meta?.chartPreviousClose === 'number' ? meta.chartPreviousClose : null;
+    const change = price !== null && previousClose !== null ? price - previousClose : null;
+    const percentChange = change !== null && previousClose ? (change / previousClose) * 100 : null;
+
     // Daily candles don't change intraday history once the market's closed,
     // and even during market hours this is "good enough" for a portal
     // widget — cache briefly to stay well within Vercel's function limits
     // if multiple people/tabs hit the same symbol+range.
     res.setHeader('Cache-Control', 'public, max-age=300');
-    return res.status(200).json({ points });
+    return res.status(200).json({ points, price, change, percentChange });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Unknown server error' });
   }

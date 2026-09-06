@@ -62,23 +62,25 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
     setIsDark(document.documentElement.classList.contains('dark'));
   }, []);
 
-  const API_KEY = process.env.REACT_APP_FINNHUB_API_KEY;
-
-  // Live quote header, independent of the historical range — matches the
-  // price/change readout already used in Watchlist/MarketOverview.
+  // Live quote header, fetched once per symbol (not re-fetched on every
+  // range click — clicking through 1M/3M/6M/etc. shouldn't refire this).
+  // Sourced from the same /api/stock-chart Yahoo proxy as the historical
+  // points below, rather than a separate Finnhub call: Finnhub's quote
+  // endpoint doesn't recognize Yahoo-style index tickers like ^GSPC (used
+  // by Market Overview), so a single proxy is what makes this modal work
+  // correctly for both ordinary stock symbols and index symbols.
   useEffect(() => {
-    if (!API_KEY) return;
     let cancelled = false;
-    fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`)
-      .then((r) => r.json())
+    fetch(`/api/stock-chart?symbol=${encodeURIComponent(symbol)}&range=1M`)
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!cancelled && data && data.c !== 0) {
-          setQuote({ price: data.c, change: data.d, percentChange: data.dp });
+        if (!cancelled && data && typeof data.price === 'number' && typeof data.change === 'number') {
+          setQuote({ price: data.price, change: data.change, percentChange: data.percentChange ?? 0 });
         }
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [symbol, API_KEY]);
+  }, [symbol]);
 
   useEffect(() => {
     let cancelled = false;
