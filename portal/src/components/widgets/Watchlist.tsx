@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Trash2, TrendingUp, TrendingDown, Check, X } from 'lucide-react';
+import StockDetailModal from './StockDetailModal';
 
 interface WatchlistProps {
   id: string;
@@ -29,6 +30,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [newSymbol, setNewSymbol] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   const API_KEY = process.env.REACT_APP_FINNHUB_API_KEY;
   const tickersKey = tickers.map((t) => t.symbol).join(',');
@@ -133,7 +135,15 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
         const q = quotes[t.symbol];
         const isUp = q && q.change >= 0;
         return (
-          <div key={t.symbol} className="group flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-slate-700 rounded-lg">
+          <div
+            key={t.symbol}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedSymbol(t.symbol)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(t.symbol); } }}
+            title={`View ${t.symbol} chart`}
+            className="group flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-lg cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          >
             <span className="font-bold text-sm text-gray-900 dark:text-white">{t.symbol}</span>
 
             {q?.status === 'loading' && <span className="text-xs text-gray-400">Loading…</span>}
@@ -153,7 +163,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
             )}
 
             <button
-              onClick={() => removeTicker(t.symbol)}
+              onClick={(e) => { e.stopPropagation(); removeTicker(t.symbol); }}
               className="ml-2 p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition"
               title="Remove"
             >
@@ -162,6 +172,10 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
           </div>
         );
       })}
+
+      {selectedSymbol && (
+        <StockDetailModal symbol={selectedSymbol} onClose={() => setSelectedSymbol(null)} />
+      )}
 
       {tickers.length === 0 && (
         <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">No tickers yet — add one above.</div>
