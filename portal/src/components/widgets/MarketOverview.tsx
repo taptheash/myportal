@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
+import StockDetailModal from './StockDetailModal';
 
 interface MarketOverviewProps {
   id: string;
@@ -35,6 +36,7 @@ const emptyQuote = (): Quote => ({ price: 0, change: 0, percentChange: 0, status
 
 export default function MarketOverview(_props: MarketOverviewProps) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const API_KEY = process.env.REACT_APP_FINNHUB_API_KEY;
 
   useEffect(() => {
@@ -67,10 +69,12 @@ export default function MarketOverview(_props: MarketOverviewProps) {
     };
 
     // Historical candles are fetched separately from the live quote, and are
-    // allowed to fail independently — Finnhub's free-tier access to this
-    // endpoint is genuinely unclear (some sources say it's included, one
-    // recent one says it 403s on free tier). If it fails, the price/change
-    // display above still works fine; the chart is just omitted.
+    // allowed to fail independently — confirmed this 403s on this account's
+    // Finnhub free tier (same issue Watchlist's full chart modal hit, which
+    // is why that one now goes through the /api/stock-chart Yahoo proxy
+    // instead). Left as Finnhub here since this is just a small always-on
+    // sparkline preview, not the detail view — if it fails, the price/change
+    // display above still works fine and the sparkline is simply omitted.
     const fetchChart = async (symbol: string) => {
       try {
         const to = Math.floor(Date.now() / 1000);
@@ -118,7 +122,15 @@ export default function MarketOverview(_props: MarketOverviewProps) {
         const isUp = q && q.change >= 0;
         const chartUp = q?.chart && q.chart.length > 1 && q.chart[q.chart.length - 1].price >= q.chart[0].price;
         return (
-          <div key={i.symbol} className="px-3 py-2.5 bg-gray-50 dark:bg-slate-700 rounded-lg">
+          <div
+            key={i.symbol}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedSymbol(i.symbol)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(i.symbol); } }}
+            title={`View ${i.symbol} chart`}
+            className="px-3 py-2.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-lg cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-bold text-sm text-gray-900 dark:text-white">{i.label}</div>
@@ -160,6 +172,10 @@ export default function MarketOverview(_props: MarketOverviewProps) {
           </div>
         );
       })}
+
+      {selectedSymbol && (
+        <StockDetailModal symbol={selectedSymbol} onClose={() => setSelectedSymbol(null)} />
+      )}
     </div>
   );
 }
