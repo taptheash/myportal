@@ -12,29 +12,24 @@ interface CandlePoint {
   price: number;
 }
 
-type RangeKey = '1M' | '3M' | '6M' | 'YTD';
+type RangeKey = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y' | 'ALL';
 
-// Finnhub's free tier has uncertain access to daily candles at longer
-// lookbacks (see MarketOverview.tsx) — 1Y/5Y/ALL are deliberately left out
-// for now rather than shipping range buttons that may reliably 403. If
-// Doug's plan turns out to support longer history, add entries here with
-// their `days` (or a fixed `from` for YTD-style ranges) and the existing
-// per-range error handling will just work for them too.
-const RANGES: { key: RangeKey; label: string; days: number | 'ytd' }[] = [
-  { key: '1M', label: '1M', days: 30 },
-  { key: '3M', label: '3M', days: 90 },
-  { key: '6M', label: '6M', days: 180 },
-  { key: 'YTD', label: 'YTD', days: 'ytd' },
+// The full standard set. Historical data comes from the /api/stock-chart
+// serverless function (portal/api/stock-chart.js), which proxies Yahoo
+// Finance server-side — Yahoo's chart endpoint sends no CORS headers, so a
+// direct browser fetch() is blocked (confirmed by testing against the
+// deployed portal directly), and separately, Finnhub's free tier 403s on
+// its own candle endpoint for longer lookbacks (see MarketOverview.tsx).
+// The proxy's RANGE_MAP must have a matching entry for every key here.
+const RANGES: { key: RangeKey; label: string }[] = [
+  { key: '1M', label: '1M' },
+  { key: '3M', label: '3M' },
+  { key: '6M', label: '6M' },
+  { key: 'YTD', label: 'YTD' },
+  { key: '1Y', label: '1Y' },
+  { key: '5Y', label: '5Y' },
+  { key: 'ALL', label: 'ALL' },
 ];
-
-function rangeToFromTo(days: number | 'ytd'): { from: number; to: number } {
-  const to = Math.floor(Date.now() / 1000);
-  if (days === 'ytd') {
-    const jan1 = new Date(new Date().getFullYear(), 0, 1);
-    return { from: Math.floor(jan1.getTime() / 1000), to };
-  }
-  return { from: to - days * 24 * 60 * 60, to };
-}
 
 // Custom tooltip: crosshair-style readout per the dataviz interaction spec —
 // value leads (Strong/high-contrast), date is secondary, single series so no
@@ -86,33 +81,27 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
   }, [symbol, API_KEY]);
 
   useEffect(() => {
-    if (!API_KEY) { setStatus('unavailable'); return; }
     let cancelled = false;
     setStatus('loading');
 
-    const rangeDef = RANGES.find((r) => r.key === range)!;
-    const { from, to } = rangeToFromTo(rangeDef.days);
-
-    fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${API_KEY}`)
-      .then((r) => {
-        // Finnhub returns 403 on this endpoint for some free-tier accounts —
-        // treat that (and any non-ok status) as "unavailable" rather than a
-        // hard error, since it's a plan limitation, not a bug.
-        if (!r.ok) throw new Error(r.status === 403 ? 'unavailable' : 'failed');
+    fetch(`/api/stock-chart?symbol=${encodeURIComponent(symbol)}&range=${range}`)
+      .then(async (r) => {
+        // The proxy returns 404 specifically for "symbol not found" (a real,
+        // user-facing distinction — e.g. a delisted ticker), and 500/502 for
+        // everything else (Yahoo outage, unexpected response shape). Surface
+        // that as 'unavailable' vs 'error' rather than collapsing both into
+        // one generic message.
+        if (!r.ok) throw new Error(r.status === 404 ? 'unavailable' : 'error');
         return r.json();
       })
       .then((data) => {
         if (cancelled) return;
-        if (data?.s !== 'ok' || !Array.isArray(data.c) || data.c.length === 0) {
+        if (!Array.isArray(data.points) || data.points.length === 0) {
           setStatus('unavailable');
           setPoints(null);
           return;
         }
-        const parsed: CandlePoint[] = data.c.map((price: number, i: number) => ({
-          t: data.t[i],
-          price,
-        }));
-        setPoints(parsed);
+        setPoints(data.points);
         setStatus('ok');
       })
       .catch((err) => {
@@ -122,7 +111,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
       });
 
     return () => { cancelled = true; };
-  }, [symbol, range, API_KEY]);
+  }, [symbol, range]);
 
   const isUp = useMemo(() => {
     if (!points || points.length < 2) return quote ? quote.change >= 0 : true;
@@ -201,7 +190,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
             <div className="h-64 flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-gray-500 text-center px-4">
               <AlertCircle size={20} />
               <p className="text-sm">
-                Historical chart data isn't available on the current Finnhub plan.
+                No historical data found for {symbol} over this range.
                 <br />
                 Live price above still updates normally.
               </p>
