@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import StockDetailModal from './StockDetailModal';
 
 interface MarketOverviewProps {
@@ -10,16 +9,11 @@ interface MarketOverviewProps {
   isEditing: boolean;
 }
 
-interface ChartPoint {
-  price: number;
-}
-
 interface Quote {
   price: number;
   change: number;
   percentChange: number;
   status: 'loading' | 'ok' | 'error';
-  chart: ChartPoint[] | null; // null = not loaded / unavailable, distinct from an empty array
 }
 
 // Real index tickers (Yahoo's ^-prefixed format), not ETF proxies — an ETF's
@@ -35,7 +29,7 @@ const INDICES = [
   { symbol: '^IXIC', label: 'Nasdaq', shortLabel: 'IXIC' },
 ];
 
-const emptyQuote = (): Quote => ({ price: 0, change: 0, percentChange: 0, status: 'loading', chart: null });
+const emptyQuote = (): Quote => ({ price: 0, change: 0, percentChange: 0, status: 'loading' });
 
 export default function MarketOverview(_props: MarketOverviewProps) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
@@ -50,24 +44,19 @@ export default function MarketOverview(_props: MarketOverviewProps) {
       return next;
     });
 
-    // One call per index gets both the live quote AND 30 days of history —
-    // the /api/stock-chart Yahoo proxy (also used by StockDetailModal)
-    // returns both in one response. This replaces two separate Finnhub
-    // calls (quote + candle) that this widget used before: Finnhub's
-    // /quote endpoint doesn't recognize Yahoo-style index tickers like
-    // ^GSPC, and its /candle endpoint 403s on this account's free tier
-    // anyway (confirmed directly while building the chart modal).
-    const fetchIndex = async (symbol: string) => {
+    // Just the live quote now — the /api/stock-chart Yahoo proxy (also used
+    // by StockDetailModal) still returns history alongside it, but this
+    // widget only needs the price/change row, not a sparkline. One retry on
+    // failure before showing "Unavailable": a single dropped/slow request to
+    // Yahoo (rate limit, timeout) would otherwise sit as an error for a full
+    // 60s poll cycle even though the data is fine moments later.
+    const fetchIndex = async (symbol: string, isRetry = false) => {
       try {
         const res = await fetch(`/api/stock-chart?symbol=${encodeURIComponent(symbol)}&range=1M`);
         if (!res.ok) throw new Error('failed');
         const data = await res.json();
         if (typeof data.price !== 'number' || typeof data.change !== 'number') throw new Error('no data');
         if (cancelled) return;
-
-        const chart: ChartPoint[] | null = Array.isArray(data.points) && data.points.length > 1
-          ? data.points.map((p: { price: number }) => ({ price: p.price }))
-          : null;
 
         setQuotes((prev) => ({
           ...prev,
@@ -77,13 +66,15 @@ export default function MarketOverview(_props: MarketOverviewProps) {
             change: data.change,
             percentChange: data.percentChange ?? 0,
             status: 'ok',
-            chart,
           },
         }));
       } catch {
-        if (!cancelled) {
-          setQuotes((prev) => ({ ...prev, [symbol]: { ...(prev[symbol] ?? emptyQuote()), status: 'error' } }));
+        if (cancelled) return;
+        if (!isRetry) {
+          setTimeout(() => fetchIndex(symbol, true), 2000);
+          return;
         }
+        setQuotes((prev) => ({ ...prev, [symbol]: { ...(prev[symbol] ?? emptyQuote()), status: 'error' } }));
       }
     };
 
@@ -100,7 +91,6 @@ export default function MarketOverview(_props: MarketOverviewProps) {
       {INDICES.map((i) => {
         const q = quotes[i.symbol];
         const isUp = q && q.change >= 0;
-        const chartUp = q?.chart && q.chart.length > 1 && q.chart[q.chart.length - 1].price >= q.chart[0].price;
         return (
           <div
             key={i.symbol}
@@ -131,24 +121,6 @@ export default function MarketOverview(_props: MarketOverviewProps) {
                 </div>
               )}
             </div>
-
-            {q?.chart && q.chart.length > 1 && (
-              <div className="h-10 mt-1.5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={q.chart}>
-                    <YAxis domain={['dataMin', 'dataMax']} hide />
-                    <Line
-                      type="monotone"
-                      dataKey="price"
-                      stroke={chartUp ? '#16a34a' : '#dc2626'}
-                      strokeWidth={1.5}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
           </div>
         );
       })}
