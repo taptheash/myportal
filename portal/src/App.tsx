@@ -23,6 +23,7 @@ import SportsNews from './components/widgets/SportsNews';
 import CustomFeeds from './components/widgets/CustomFeeds';
 import RedditPopular from './components/widgets/RedditPopular';
 import { makeTeamSchedule } from './components/widgets/TeamSchedule';
+import NflSchedule from './components/widgets/NflSchedule';
 import Watchlist from './components/widgets/Watchlist';
 import MarketOverview from './components/widgets/MarketOverview';
 
@@ -64,6 +65,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   reddit:     { type: 'reddit',     label: 'Reddit Popular', icon: Flame,     component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
+  nflSchedule: { type: 'nflSchedule', label: 'NFL Schedule', icon: CalendarIcon, component: NflSchedule, color: '#CC79A7', activeText: 'black' },
   patsSchedule: { type: 'patsSchedule', label: 'Patriots Schedule', icon: CalendarIcon, component: PatsSchedule, color: '#0072B2', activeText: 'white' },
   soxSchedule: { type: 'soxSchedule', label: 'Red Sox Schedule', icon: CalendarIcon, component: SoxSchedule, color: '#D55E00', activeText: 'black' },
   celticsSchedule: { type: 'celticsSchedule', label: 'Celtics Schedule', icon: CalendarIcon, component: CelticsSchedule, color: '#009E73', activeText: 'black' },
@@ -74,7 +76,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
 const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds', 'reddit'];
-const SPORTS_TYPES = ['sports', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
+const SPORTS_TYPES = ['sports', 'nflSchedule', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
 const STOCK_TYPES = ['watchlist', 'marketOverview'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES];
 
