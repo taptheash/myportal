@@ -199,15 +199,15 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
 
   // One bulk toggle instead of two separate buttons — the per-folder
   // chevron still opens/closes one at a time, this is for setting every
-  // folder to the same state in a single click. "Any collapsed" decides
-  // which direction the button goes next: if at least one folder is
-  // closed, clicking it opens everything; only once they're ALL open does
-  // it flip to closing everything.
+  // folder to the same state in a single click. "Any expanded" decides
+  // which direction the button goes next: if at least one folder is open,
+  // the button reads/acts as Collapse All; only once they're ALL closed
+  // does it flip to Expand All.
   const folders = entries.filter((e): e is FolderItem => e.type === 'folder');
-  const anyCollapsed = folders.some((f) => !f.expanded);
+  const anyExpanded = folders.some((f) => f.expanded);
 
   const toggleAllFolders = () => {
-    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: anyCollapsed } : e)));
+    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: !anyExpanded } : e)));
   };
 
   // Deleting a folder un-files its links back to the root list rather than
@@ -433,10 +433,10 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
           <button
             onClick={toggleAllFolders}
             className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
-            title={anyCollapsed ? 'Expand all folders' : 'Collapse all folders'}
+            title={anyExpanded ? 'Collapse all folders' : 'Expand all folders'}
           >
-            {anyCollapsed ? <ChevronsDown size={13} /> : <ChevronsUp size={13} />}
-            {anyCollapsed ? 'Expand all' : 'Collapse all'}
+            {anyExpanded ? <ChevronsUp size={13} /> : <ChevronsDown size={13} />}
+            {anyExpanded ? 'Collapse all' : 'Expand all'}
           </button>
         )}
       </div>
