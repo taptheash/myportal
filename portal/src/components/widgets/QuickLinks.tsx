@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus } from 'lucide-react';
+import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp } from 'lucide-react';
 
 interface QuickLinksProps {
   id: string;
@@ -196,6 +196,19 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
   const toggleFolder = (folderId: string) => {
     save(entries.map((e) => (e.type === 'folder' && e.id === folderId ? { ...e, expanded: !e.expanded } : e)));
   };
+
+  // Bulk open/close every folder at once — the per-folder chevron already
+  // toggles one at a time, this is for when there are several folders and
+  // you want them all in the same state in one click.
+  const expandAllFolders = () => {
+    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: true } : e)));
+  };
+
+  const collapseAllFolders = () => {
+    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: false } : e)));
+  };
+
+  const folderCount = entries.filter((e) => e.type === 'folder').length;
 
   // Deleting a folder un-files its links back to the root list rather than
   // deleting them — losing saved links just because the organizing folder
@@ -408,12 +421,33 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         </div>
       )}
 
-      <button
-        onClick={() => setShowAddFolder(true)}
-        className="self-start flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 px-1 transition"
-      >
-        <FolderPlus size={13} /> New folder
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setShowAddFolder(true)}
+          className="self-start flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 px-1 transition"
+        >
+          <FolderPlus size={13} /> New folder
+        </button>
+
+        {folderCount > 0 && (
+          <>
+            <button
+              onClick={expandAllFolders}
+              className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
+              title="Expand all folders"
+            >
+              <ChevronsDown size={13} /> Expand all
+            </button>
+            <button
+              onClick={collapseAllFolders}
+              className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
+              title="Collapse all folders"
+            >
+              <ChevronsUp size={13} /> Collapse all
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="flex flex-col gap-1.5">
         {entries.map((entry, index) => (
