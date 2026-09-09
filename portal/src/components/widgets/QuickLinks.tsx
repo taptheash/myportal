@@ -197,18 +197,18 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
     save(entries.map((e) => (e.type === 'folder' && e.id === folderId ? { ...e, expanded: !e.expanded } : e)));
   };
 
-  // Bulk open/close every folder at once — the per-folder chevron already
-  // toggles one at a time, this is for when there are several folders and
-  // you want them all in the same state in one click.
-  const expandAllFolders = () => {
-    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: true } : e)));
-  };
+  // One bulk toggle instead of two separate buttons — the per-folder
+  // chevron still opens/closes one at a time, this is for setting every
+  // folder to the same state in a single click. "Any collapsed" decides
+  // which direction the button goes next: if at least one folder is
+  // closed, clicking it opens everything; only once they're ALL open does
+  // it flip to closing everything.
+  const folders = entries.filter((e): e is FolderItem => e.type === 'folder');
+  const anyCollapsed = folders.some((f) => !f.expanded);
 
-  const collapseAllFolders = () => {
-    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: false } : e)));
+  const toggleAllFolders = () => {
+    save(entries.map((e) => (e.type === 'folder' ? { ...e, expanded: anyCollapsed } : e)));
   };
-
-  const folderCount = entries.filter((e) => e.type === 'folder').length;
 
   // Deleting a folder un-files its links back to the root list rather than
   // deleting them — losing saved links just because the organizing folder
@@ -429,23 +429,15 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
           <FolderPlus size={13} /> New folder
         </button>
 
-        {folderCount > 0 && (
-          <>
-            <button
-              onClick={expandAllFolders}
-              className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
-              title="Expand all folders"
-            >
-              <ChevronsDown size={13} /> Expand all
-            </button>
-            <button
-              onClick={collapseAllFolders}
-              className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
-              title="Collapse all folders"
-            >
-              <ChevronsUp size={13} /> Collapse all
-            </button>
-          </>
+        {folders.length > 0 && (
+          <button
+            onClick={toggleAllFolders}
+            className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
+            title={anyCollapsed ? 'Expand all folders' : 'Collapse all folders'}
+          >
+            {anyCollapsed ? <ChevronsDown size={13} /> : <ChevronsUp size={13} />}
+            {anyCollapsed ? 'Expand all' : 'Collapse all'}
+          </button>
         )}
       </div>
 
