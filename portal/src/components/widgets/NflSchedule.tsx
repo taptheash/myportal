@@ -15,6 +15,14 @@ interface WeekGame {
   matchup: string; // e.g. "NE @ SEA"
   status: string;  // e.g. "Scheduled", "Final", "In Progress"
   broadcast: string | null;
+  score: string | null; // e.g. "24-17" — set once the game has started, null before kickoff
+}
+
+function getScore(competitor: any): string {
+  const s = competitor?.score;
+  if (s === null || s === undefined) return '';
+  if (typeof s === 'object') return s.displayValue ?? s.value ?? '';
+  return String(s);
 }
 
 // ESPN's scoreboard endpoint (no date params) returns exactly the CURRENT
@@ -65,8 +73,10 @@ export default function NflSchedule(_props: NflScheduleProps) {
 
           const broadcast = comp?.broadcasts?.[0]?.names?.[0] || null;
           const status = e?.status?.type?.description || 'Scheduled';
+          const state = comp?.status?.type?.state; // 'pre' | 'in' | 'post'
+          const score = state === 'pre' ? null : `${getScore(away)}-${getScore(home)}`;
 
-          return { id: e.id || `${e.date}-${matchup}`, date, time, matchup, status, broadcast };
+          return { id: e.id || `${e.date}-${matchup}`, date, time, matchup, status, broadcast, score };
         });
 
         // Keep ESPN's own ordering (chronological) rather than re-sorting —
@@ -81,7 +91,10 @@ export default function NflSchedule(_props: NflScheduleProps) {
     };
 
     fetchWeek();
-    const interval = setInterval(fetchWeek, 3600000);
+    // 15 min — frequent enough to keep the Score column current during live
+    // games without hammering ESPN's endpoint the rest of the week, same
+    // cadence used by the per-team Sports widget for the same reason.
+    const interval = setInterval(fetchWeek, 900000);
     return () => clearInterval(interval);
   }, []);
 
@@ -121,6 +134,7 @@ export default function NflSchedule(_props: NflScheduleProps) {
               <th className="py-1.5 pr-2 font-semibold">Date</th>
               <th className="py-1.5 pr-2 font-semibold">Matchup</th>
               <th className="py-1.5 pr-2 font-semibold">Time</th>
+              <th className="py-1.5 pr-2 font-semibold">Score</th>
               <th className="py-1.5 font-semibold">TV</th>
             </tr>
           </thead>
@@ -134,6 +148,15 @@ export default function NflSchedule(_props: NflScheduleProps) {
                 <td className="py-2 pr-2 font-semibold text-zinc-900 dark:text-white whitespace-nowrap">{game.matchup}</td>
                 <td className="py-2 pr-2 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                   {game.status === 'Final' ? 'Final' : game.status === 'In Progress' ? 'Live' : game.time}
+                </td>
+                <td className={`py-2 pr-2 whitespace-nowrap font-semibold tabular-nums ${
+                  game.status === 'In Progress'
+                    ? 'text-indigo-600 dark:text-indigo-400'
+                    : game.score
+                    ? 'text-zinc-700 dark:text-zinc-300'
+                    : 'text-zinc-300 dark:text-zinc-600'
+                }`}>
+                  {game.score || '—'}
                 </td>
                 <td className="py-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{game.broadcast || '—'}</td>
               </tr>
