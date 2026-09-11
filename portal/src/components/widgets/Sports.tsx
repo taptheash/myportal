@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AlertCircle, Trash2, ArrowLeft, X } from 'lucide-react';
 
 interface SportsProps {
@@ -24,6 +24,7 @@ interface TeamResult extends TeamEntry {
   line: string;
   detail: string;
   nextGame: string | null;
+  isLive: boolean;
 }
 
 interface EspnLeagueTeam {
@@ -59,21 +60,29 @@ function getScore(competitor: any): string {
   return String(s);
 }
 
-function formatEvent(nextEvent: any): { line: string; detail: string } {
+function formatEvent(nextEvent: any): { line: string; detail: string; isLive: boolean } {
   try {
     const comp = nextEvent?.competitions?.[0];
     const competitors = comp?.competitors || [];
     const shortName = nextEvent?.shortName || '';
     const state = comp?.status?.type?.state; // 'pre' | 'in' | 'post'
-    const detailText = comp?.status?.type?.shortDetail || comp?.status?.type?.detail || '';
 
     let line = shortName || 'Upcoming game';
-    let detail = detailText;
+    let detail = comp?.status?.type?.shortDetail || comp?.status?.type?.detail || '';
+    let isLive = false;
 
     if (state === 'in') {
+      isLive = true;
       const home = competitors.find((c: any) => c.homeAway === 'home');
       const away = competitors.find((c: any) => c.homeAway === 'away');
-      detail = `Live: ${getScore(away)}-${getScore(home)} • ${detailText}`;
+      // ESPN's status.type carries the period ("3rd Quarter", "Top 5th",
+      // "2nd Period", ...) and displayClock (time remaining in it)
+      // separately — combine them explicitly rather than trusting
+      // shortDetail's exact wording, which varies by sport.
+      const period = comp?.status?.type?.description || '';
+      const clock = comp?.status?.displayClock;
+      const timeLeft = clock && clock !== '0:00' ? `${clock} left in ${period || 'period'}` : period || 'Live';
+      detail = `Live: ${getScore(away)}-${getScore(home)} • ${timeLeft}`;
     } else if (state === 'post') {
       const home = competitors.find((c: any) => c.homeAway === 'home');
       const away = competitors.find((c: any) => c.homeAway === 'away');
@@ -82,9 +91,9 @@ function formatEvent(nextEvent: any): { line: string; detail: string } {
     // state === 'pre' falls through here — line/detail already carry the
     // next scheduled matchup and its date/time straight from ESPN.
 
-    return { line, detail: detail || 'Schedule pending' };
+    return { line, detail: detail || 'Schedule pending', isLive };
   } catch {
-    return { line: 'Schedule unavailable', detail: '' };
+    return { line: 'Schedule unavailable', detail: '', isLive: false };
   }
 }
 
@@ -93,8 +102,14 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
   const teamsKey = teams.map((t) => t.key).join(',');
 
   const [results, setResults] = useState<TeamResult[]>(() =>
-    teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '', nextGame: null }))
+    teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '', nextGame: null, isLive: false }))
   );
+  // Mirrors `results` for the fast-poll effect below, so that effect can read
+  // the current live/not-live state on each tick without needing `results`
+  // in its dependency array (which would tear down and restart the 60s
+  // interval on every single score update instead of ticking steadily).
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
 
   // Add-team flow state
   const [selectedLeague, setSelectedLeague] = useState<typeof LEAGUES[number] | null>(null);
@@ -109,7 +124,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
     // (covers add/delete), then fetch fresh data for everyone — this is what
     // makes a newly added team pull its info immediately rather than waiting
     // for the next 15-minute poll.
-    setResults(teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '', nextGame: null })));
+    setResults(teams.map((t) => ({ ...t, record: null, status: 'loading', line: '', detail: '', nextGame: null, isLive: false })));
 
     const fetchTeam = async (t: TeamEntry) => {
       try {
@@ -123,7 +138,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         if (!nextEvent) {
           if (!cancelled) {
             setResults((prev) => prev.map((r) => r.key === t.key
-              ? { ...r, status: 'ok', record, line: 'No upcoming game', detail: 'Off-season or schedule pending', nextGame: null }
+              ? { ...r, status: 'ok', record, line: 'No upcoming game', detail: 'Off-season or schedule pending', nextGame: null, isLive: false }
               : r));
           }
           return;
@@ -153,7 +168,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
           }
         }
 
-        const { line, detail } = formatEvent(eventForFormatting);
+        const { line, detail, isLive } = formatEvent(eventForFormatting);
         let nextGame: string | null = null;
 
         // nextEvent stays pointed at the just-concluded game for a while
@@ -181,7 +196,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         }
 
         if (!cancelled) {
-          setResults((prev) => prev.map((r) => r.key === t.key ? { ...r, status: 'ok', record, line, detail, nextGame } : r));
+          setResults((prev) => prev.map((r) => r.key === t.key ? { ...r, status: 'ok', record, line, detail, nextGame, isLive } : r));
         }
       } catch {
         if (!cancelled) {
@@ -192,6 +207,44 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
 
     teams.forEach((t) => fetchTeam(t));
     const interval = setInterval(() => teams.forEach((t) => fetchTeam(t)), 900000); // refresh every 15 min
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamsKey]);
+
+  // Fast 60s poll for score + clock, but only for teams currently mid-game —
+  // the 15-min poll above already covers record/next-opponent lookups for
+  // everyone else, so this stays lightweight (scoreboard only, no team/
+  // schedule endpoints) and does nothing at all when nothing is live.
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshLiveTeam = async (t: TeamEntry) => {
+      try {
+        const sbRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/scoreboard`);
+        if (!sbRes.ok) return;
+        const sbData = await sbRes.json();
+        const liveEvent = (sbData?.events || []).find((e: any) =>
+          e?.competitions?.[0]?.competitors?.some(
+            (c: any) => c?.team?.abbreviation?.toLowerCase() === t.team
+          )
+        );
+        if (!liveEvent) return;
+
+        const { line, detail, isLive } = formatEvent(liveEvent);
+        if (!cancelled) {
+          setResults((prev) => prev.map((r) => r.key === t.key ? { ...r, line, detail, isLive } : r));
+        }
+      } catch {
+        // a failed fast-poll tick just leaves the last-known score showing —
+        // not worth surfacing as an error state for a background refresh
+      }
+    };
+
+    const tick = () => {
+      resultsRef.current.filter((r) => r.isLive).forEach((r) => refreshLiveTeam(r));
+    };
+
+    const interval = setInterval(tick, 60000); // 60s while a game is in progress
     return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamsKey]);
