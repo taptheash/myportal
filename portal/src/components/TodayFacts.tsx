@@ -238,10 +238,14 @@ export function OnThisDayPill() {
                     rel="noopener noreferrer"
                     className="block px-3.5 py-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-150"
                   >
+                    <span className="font-semibold text-indigo-600 dark:text-indigo-400">{event.year}</span>
+                    {' — '}
                     {event.text}
                   </a>
                 ) : (
                   <span className="block px-3.5 py-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                    <span className="font-semibold text-indigo-600 dark:text-indigo-400">{event.year}</span>
+                    {' — '}
                     {event.text}
                   </span>
                 )}
