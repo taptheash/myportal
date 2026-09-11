@@ -61,7 +61,7 @@ export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsPro
   }
 
   return (
-    <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+    <div className="flex flex-col gap-2">
       {articles.length > 0 ? (
         articles.map((article, idx) => (
           <div key={idx} className="surface-card p-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl border-l-4 border-indigo-500 transition-all duration-150">
