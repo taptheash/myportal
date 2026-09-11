@@ -13,6 +13,7 @@ interface ScheduleGame {
   date: string;
   matchup: string; // e.g. "Pats @ DEN" or "DEN @ Pats", depending on home/away
   time: string;
+  broadcast: string | null;
 }
 
 // Returns a component pre-configured for one specific team, so multiple
@@ -76,7 +77,9 @@ export function makeTeamSchedule(
               hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short',
             });
 
-            return { id: e.id || `${e.date}-${opponent}`, date, matchup, time };
+            const broadcast = comp?.broadcasts?.[0]?.names?.[0] || null;
+
+            return { id: e.id || `${e.date}-${opponent}`, date, matchup, time, broadcast };
           });
 
           setGames(parsed);
@@ -125,7 +128,12 @@ export function makeTeamSchedule(
               <div className="text-sm font-semibold text-zinc-900 dark:text-white">{game.matchup}</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400">{game.date}</div>
             </div>
-            <div className="text-sm font-medium flex-shrink-0" style={{ color: accentColor }}>{game.time}</div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-sm font-medium" style={{ color: accentColor }}>{game.time}</div>
+              {game.broadcast && (
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">{game.broadcast}</div>
+              )}
+            </div>
           </div>
         ))}
       </div>
