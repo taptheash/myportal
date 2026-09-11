@@ -134,55 +134,59 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
       {tickers.map((t) => {
         const q = quotes[t.symbol];
         const isUp = q && q.change >= 0;
+        const isSelected = selectedSymbol === t.symbol;
         return (
-          <div
-            key={t.symbol}
-            role="button"
-            tabIndex={0}
-            onClick={() => setSelectedSymbol(t.symbol)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(t.symbol); } }}
-            title={`View ${t.symbol} chart`}
-            className="group surface-card flex items-center justify-between px-3 py-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          >
-            <span className="font-bold text-sm text-zinc-900 dark:text-white">{t.symbol}</span>
+          <React.Fragment key={t.symbol}>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedSymbol(isSelected ? null : t.symbol)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(isSelected ? null : t.symbol); } }}
+              title={`View ${t.symbol} chart`}
+              className={`group surface-card flex items-center justify-between px-3 py-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                isSelected ? 'rounded-t-xl' : 'rounded-xl'
+              }`}
+            >
+              <span className="font-bold text-sm text-zinc-900 dark:text-white">{t.symbol}</span>
 
-            {/* Everything right of the symbol is one flex group so
-                justify-between has exactly two children (symbol, this
-                group) and pushes the group flush right — three separate
-                top-level children here previously left the price block
-                stranded in the middle of the row instead of at the edge. */}
-            <div className="flex items-center gap-3">
-              {q?.status === 'loading' && <span className="text-xs text-zinc-400">Loading…</span>}
-              {q?.status === 'error' && (
-                <span className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> Unavailable</span>
-              )}
-              {q?.status === 'ok' && (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">${q.price.toFixed(2)}</span>
-                  {/* Color plus icon plus explicit sign — not color alone, same
-                      principle used for colorblind-safe cues elsewhere in this app. */}
-                  <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                    {isUp ? '+' : ''}{q.change.toFixed(2)} ({isUp ? '+' : ''}{q.percentChange.toFixed(2)}%)
-                  </span>
-                </div>
-              )}
+              {/* Everything right of the symbol is one flex group so
+                  justify-between has exactly two children (symbol, this
+                  group) and pushes the group flush right — three separate
+                  top-level children here previously left the price block
+                  stranded in the middle of the row instead of at the edge. */}
+              <div className="flex items-center gap-3">
+                {q?.status === 'loading' && <span className="text-xs text-zinc-400">Loading…</span>}
+                {q?.status === 'error' && (
+                  <span className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> Unavailable</span>
+                )}
+                {q?.status === 'ok' && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-white">${q.price.toFixed(2)}</span>
+                    {/* Color plus icon plus explicit sign — not color alone, same
+                        principle used for colorblind-safe cues elsewhere in this app. */}
+                    <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                      {isUp ? '+' : ''}{q.change.toFixed(2)} ({isUp ? '+' : ''}{q.percentChange.toFixed(2)}%)
+                    </span>
+                  </div>
+                )}
 
-              <button
-                onClick={(e) => { e.stopPropagation(); removeTicker(t.symbol); }}
-                className="p-1 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-150"
-                title="Remove"
-              >
-                <Trash2 size={14} />
-              </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeTicker(t.symbol); }}
+                  className="p-1 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-150"
+                  title="Remove"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
-          </div>
+
+            {isSelected && (
+              <StockDetailModal symbol={t.symbol} onClose={() => setSelectedSymbol(null)} />
+            )}
+          </React.Fragment>
         );
       })}
-
-      {selectedSymbol && (
-        <StockDetailModal symbol={selectedSymbol} onClose={() => setSelectedSymbol(null)} />
-      )}
 
       {tickers.length === 0 && (
         <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">No tickers yet — add one above.</div>

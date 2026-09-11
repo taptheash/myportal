@@ -127,19 +127,17 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
   // same concept.
   const lineColor = isUp ? '#16a34a' : '#dc2626';
 
+  // Inline expanding panel — opens directly beneath the row that was
+  // clicked (rendered there by the parent list) rather than as a centered
+  // page overlay, so it reads as "this row, expanded" instead of a floating
+  // dialog that happens to sit near the cursor.
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
+      className="folder-content-enter surface-card bg-white dark:bg-zinc-900 rounded-xl overflow-hidden"
+      role="region"
       aria-label={`${symbol} price chart`}
     >
-      <div
-        className="surface-card bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
           <div>
             <h2 className="text-xl font-bold text-zinc-900 dark:text-white">{symbol}</h2>
             {quote && (
@@ -252,6 +250,6 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
           )}
         </div>
       </div>
-    </div>
   );
 }
+

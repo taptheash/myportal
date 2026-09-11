@@ -91,43 +91,47 @@ export default function MarketOverview(_props: MarketOverviewProps) {
       {INDICES.map((i) => {
         const q = quotes[i.symbol];
         const isUp = q && q.change >= 0;
+        const isSelected = selectedSymbol === i.symbol;
         return (
-          <div
-            key={i.symbol}
-            role="button"
-            tabIndex={0}
-            onClick={() => setSelectedSymbol(i.symbol)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(i.symbol); } }}
-            title={`View ${i.symbol} chart`}
-            className="surface-card px-3 py-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-bold text-sm text-zinc-900 dark:text-white">{i.label}</div>
-                <div className="text-xs text-zinc-400 dark:text-zinc-500">{i.shortLabel}</div>
-              </div>
-
-              {q?.status === 'loading' && <span className="text-xs text-zinc-400">Loading…</span>}
-              {q?.status === 'error' && (
-                <span className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> Unavailable</span>
-              )}
-              {q?.status === 'ok' && (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">${q.price.toFixed(2)}</span>
-                  <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                    {isUp ? '+' : ''}{q.change.toFixed(2)} ({isUp ? '+' : ''}{q.percentChange.toFixed(2)}%)
-                  </span>
+          <React.Fragment key={i.symbol}>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedSymbol(isSelected ? null : i.symbol)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(isSelected ? null : i.symbol); } }}
+              title={`View ${i.symbol} chart`}
+              className={`surface-card px-3 py-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                isSelected ? 'rounded-t-xl' : 'rounded-xl'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm text-zinc-900 dark:text-white">{i.label}</div>
+                  <div className="text-xs text-zinc-400 dark:text-zinc-500">{i.shortLabel}</div>
                 </div>
-              )}
+
+                {q?.status === 'loading' && <span className="text-xs text-zinc-400">Loading…</span>}
+                {q?.status === 'error' && (
+                  <span className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> Unavailable</span>
+                )}
+                {q?.status === 'ok' && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-white">${q.price.toFixed(2)}</span>
+                    <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                      {isUp ? '+' : ''}{q.change.toFixed(2)} ({isUp ? '+' : ''}{q.percentChange.toFixed(2)}%)
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+
+            {isSelected && (
+              <StockDetailModal symbol={i.symbol} onClose={() => setSelectedSymbol(null)} />
+            )}
+          </React.Fragment>
         );
       })}
-
-      {selectedSymbol && (
-        <StockDetailModal symbol={selectedSymbol} onClose={() => setSelectedSymbol(null)} />
-      )}
     </div>
   );
 }
