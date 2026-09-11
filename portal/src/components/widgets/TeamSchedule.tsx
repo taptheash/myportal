@@ -77,7 +77,14 @@ export function makeTeamSchedule(
               hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short',
             });
 
-            const broadcast = comp?.broadcasts?.[0]?.names?.[0] || null;
+            // The team-schedule endpoint's broadcasts[] shape differs from
+            // the scoreboard endpoint's (used elsewhere in this app):
+            // schedule nests the network under media.shortName, not a
+            // names[] array — confirmed by inspecting a live response.
+            // Reading both shapes here so this keeps working if that
+            // ever varies by sport/league.
+            const broadcastEntry = comp?.broadcasts?.[0];
+            const broadcast = broadcastEntry?.media?.shortName || broadcastEntry?.names?.[0] || null;
 
             return { id: e.id || `${e.date}-${opponent}`, date, matchup, time, broadcast };
           });
