@@ -250,53 +250,53 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
   return (
     <div className="flex flex-col gap-2">
       {showAdd && (
-        <div className="flex flex-col gap-1.5 p-2 bg-sky-50 dark:bg-slate-700 rounded-lg border border-sky-200 dark:border-slate-600">
+        <div className="flex flex-col gap-1.5 p-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700">
           {error && <p className="text-xs text-red-500">{error}</p>}
           <input type="text" placeholder="Name (e.g. My Favorite Blog)" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus
-            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
           <input type="text" placeholder="Feed URL (RSS or Atom)" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualAdd()}
-            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
           <div className="flex gap-2">
-            <button onClick={handleManualAdd} className="flex-1 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><Check size={14} /> Add</button>
+            <button onClick={handleManualAdd} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Add</button>
             <button onClick={() => { setShowAdd(false); setNewName(''); setNewUrl(''); setError(null); }}
-              className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+              className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
           </div>
         </div>
       )}
 
       {!showAdd && (
         <button onClick={() => setShowAdd(true)}
-          className="self-start flex items-center gap-1 text-xs font-semibold text-sky-700 dark:text-sky-300 hover:text-sky-900 dark:hover:text-sky-100 px-1 transition">
+          className="self-start flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 px-1 transition-colors duration-150">
           <Plus size={13} /> Add a feed by URL
         </button>
       )}
 
       {(allSuggestions.length > 0 || showAddSuggestion) && (
-        <div className="flex flex-col gap-1.5 p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
+        <div className="flex flex-col gap-1.5 p-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
           <div className="flex items-center justify-between">
             <button
               onClick={() => onUpdateConfig({ ...config, suggestionsExpanded: !suggestionsExpanded })}
-              className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
+              className="flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors duration-150"
             >
               {suggestionsExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
               <Sparkles size={12} /> Suggested — pick one to subscribe
             </button>
             {suggestionsExpanded && !showAddSuggestion && (
-              <button onClick={() => setShowAddSuggestion(true)} className="text-xs text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-0.5">
+              <button onClick={() => setShowAddSuggestion(true)} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5">
                 <Plus size={11} /> Add to this list
               </button>
             )}
           </div>
 
           {suggestionsExpanded && showAddSuggestion && (
-            <div className="flex flex-col gap-1.5 p-2 bg-white dark:bg-slate-800 rounded-lg">
+            <div className="flex flex-col gap-1.5 p-2 bg-white dark:bg-zinc-900 rounded-lg">
               <input type="text" placeholder="Name" value={suggName} onChange={(e) => setSuggName(e.target.value)} autoFocus
-                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
               <input type="text" placeholder="Feed URL" value={suggUrl} onChange={(e) => setSuggUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSuggestion()}
-                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+                className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
               <div className="flex gap-2">
-                <button onClick={handleAddSuggestion} className="flex-1 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-semibold transition">Add to list</button>
-                <button onClick={() => { setShowAddSuggestion(false); setSuggName(''); setSuggUrl(''); }} className="flex-1 py-1 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-xs font-semibold transition">Cancel</button>
+                <button onClick={handleAddSuggestion} className="flex-1 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-colors duration-150">Add to list</button>
+                <button onClick={() => { setShowAddSuggestion(false); setSuggName(''); setSuggUrl(''); }} className="flex-1 py-1 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-xs font-medium transition-colors duration-150">Cancel</button>
               </div>
             </div>
           )}
@@ -308,7 +308,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
                   const genres = Array.from(new Set(allSuggestions.map((s) => s.genre)));
                   return genres.map((genre) => (
                     <div key={genre}>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 px-2 pt-2 pb-0.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 dark:text-zinc-500 px-2 pt-2 pb-0.5">
                         {genre}
                       </div>
                       {allSuggestions.filter((s) => s.genre === genre).map((s) => {
@@ -317,19 +317,19 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
                           <div key={s.url} className="group flex items-center gap-1">
                             <button
                               onClick={() => setSelectedSuggestionUrl(selected ? null : s.url)}
-                              className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition ${
+                              className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition-colors duration-150 ${
                                 selected
-                                  ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100'
-                                  : 'hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300'
+                                  ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-100'
+                                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                               }`}
                             >
-                              {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-sky-500" /> : <Circle size={15} className="flex-shrink-0 text-gray-300 dark:text-gray-600" />}
+                              {selected ? <CheckCircle2 size={15} className="flex-shrink-0 text-indigo-500" /> : <Circle size={15} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600" />}
                               {s.name}
                             </button>
                             <button
                               onClick={() => removeSuggestion(s.url, s.isBuiltIn)}
                               title="Remove from suggestions"
-                              className="p-1 flex-shrink-0 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-500 transition"
+                              className="p-1 flex-shrink-0 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-colors duration-150"
                             >
                               <X size={13} />
                             </button>
@@ -343,7 +343,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
               <button
                 onClick={handleSubscribe}
                 disabled={!selectedSuggestionUrl}
-                className="py-1.5 bg-sky-500 hover:bg-sky-600 disabled:bg-gray-200 dark:disabled:bg-slate-600 disabled:text-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition"
+                className="py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-200 dark:disabled:bg-zinc-700 disabled:text-zinc-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors duration-150"
               >
                 Subscribe
               </button>
@@ -356,16 +356,16 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
         {feeds.map((feed) => {
           const state = feedData[feed.id];
           return (
-            <div key={feed.id} className="rounded-lg overflow-hidden bg-sky-50 dark:bg-slate-700">
+            <div key={feed.id} className="surface-card rounded-xl overflow-hidden bg-white dark:bg-zinc-900">
               <div className="flex items-center gap-1">
                 <button onClick={() => toggleCollapsed(feed.id)} className="flex-1 flex items-center gap-2 py-2 px-2.5 min-w-0 text-left">
-                  {feed.collapsed ? <ChevronRight size={14} className="flex-shrink-0 text-sky-600 dark:text-sky-400" /> : <ChevronDown size={14} className="flex-shrink-0 text-sky-600 dark:text-sky-400" />}
-                  <span className="text-sm font-semibold text-sky-900 dark:text-sky-100 truncate">{feed.name}</span>
-                  {state?.status === 'ok' && <span className="text-xs text-sky-500 dark:text-sky-400 flex-shrink-0">({state.items.length})</span>}
-                  {state?.status === 'loading' && <span className="text-xs text-gray-400 flex-shrink-0">loading…</span>}
+                  {feed.collapsed ? <ChevronRight size={14} className="flex-shrink-0 text-indigo-500 dark:text-indigo-400" /> : <ChevronDown size={14} className="flex-shrink-0 text-indigo-500 dark:text-indigo-400" />}
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{feed.name}</span>
+                  {state?.status === 'ok' && <span className="text-xs text-zinc-400 dark:text-zinc-500 flex-shrink-0">({state.items.length})</span>}
+                  {state?.status === 'loading' && <span className="text-xs text-zinc-400 flex-shrink-0">loading…</span>}
                   {state?.status === 'error' && <AlertCircle size={12} className="flex-shrink-0 text-red-500" />}
                 </button>
-                <button onClick={() => removeFeed(feed.id)} className="p-1.5 mr-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition flex-shrink-0" title="Remove feed">
+                <button onClick={() => removeFeed(feed.id)} className="p-1.5 mr-1.5 text-zinc-400 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150 flex-shrink-0" title="Remove feed">
                   <X size={13} />
                 </button>
               </div>
@@ -376,16 +376,16 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
                     <p className="text-xs text-red-500 px-1 py-1">Couldn't load this feed — check the URL is a valid RSS or Atom feed.</p>
                   )}
                   {state?.status === 'ok' && state.items.length === 0 && (
-                    <p className="text-xs text-gray-400 px-1 py-1">No articles found.</p>
+                    <p className="text-xs text-zinc-400 px-1 py-1">No articles found.</p>
                   )}
                   {state?.status === 'ok' && state.items.map((item, idx) => (
                     <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer"
-                      className="flex items-start justify-between gap-2 px-2 py-1.5 bg-white dark:bg-slate-800 hover:bg-sky-100 dark:hover:bg-slate-600 rounded-md transition group">
+                      className="flex items-start justify-between gap-2 px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors duration-150 group">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-gray-900 dark:text-white line-clamp-2 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition">{item.title}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{formatTime(item.pubDate)}</p>
+                        <p className="text-xs font-medium text-zinc-900 dark:text-white line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150">{item.title}</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{formatTime(item.pubDate)}</p>
                       </div>
-                      <ExternalLink size={11} className="flex-shrink-0 text-gray-400 mt-0.5" />
+                      <ExternalLink size={11} className="flex-shrink-0 text-zinc-400 mt-0.5" />
                     </a>
                   ))}
                 </div>
@@ -396,7 +396,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
       </div>
 
       {feeds.length === 0 && (
-        <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">
+        <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">
           No feeds yet — pick a suggestion above or add your own.
         </div>
       )}

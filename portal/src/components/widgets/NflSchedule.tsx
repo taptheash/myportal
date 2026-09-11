@@ -88,7 +88,7 @@ export default function NflSchedule(_props: NflScheduleProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-24">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -105,19 +105,19 @@ export default function NflSchedule(_props: NflScheduleProps) {
   return (
     <div className="flex flex-col gap-2">
       {weekLabel && (
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 px-1">
+        <div className="text-xs font-bold uppercase tracking-wide text-zinc-400 dark:text-zinc-500 px-1">
           NFL — {weekLabel}
         </div>
       )}
 
       {games.length === 0 && (
-        <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">No games scheduled this week.</div>
+        <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">No games scheduled this week.</div>
       )}
 
       <div className="overflow-x-auto no-scrollbar">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-slate-700">
+            <tr className="text-left text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500 border-b border-zinc-200 dark:border-zinc-700">
               <th className="py-1.5 pr-2 font-semibold">Date</th>
               <th className="py-1.5 pr-2 font-semibold">Matchup</th>
               <th className="py-1.5 pr-2 font-semibold">Time</th>
@@ -128,14 +128,14 @@ export default function NflSchedule(_props: NflScheduleProps) {
             {games.map((game) => (
               <tr
                 key={game.id}
-                className="border-b border-gray-100 dark:border-slate-700/60 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700/40 transition"
+                className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors duration-150"
               >
-                <td className="py-2 pr-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{game.date}</td>
-                <td className="py-2 pr-2 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{game.matchup}</td>
-                <td className="py-2 pr-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                <td className="py-2 pr-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{game.date}</td>
+                <td className="py-2 pr-2 font-semibold text-zinc-900 dark:text-white whitespace-nowrap">{game.matchup}</td>
+                <td className="py-2 pr-2 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                   {game.status === 'Final' ? 'Final' : game.status === 'In Progress' ? 'Live' : game.time}
                 </td>
-                <td className="py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{game.broadcast || '—'}</td>
+                <td className="py-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{game.broadcast || '—'}</td>
               </tr>
             ))}
           </tbody>

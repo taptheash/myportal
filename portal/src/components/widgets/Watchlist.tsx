@@ -92,12 +92,12 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
 
   if (!API_KEY) {
     return (
-      <div className="flex flex-col items-center justify-center h-32 gap-2 text-gray-400 dark:text-gray-500 text-center px-4">
+      <div className="flex flex-col items-center justify-center h-32 gap-2 text-zinc-400 dark:text-zinc-500 text-center px-4">
         <AlertCircle size={20} />
         <p className="text-sm">
           Needs a free Finnhub API key — sign up at finnhub.io, then add it as
           <br />
-          <code className="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">REACT_APP_FINNHUB_API_KEY</code> in Vercel.
+          <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">REACT_APP_FINNHUB_API_KEY</code> in Vercel.
         </p>
       </div>
     );
@@ -106,7 +106,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
   return (
     <div className="flex flex-col gap-2">
       {config.showAdd && (
-        <div className="flex flex-col gap-1.5 p-2 bg-blue-50 dark:bg-slate-700 rounded-lg border border-blue-200 dark:border-slate-600">
+        <div className="flex flex-col gap-1.5 p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
           {addError && <p className="text-xs text-red-500">{addError}</p>}
           <input
             type="text"
@@ -114,16 +114,16 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
             value={newSymbol}
             onChange={(e) => setNewSymbol(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addTicker()}
-            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             autoFocus
           />
           <div className="flex gap-2">
-            <button onClick={addTicker} className="flex-1 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1">
+            <button onClick={addTicker} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1">
               <Check size={14} /> Add
             </button>
             <button
               onClick={() => { onUpdateConfig({ ...config, showAdd: false }); setNewSymbol(''); setAddError(null); }}
-              className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"
+              className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"
             >
               <X size={14} /> Cancel
             </button>
@@ -142,9 +142,9 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
             onClick={() => setSelectedSymbol(t.symbol)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSymbol(t.symbol); } }}
             title={`View ${t.symbol} chart`}
-            className="group flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-lg cursor-pointer transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="group surface-card flex items-center justify-between px-3 py-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
           >
-            <span className="font-bold text-sm text-gray-900 dark:text-white">{t.symbol}</span>
+            <span className="font-bold text-sm text-zinc-900 dark:text-white">{t.symbol}</span>
 
             {/* Everything right of the symbol is one flex group so
                 justify-between has exactly two children (symbol, this
@@ -152,13 +152,13 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
                 top-level children here previously left the price block
                 stranded in the middle of the row instead of at the edge. */}
             <div className="flex items-center gap-3">
-              {q?.status === 'loading' && <span className="text-xs text-gray-400">Loading…</span>}
+              {q?.status === 'loading' && <span className="text-xs text-zinc-400">Loading…</span>}
               {q?.status === 'error' && (
                 <span className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> Unavailable</span>
               )}
               {q?.status === 'ok' && (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">${q.price.toFixed(2)}</span>
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">${q.price.toFixed(2)}</span>
                   {/* Color plus icon plus explicit sign — not color alone, same
                       principle used for colorblind-safe cues elsewhere in this app. */}
                   <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -170,7 +170,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
 
               <button
                 onClick={(e) => { e.stopPropagation(); removeTicker(t.symbol); }}
-                className="p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition"
+                className="p-1 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-150"
                 title="Remove"
               >
                 <Trash2 size={14} />
@@ -185,7 +185,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
       )}
 
       {tickers.length === 0 && (
-        <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">No tickers yet — add one above.</div>
+        <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">No tickers yet — add one above.</div>
       )}
     </div>
   );

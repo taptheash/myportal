@@ -8,6 +8,7 @@ import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
 import TabContainer, { TabDef } from './components/TabContainer';
+import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
 import Headlines from './components/widgets/Headlines';
@@ -209,7 +210,7 @@ export default function App() {
           }}
           onBlur={() => setWeatherEditing(false)}
           placeholder="ZIP or city"
-          className="px-2 py-1 text-xs rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-1 focus:ring-orange-400"
+          className="px-2 py-1 text-xs rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
           autoFocus
         />
       ) : (
@@ -224,7 +225,7 @@ export default function App() {
               updateWidgetConfig('weather', rest);
             }}
             title="Use current location"
-            className="flex items-center justify-center p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition"
+            className="flex items-center justify-center p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150"
           >
             <Crosshair size={14} />
           </button>
@@ -233,7 +234,7 @@ export default function App() {
               setWeatherEditing(true);
               setWeatherInput(displayLocation);
             }}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/70 transition"
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150"
           >
             <MapPin size={12} /> {displayLocation}
           </button>
@@ -245,7 +246,7 @@ export default function App() {
       return (
         <button
           onClick={() => updateWidgetConfig('links', { ...activeToolWidget.config, showAdd: true })}
-          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-teal-500 hover:bg-teal-600 text-white transition"
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150"
         >
           <Plus size={13} /> Add link
         </button>
@@ -256,17 +257,17 @@ export default function App() {
       const eventCount = activeToolWidget.config.eventCount || 5;
       return (
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Events</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Events</span>
           <button
             onClick={() => updateWidgetConfig('calendar', { ...activeToolWidget.config, eventCount: Math.max(1, eventCount - 1) })}
-            className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
+            className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
           >
             <Minus size={13} />
           </button>
-          <span className="text-xs font-bold w-5 text-center text-gray-700 dark:text-gray-200">{eventCount}</span>
+          <span className="text-xs font-semibold w-5 text-center text-zinc-700 dark:text-zinc-200">{eventCount}</span>
           <button
             onClick={() => updateWidgetConfig('calendar', { ...activeToolWidget.config, eventCount: Math.min(20, eventCount + 1) })}
-            className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
+            className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
           >
             <Plus size={13} />
           </button>
@@ -285,17 +286,17 @@ export default function App() {
     const displayCount = activeNewsWidget.config.lastFetchedCount ?? count;
     return (
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Articles</span>
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Articles</span>
         <button
           onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.max(1, count - 1) })}
-          className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
+          className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
         >
           <Minus size={13} />
         </button>
-        <span className="text-xs font-bold w-5 text-center text-gray-700 dark:text-gray-200">{displayCount}</span>
+        <span className="text-xs font-semibold w-5 text-center text-zinc-700 dark:text-zinc-200">{displayCount}</span>
         <button
           onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.min(100, count + 1) })}
-          className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition"
+          className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
         >
           <Plus size={13} />
         </button>
@@ -308,7 +309,7 @@ export default function App() {
       return (
         <button
           onClick={() => updateWidgetConfig('sports', { ...activeSportsWidget.config, showAdd: true })}
-          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black transition"
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150"
         >
           <Plus size={13} /> Add team
         </button>
@@ -322,7 +323,7 @@ export default function App() {
       return (
         <button
           onClick={() => updateWidgetConfig('watchlist', { ...activeStocksWidget.config, showAdd: true })}
-          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition"
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150"
         >
           <Plus size={13} /> Add ticker
         </button>
@@ -336,15 +337,47 @@ export default function App() {
   const SportsComponent = WIDGET_DEFINITIONS[activeSports].component;
   const StocksComponent = WIDGET_DEFINITIONS[activeStocks].component;
 
+  const activeSectionMeta = SECTIONS.find((s) => s.id === activeSection)!;
+  const sectionSubtitle: Record<string, string> = {
+    tools: 'Your shortcuts, utilities and frequently used services',
+    news: 'Headlines and feeds, curated to what you actually read',
+    sports: 'Live scores and schedules for the teams you follow',
+    stocks: 'Watchlist and market snapshot at a glance',
+  };
+  const linksEntries = activeTool === 'links' ? (activeToolWidget.config?.links as any[] | undefined) : undefined;
+  const toolsMeta = (() => {
+    if (activeSection !== 'tools' || !linksEntries) return null;
+    let linkTotal = 0;
+    let folderTotal = 0;
+    for (const entry of linksEntries) {
+      if (entry?.type === 'folder') {
+        folderTotal += 1;
+        linkTotal += (entry.links || []).length;
+      } else {
+        linkTotal += 1;
+      }
+    }
+    return `${linkTotal} link${linkTotal === 1 ? '' : 's'}${folderTotal ? ` · ${folderTotal} folder${folderTotal === 1 ? '' : 's'}` : ''}`;
+  })();
+
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100">
-        <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 shadow-md">
-          <div className="px-6 py-4 flex justify-between items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex-shrink-0">
-              {currentTime || 'Loading...'}
-            </h1>
-            <div className="flex items-center bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-0.5 flex-shrink-0">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+        <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
+          <div className="px-6 py-3.5 flex justify-between items-center gap-4">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="w-2 h-2 rounded-full bg-indigo-500" aria-hidden="true" />
+              <h1 className="text-[15px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums tracking-tight">
+                {currentTime || 'Loading…'}
+              </h1>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
+              <OnThisDayPill />
+              <NationalDayPill />
+            </div>
+
+            <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 gap-0.5 flex-shrink-0">
               {(['light', 'system', 'dark'] as ThemeMode[]).map((m) => {
                 const Icon = m === 'light' ? Sun : m === 'dark' ? Moon : Monitor;
                 const isActive = mode === m;
@@ -354,13 +387,13 @@ export default function App() {
                     onClick={() => setMode(m)}
                     title={m.charAt(0).toUpperCase() + m.slice(1)}
                     aria-pressed={isActive}
-                    className={`p-1.5 rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                    className={`p-1.5 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
                       isActive
-                        ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-yellow-400'
-                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'bg-white dark:bg-zinc-950 shadow-sm text-indigo-600 dark:text-indigo-400'
+                        : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
                     }`}
                   >
-                    <Icon size={16} />
+                    <Icon size={15} />
                   </button>
                 );
               })}
@@ -368,9 +401,9 @@ export default function App() {
           </div>
         </header>
 
-        <main className="p-6">
+        <main className="px-6 py-6 max-w-[1440px] mx-auto">
           <div className="flex flex-row gap-6 items-start w-full">
-            <nav className="w-40 flex-shrink-0 flex flex-col gap-1.5">
+            <nav className="w-44 flex-shrink-0 flex flex-col gap-0.5">
               {SECTIONS.map((section) => {
                 const isActive = activeSection === section.id;
                 const Icon = section.icon;
@@ -379,13 +412,18 @@ export default function App() {
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
                     aria-current={isActive}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                    className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
                       isActive
-                        ? 'font-bold bg-white dark:bg-slate-800 shadow-md text-gray-900 dark:text-white border-l-4 border-blue-500'
-                        : 'font-semibold text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-slate-800/60 border-l-4 border-transparent'
+                        ? 'font-medium bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200/80 dark:ring-zinc-800'
+                        : 'font-medium text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100/80 dark:hover:bg-zinc-900/60 hover:text-zinc-700 dark:hover:text-zinc-300'
                     }`}
                   >
-                    <Icon size={16} className="flex-shrink-0" />
+                    <Icon
+                      size={15}
+                      className={`flex-shrink-0 transition-colors ${
+                        isActive ? 'text-indigo-500' : 'text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500'
+                      }`}
+                    />
                     {section.label}
                   </button>
                 );
@@ -393,9 +431,24 @@ export default function App() {
             </nav>
 
             <div className="flex-1 min-w-0">
+              <div className="mb-4 px-1 flex items-baseline justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
+                    {activeSectionMeta.label}
+                  </h2>
+                  <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    {sectionSubtitle[activeSection]}
+                  </p>
+                </div>
+                {toolsMeta && (
+                  <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 flex-shrink-0">
+                    {toolsMeta}
+                  </span>
+                )}
+              </div>
+
               {activeSection === 'tools' && (
                 <TabContainer
-                  sectionLabel="Tools"
                   tabs={toolTabs}
                   activeType={activeTool}
                   onSelect={setActiveTool}
@@ -413,7 +466,6 @@ export default function App() {
 
               {activeSection === 'news' && (
                 <TabContainer
-                  sectionLabel="News"
                   tabs={newsTabs}
                   activeType={safeActiveNews}
                   onSelect={setActiveNews}
@@ -431,7 +483,6 @@ export default function App() {
 
               {activeSection === 'sports' && (
                 <TabContainer
-                  sectionLabel="Sports"
                   tabs={sportsTabs}
                   activeType={activeSports}
                   onSelect={setActiveSports}
@@ -449,7 +500,6 @@ export default function App() {
 
               {activeSection === 'stocks' && (
                 <TabContainer
-                  sectionLabel="Stocks"
                   tabs={stocksTabs}
                   activeType={activeStocks}
                   onSelect={setActiveStocks}

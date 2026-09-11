@@ -126,7 +126,20 @@ export async function fetchMergedRssWithCache(
     .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
     .flatMap((r) => r.value);
 
-  merged.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  // Some feeds re-list the same story (a syndicated wire piece, or the feed
+  // itself repeating an entry), and a source can occasionally appear twice
+  // in `chosen` if the pool is small relative to sourcesPerRefresh. Dedupe
+  // by link — the stable per-article identifier — falling back to title
+  // for the rare item with no link, so real duplicates never reach display.
+  const seen = new Set<string>();
+  const deduped = merged.filter((item) => {
+    const key = item.link || item.title;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-  return merged.slice(0, totalCount);
+  deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+
+  return deduped.slice(0, totalCount);
 }

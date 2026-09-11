@@ -41,9 +41,9 @@ function ChartTooltip({ active, payload }: any) {
     month: 'short', day: 'numeric', year: 'numeric',
   });
   return (
-    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg px-3 py-2">
-      <div className="text-sm font-bold text-gray-900 dark:text-white">${point.price.toFixed(2)}</div>
-      <div className="text-xs text-gray-500 dark:text-gray-400">{date}</div>
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg px-3 py-2">
+      <div className="text-sm font-bold text-zinc-900 dark:text-white">${point.price.toFixed(2)}</div>
+      <div className="text-xs text-zinc-500 dark:text-zinc-400">{date}</div>
     </div>
   );
 }
@@ -129,22 +129,22 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`${symbol} price chart`}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
+        className="surface-card bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto no-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100 dark:border-slate-700">
+        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-zinc-100 dark:border-zinc-800">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{symbol}</h2>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">{symbol}</h2>
             {quote && (
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">${quote.price.toFixed(2)}</span>
+                <span className="text-lg font-semibold text-zinc-900 dark:text-white">${quote.price.toFixed(2)}</span>
                 <span className={`flex items-center gap-0.5 text-sm font-semibold ${quote.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {quote.change >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                   {quote.change >= 0 ? '+' : ''}{quote.change.toFixed(2)} ({quote.change >= 0 ? '+' : ''}{quote.percentChange.toFixed(2)}%)
@@ -154,7 +154,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-150"
             title="Close"
           >
             <X size={18} />
@@ -169,10 +169,10 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
               <button
                 key={r.key}
                 onClick={() => setRange(r.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 ${
                   range === r.key
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                 }`}
               >
                 {r.label}
@@ -184,12 +184,12 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
         <div className="px-5 pb-5 pt-3">
           {status === 'loading' && (
             <div className="h-64 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
             </div>
           )}
 
           {status === 'unavailable' && (
-            <div className="h-64 flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-gray-500 text-center px-4">
+            <div className="h-64 flex flex-col items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500 text-center px-4">
               <AlertCircle size={20} />
               <p className="text-sm">
                 No historical data found for {symbol} over this range.
@@ -216,12 +216,12 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
                       <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="currentColor" className="text-gray-100 dark:text-slate-700" />
+                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="currentColor" className="text-zinc-100 dark:text-zinc-800" />
                   <XAxis
                     dataKey="t"
                     tickFormatter={(t) => new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-gray-400 dark:text-gray-500"
+                    className="text-zinc-400 dark:text-zinc-500"
                     axisLine={false}
                     tickLine={false}
                     minTickGap={40}
@@ -229,7 +229,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
                   <YAxis
                     domain={['dataMin', 'dataMax']}
                     tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-gray-400 dark:text-gray-500"
+                    className="text-zinc-400 dark:text-zinc-500"
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v) => `$${v.toFixed(0)}`}
@@ -243,7 +243,7 @@ export default function StockDetailModal({ symbol, onClose }: StockDetailModalPr
                     strokeWidth={2}
                     fill="url(#stockFill)"
                     dot={false}
-                    activeDot={{ r: 4, fill: lineColor, stroke: isDark ? '#1e293b' : '#ffffff', strokeWidth: 2 }}
+                    activeDot={{ r: 4, fill: lineColor, stroke: isDark ? '#18181b' : '#ffffff', strokeWidth: 2 }}
                     isAnimationActive={false}
                   />
                 </AreaChart>

@@ -52,10 +52,18 @@ function normalizeEntries(raw: any[] | undefined): Entry[] {
   });
 }
 
+function getHostname(url: string): string {
+  try {
+    return new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 function getFaviconUrl(url: string): string {
   try {
     const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
   } catch {
     return '';
   }
@@ -65,15 +73,15 @@ function SiteIcon({ url, label }: { url: string; label: string }) {
   const [failed, setFailed] = useState(false);
   const faviconUrl = getFaviconUrl(url);
   if (!faviconUrl || failed) {
-    return <Globe size={20} className="text-teal-600 dark:text-teal-400 flex-shrink-0" />;
+    return <Globe size={18} className="text-indigo-500 dark:text-indigo-400 flex-shrink-0" />;
   }
   return (
     <img
       src={faviconUrl}
       alt={label}
-      width={20}
-      height={20}
-      className="flex-shrink-0 rounded-sm"
+      width={18}
+      height={18}
+      className="flex-shrink-0 rounded-[3px]"
       onError={() => setFailed(true)}
     />
   );
@@ -343,11 +351,20 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
     }
   };
 
+  // The reusable Link Card — this is the ONLY place a link's visual design
+  // is defined. Every link renders through this function regardless of
+  // whether it existed before the redesign, was just created via "+ Add
+  // link", or was just dragged into/out of a folder — there is no separate
+  // "new link" style. Kept as a single stacked row (not a multi-column
+  // grid) so the existing top/bottom-half drag-over math in
+  // handleLinkDragOver — which reads the row's own rect — keeps working
+  // exactly as before; the card look comes from spacing/typography/elevation
+  // on that one row, not from a layout change.
   const renderLinkRow = (link: LinkItem, containerId: string, index: number, listLength: number) => (
     <div
       key={link.id}
       onDragOver={handleLinkDragOver(containerId, index)}
-      className={`flex items-center gap-1 group ${dragSource?.containerId === containerId && dragSource.index === index ? 'opacity-40' : ''}`}
+      className={`flex items-center gap-0.5 group/link ${dragSource?.containerId === containerId && dragSource.index === index ? 'opacity-40' : ''}`}
     >
       <button
         draggable
@@ -355,7 +372,7 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         onDragEnd={handleDragEnd}
         onKeyDown={handleKeyDown(containerId, index, listLength)}
         title="Drag to reorder or move into a folder, or focus and use Alt+Up/Down"
-        className="p-1 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded"
+        className="p-1 flex-shrink-0 self-stretch flex items-center text-zinc-300 dark:text-zinc-700 opacity-0 group-hover/link:opacity-100 focus-visible:opacity-100 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded transition-opacity duration-150"
       >
         <GripVertical size={14} />
       </button>
@@ -364,29 +381,36 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         target="_blank"
         rel="noopener noreferrer"
         draggable={false}
-        className="flex-1 flex items-center gap-2.5 px-3 py-2 bg-teal-50 dark:bg-slate-700 hover:bg-teal-100 dark:hover:bg-slate-600 rounded-lg transition truncate min-w-0"
+        className="surface-card flex-1 flex items-center gap-2.5 px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl min-w-0"
       >
-        <SiteIcon url={link.url} label={link.label} />
-        <span className="text-sm font-medium text-teal-900 dark:text-teal-100 truncate">{link.label}</span>
+        <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center transition-transform duration-150 group-hover/link:scale-105">
+          <SiteIcon url={link.url} label={link.label} />
+        </span>
+        <span className="flex flex-col min-w-0 leading-tight">
+          <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{link.label}</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">{getHostname(link.url)}</span>
+        </span>
       </a>
-      <button onClick={() => startEdit(link)} className="p-1.5 bg-teal-100 dark:bg-slate-600 hover:bg-teal-200 dark:hover:bg-slate-500 text-teal-700 dark:text-teal-200 rounded-lg transition flex-shrink-0" title="Edit link">
-        <Pencil size={13} />
-      </button>
-      <button onClick={() => removeLink(containerId, link.id)} className="p-1.5 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-300 rounded-lg transition flex-shrink-0" title="Delete link">
-        <X size={13} />
-      </button>
+      <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/link:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+        <button onClick={() => startEdit(link)} className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Edit link">
+          <Pencil size={13} />
+        </button>
+        <button onClick={() => removeLink(containerId, link.id)} className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete link">
+          <X size={13} />
+        </button>
+      </div>
     </div>
   );
 
   const renderEditForm = (containerId: string) => (
-    <div className="flex flex-col gap-1.5 p-2 bg-teal-50 dark:bg-slate-700 rounded-lg border border-teal-200 dark:border-slate-600">
+    <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
       <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="Label" autoFocus
-        className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400" />
+        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
       <input type="text" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit(containerId)} placeholder="URL"
-        className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400" />
+        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
       <div className="flex gap-2">
-        <button onClick={() => saveEdit(containerId)} className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><Check size={14} /> Save</button>
-        <button onClick={cancelEdit} className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+        <button onClick={() => saveEdit(containerId)} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Save</button>
+        <button onClick={cancelEdit} className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
       </div>
     </div>
   );
@@ -395,36 +419,36 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
     <div className="flex flex-col gap-2" onDrop={(e) => { e.preventDefault(); commit(); }} onDragOver={(e) => e.preventDefault()}>
 
       {showInlineAdd && (
-        <div className="flex flex-col gap-1.5 p-2 bg-teal-50 dark:bg-slate-700 rounded-lg border border-teal-200 dark:border-slate-600">
+        <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
           {error && <p className="text-xs text-red-500">{error}</p>}
           <input type="text" placeholder="Label (e.g. GitHub)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} autoFocus
-            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400" />
+            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
           <input type="text" placeholder="URL (e.g. github.com)" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
-            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-400" />
+            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
           <div className="flex gap-2">
-            <button onClick={handleAddLink} className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><Check size={14} /> Add</button>
+            <button onClick={handleAddLink} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Add</button>
             <button onClick={() => { setShowInlineAdd(false); setNewLabel(''); setNewUrl(''); setError(null); onUpdateConfig({ ...config, showAdd: false }); }}
-              className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+              className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
           </div>
         </div>
       )}
 
       {showAddFolder && (
-        <div className="flex flex-col gap-1.5 p-2 bg-amber-50 dark:bg-slate-700 rounded-lg border border-amber-200 dark:border-slate-600">
+        <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
           <input type="text" placeholder="Folder name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddFolder()} autoFocus
-            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+            className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
           <div className="flex gap-2">
-            <button onClick={handleAddFolder} className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><Check size={14} /> Create</button>
+            <button onClick={handleAddFolder} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Create</button>
             <button onClick={() => { setShowAddFolder(false); setNewFolderName(''); }}
-              className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+              className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <button
           onClick={() => setShowAddFolder(true)}
-          className="self-start flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 px-1 transition"
+          className="self-start flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 px-1 py-0.5 transition-colors duration-150"
         >
           <FolderPlus size={13} /> New folder
         </button>
@@ -432,7 +456,7 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         {folders.length > 0 && (
           <button
             onClick={toggleAllFolders}
-            className="self-start flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 px-1 transition"
+            className="self-start flex items-center gap-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 px-1 py-0.5 transition-colors duration-150"
             title={anyExpanded ? 'Collapse all folders' : 'Expand all folders'}
           >
             {anyExpanded ? <ChevronsUp size={13} /> : <ChevronsDown size={13} />}
@@ -445,18 +469,18 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         {entries.map((entry, index) => (
           <React.Fragment key={entry.id}>
             {insertTarget?.containerId === 'root' && insertTarget.index === index && (
-              <div className="h-0.5 mx-1 bg-blue-500 rounded-full" aria-hidden="true" />
+              <div className="h-0.5 mx-1 bg-indigo-500 rounded-full" aria-hidden="true" />
             )}
 
             {entry.type === 'link' ? (
               editingId === entry.id ? renderEditForm('root') : renderLinkRow(entry, 'root', index, entries.length)
             ) : renamingFolderId === entry.id ? (
-              <div className="flex flex-col gap-1.5 p-2 bg-amber-50 dark:bg-slate-700 rounded-lg border border-amber-200 dark:border-slate-600">
+              <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
                 <input type="text" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveFolderRename()} autoFocus
-                  className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                 <div className="flex gap-2">
-                  <button onClick={saveFolderRename} className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><Check size={14} /> Save</button>
-                  <button onClick={() => setRenamingFolderId(null)} className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+                  <button onClick={saveFolderRename} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Save</button>
+                  <button onClick={() => setRenamingFolderId(null)} className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
                 </div>
               </div>
             ) : (
@@ -465,8 +489,8 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
                 className={`flex flex-col gap-1 group/folder ${dragSource?.containerId === 'root' && dragSource.index === index ? 'opacity-40' : ''}`}
               >
                 <div
-                  className={`flex items-center gap-1 rounded-lg transition ${
-                    dropFolderId === entry.id ? 'bg-amber-200 dark:bg-amber-900/60 ring-2 ring-amber-400' : 'bg-amber-50 dark:bg-slate-700'
+                  className={`surface-card flex items-center gap-0.5 rounded-xl bg-white dark:bg-zinc-900 ${
+                    dropFolderId === entry.id ? 'ring-2 ring-amber-400 border-amber-300 dark:border-amber-700' : ''
                   }`}
                 >
                   <button
@@ -474,40 +498,44 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
                     onDragStart={handleDragStart('root', index)}
                     onDragEnd={handleDragEnd}
                     title="Drag to reorder"
-                    className="p-1 pl-1.5 flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded"
+                    className="p-1 pl-2 flex-shrink-0 self-stretch flex items-center text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded transition-colors duration-150"
                   >
                     <GripVertical size={14} />
                   </button>
-                  <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 py-2 pr-2 min-w-0 text-left">
-                    {entry.expanded ? <ChevronDown size={14} className="flex-shrink-0 text-amber-600 dark:text-amber-400" /> : <ChevronRight size={14} className="flex-shrink-0 text-amber-600 dark:text-amber-400" />}
-                    {entry.expanded ? <FolderOpen size={18} className="flex-shrink-0 text-amber-600 dark:text-amber-400" /> : <Folder size={18} className="flex-shrink-0 text-amber-600 dark:text-amber-400" />}
-                    <span className="text-sm font-semibold text-amber-900 dark:text-amber-100 truncate">{entry.label}</span>
-                    <span className="text-xs text-amber-500 dark:text-amber-400 flex-shrink-0">({entry.links.length})</span>
+                  <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 py-2.5 pr-2 min-w-0 text-left group/foldertoggle">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center transition-transform duration-150 group-hover/foldertoggle:scale-105">
+                      {entry.expanded ? <FolderOpen size={16} className="text-amber-500 dark:text-amber-400" /> : <Folder size={16} className="text-amber-500 dark:text-amber-400" />}
+                    </span>
+                    <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{entry.label}</span>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 flex-shrink-0">{entry.links.length}</span>
+                    {entry.expanded ? <ChevronDown size={14} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600 ml-auto" /> : <ChevronRight size={14} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600 ml-auto" />}
                   </button>
-                  <button onClick={() => startRenameFolder(entry)} className="p-1.5 mr-1 text-amber-600 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-slate-600 rounded-lg transition flex-shrink-0" title="Rename folder">
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => deleteFolder(entry.id)} className="p-1.5 mr-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition flex-shrink-0" title="Delete folder (keeps its links)">
-                    <X size={13} />
-                  </button>
+                  <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/folder:opacity-100 transition-opacity duration-150">
+                    <button onClick={() => startRenameFolder(entry)} className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Rename folder">
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => deleteFolder(entry.id)} className="p-1.5 mr-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete folder (keeps its links)">
+                      <X size={13} />
+                    </button>
+                  </div>
                 </div>
 
                 {entry.expanded && (
-                  <div className="flex flex-col gap-1.5 pl-5 border-l-2 border-amber-200 dark:border-slate-600 ml-3">
+                  <div className="folder-content-enter flex flex-col gap-1.5 pl-4 border-l-2 border-zinc-100 dark:border-zinc-800 ml-4">
                     {entry.links.length === 0 ? (
-                      <div className="text-xs text-gray-400 dark:text-gray-500 italic py-1 px-2">Drag links here</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500 italic py-1.5 px-2">Drag links here</div>
                     ) : (
                       entry.links.map((link, linkIndex) => (
                         <React.Fragment key={link.id}>
                           {insertTarget?.containerId === entry.id && insertTarget.index === linkIndex && (
-                            <div className="h-0.5 mx-1 bg-blue-500 rounded-full" aria-hidden="true" />
+                            <div className="h-0.5 mx-1 bg-indigo-500 rounded-full" aria-hidden="true" />
                           )}
                           {editingId === link.id ? renderEditForm(entry.id) : renderLinkRow(link, entry.id, linkIndex, entry.links.length)}
                         </React.Fragment>
                       ))
                     )}
                     {insertTarget?.containerId === entry.id && insertTarget.index === entry.links.length && (
-                      <div className="h-0.5 mx-1 bg-blue-500 rounded-full" aria-hidden="true" />
+                      <div className="h-0.5 mx-1 bg-indigo-500 rounded-full" aria-hidden="true" />
                     )}
                   </div>
                 )}
@@ -516,7 +544,7 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
           </React.Fragment>
         ))}
         {insertTarget?.containerId === 'root' && insertTarget.index === entries.length && (
-          <div className="h-0.5 mx-1 bg-blue-500 rounded-full" aria-hidden="true" />
+          <div className="h-0.5 mx-1 bg-indigo-500 rounded-full" aria-hidden="true" />
         )}
       </div>
     </div>

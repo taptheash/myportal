@@ -251,7 +251,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
       case 'rain':
       case 'drizzle': return <CloudRain className={`${cls} text-blue-500`} />;
       case 'clear': return <Sun className={`${cls} text-yellow-500`} />;
-      default: return <Cloud className={`${cls} text-gray-400`} />;
+      default: return <Cloud className={`${cls} text-zinc-400`} />;
     }
   };
 
@@ -261,7 +261,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
     <div className="h-full flex flex-col overflow-hidden">
       {loading && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
         </div>
       )}
 
@@ -275,29 +275,29 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
       {weather && !loading && !error && (
         <div className="flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
           <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-semibold">📍 {weather.name}</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">📍 {weather.name}</div>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-4xl font-bold text-gray-900 dark:text-white">{Math.round(weather.main.temp)}°F</div>
-                <div className="text-lg font-semibold text-gray-700 dark:text-gray-300 capitalize">{weather.weather[0].description}</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Feels like {Math.round(weather.main.feels_like)}°F</div>
+                <div className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">{Math.round(weather.main.temp)}°F</div>
+                <div className="text-base font-medium text-zinc-600 dark:text-zinc-300 capitalize">{weather.weather[0].description}</div>
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">Feels like {Math.round(weather.main.feels_like)}°F</div>
               </div>
               <div>{getWeatherIcon(weather.weather[0].main)}</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-1.5 text-sm flex-shrink-0 mb-3">
-            <div className="flex items-center gap-2 bg-blue-50 dark:bg-slate-700 p-2 rounded-lg">
-              <Droplets size={16} className="text-blue-500" />
+            <div className="surface-card flex items-center gap-2 bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
+              <Droplets size={16} className="text-blue-500 flex-shrink-0" />
               <div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Humidity</div>
-                <div className="font-semibold text-gray-900 dark:text-white">{weather.main.humidity}%</div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">Humidity</div>
+                <div className="font-semibold text-zinc-900 dark:text-white">{weather.main.humidity}%</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-cyan-50 dark:bg-slate-700 p-2 rounded-lg">
-              <Wind size={16} className="text-cyan-500" />
+            <div className="surface-card flex items-center gap-2 bg-white dark:bg-zinc-900 p-2.5 rounded-xl">
+              <Wind size={16} className="text-cyan-500 flex-shrink-0" />
               <div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Wind</div>
-                <div className="font-semibold text-gray-900 dark:text-white">{Math.round(weather.wind.speed)} mph</div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">Wind</div>
+                <div className="font-semibold text-zinc-900 dark:text-white">{Math.round(weather.wind.speed)} mph</div>
               </div>
             </div>
           </div>
@@ -308,17 +308,17 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
                 <button
                   key={day.dateKey}
                   onClick={() => setExpandedDay(expandedDay === day.dateKey ? null : day.dateKey)}
-                  className={`flex flex-col items-center gap-1 rounded-lg py-2 px-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                  className={`flex flex-col items-center gap-1 rounded-xl py-2 px-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
                     expandedDay === day.dateKey
-                      ? 'bg-blue-100 dark:bg-blue-900/50 ring-2 ring-blue-400'
-                      : 'bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/50 ring-1 ring-indigo-300 dark:ring-indigo-800'
+                      : 'bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700'
                   }`}
                 >
-                  <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">{day.label}</div>
+                  <div className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{day.label}</div>
                   {getWeatherIcon(day.main, 'sm')}
                   <div className="text-xs text-center leading-tight">
-                    <div className="font-bold text-gray-900 dark:text-white">{day.high}°</div>
-                    <div className="text-gray-400 dark:text-gray-500">{day.low}°</div>
+                    <div className="font-semibold text-zinc-900 dark:text-white">{day.high}°</div>
+                    <div className="text-zinc-400 dark:text-zinc-500">{day.low}°</div>
                   </div>
                 </button>
               ))}
@@ -326,14 +326,14 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
           )}
 
           {expandedDayData && (
-            <div className="mb-3 rounded-lg overflow-hidden bg-blue-50 dark:bg-slate-700 flex-shrink-0">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-blue-100 dark:border-slate-600">
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
+            <div className="surface-card mb-3 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 flex-shrink-0">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100 dark:border-zinc-800">
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                   {expandedDayData.label} — 3-hour breakdown
                 </span>
                 <button
                   onClick={() => setExpandedDay(null)}
-                  className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-slate-600 text-gray-500 dark:text-gray-400"
+                  className="p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition-colors duration-150"
                 >
                   <X size={13} />
                 </button>
@@ -342,22 +342,22 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
                 {expandedDayData.hourly.map((entry, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs border-b border-blue-100/60 dark:border-slate-600/60 last:border-0"
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs border-b border-zinc-100 dark:border-zinc-800 last:border-0"
                   >
-                    <span className="w-14 text-gray-500 dark:text-gray-400 flex-shrink-0">
+                    <span className="w-14 text-zinc-500 dark:text-zinc-400 flex-shrink-0">
                       {formatLocalTime(entry.dt, forecastTz)}
                     </span>
                     {getWeatherIcon(entry.weather[0]?.main || 'Clouds', 'sm')}
-                    <span className="flex-1 truncate capitalize text-gray-700 dark:text-gray-300">
+                    <span className="flex-1 truncate capitalize text-zinc-700 dark:text-zinc-300">
                       {entry.weather[0]?.description || ''}
                     </span>
-                    <span className="font-semibold text-gray-900 dark:text-white flex-shrink-0">
+                    <span className="font-semibold text-zinc-900 dark:text-white flex-shrink-0">
                       {Math.round(entry.main.temp)}°
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="px-3 py-1.5 text-[10px] text-gray-400 dark:text-gray-500 bg-blue-100/40 dark:bg-slate-800/40">
+              <div className="px-3 py-1.5 text-[10px] text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-950/40">
                 3-hour intervals — the free forecast tier doesn't offer true hourly data
               </div>
             </div>
@@ -365,14 +365,14 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
 
           <button
             onClick={() => setShowRadar(!showRadar)}
-            className="flex items-center justify-between px-3 py-2 mb-3 bg-blue-50 dark:bg-slate-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-slate-600 transition text-xs font-semibold flex-shrink-0"
+            className="flex items-center justify-between px-3 py-2 mb-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150 text-xs font-medium flex-shrink-0"
           >
             <span>Radar Map</span>
             {showRadar ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
 
           {showRadar && (
-            <div className="mb-3 rounded-lg overflow-hidden flex-shrink-0" style={{ height: '440px' }}>
+            <div className="mb-3 rounded-xl overflow-hidden flex-shrink-0 border border-zinc-200 dark:border-zinc-800" style={{ height: '440px' }}>
               {radarFrame ? (
                 <MapContainer
                   key={`${weather.coord.lat}-${weather.coord.lon}`}
@@ -398,12 +398,12 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
                   />
                 </MapContainer>
               ) : radarError ? (
-                <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-slate-700 text-sm text-red-500 text-center px-4">
+                <div className="h-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 text-sm text-red-500 text-center px-4">
                   {radarError}
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-slate-700">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <div className="h-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
                 </div>
               )}
             </div>
@@ -413,7 +413,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
             href={weatherBugUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/60 transition text-xs font-semibold flex-shrink-0"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-150 text-xs font-medium flex-shrink-0"
           >
             Open WeatherBug <ExternalLink size={12} />
           </a>

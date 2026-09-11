@@ -51,13 +51,13 @@ function EventForm({
   submitLabel: string;
 }) {
   return (
-    <div className="p-3 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg">
+    <div className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
       <input
         type="text"
         placeholder="Event title"
         value={values.title}
         onChange={(e) => onChange({ ...values, title: e.target.value })}
-        className="w-full px-2 py-1 mb-2 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
+        className="w-full px-2.5 py-1.5 mb-2 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         autoFocus
       />
       <div className="flex gap-2 mb-2">
@@ -65,25 +65,25 @@ function EventForm({
           type="date"
           value={values.date}
           onChange={(e) => onChange({ ...values, date: e.target.value })}
-          className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
+          className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         />
         <input
           type="time"
           value={values.time}
           onChange={(e) => onChange({ ...values, time: e.target.value })}
-          className="flex-1 px-2 py-1 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-slate-600"
+          className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         />
       </div>
       <div className="flex gap-2">
         <button
           onClick={onSubmit}
-          className="flex-1 px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm font-semibold transition"
+          className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150"
         >
           {submitLabel}
         </button>
         <button
           onClick={onCancel}
-          className="flex-1 px-2 py-1 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded text-sm font-semibold transition"
+          className="flex-1 px-2.5 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150"
         >
           Cancel
         </button>
@@ -224,12 +224,12 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
 
   if (isEditing) {
     return (
-      <div className="text-center text-gray-600 dark:text-gray-400 text-sm">
+      <div className="text-center text-zinc-600 dark:text-zinc-400 text-sm">
         <p className="mb-3">📅 Google Calendar Setup</p>
         <p className="text-xs leading-relaxed">
           To enable calendar integration:
         </p>
-        <ol className="text-xs mt-2 space-y-1 text-left text-gray-600 dark:text-gray-400">
+        <ol className="text-xs mt-2 space-y-1 text-left text-zinc-600 dark:text-zinc-400">
           <li>1. Create service account on Google Cloud</li>
           <li>2. Enable Google Calendar API</li>
           <li>3. Share calendar with service account email</li>
@@ -242,7 +242,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-current"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -252,7 +252,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
       <div className="flex flex-col items-center justify-center h-full gap-2 text-amber-600 dark:text-amber-500">
         <AlertCircle size={20} />
         <p className="text-xs text-center">{error}</p>
-        <p className="text-xs text-gray-500">Check backend configuration</p>
+        <p className="text-xs text-zinc-500">Check backend configuration</p>
       </div>
     );
   }
@@ -286,7 +286,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
       {!showCreateForm && !editingId && (
         <button
           onClick={() => setShowCreateForm(true)}
-          className="mb-3 w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"
+          className="mb-3 w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors duration-150 text-sm"
         >
           <Plus size={16} />
           New Event
@@ -294,7 +294,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
       )}
 
       {/* Events List */}
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div className="flex-1 overflow-y-auto space-y-1.5">
         {upcomingEvents.length > 0 ? (
           upcomingEvents.map((event) =>
             editingId === event.id ? (
@@ -309,46 +309,46 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
             ) : (
               <div
                 key={event.id}
-                className="group p-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-600 rounded-lg border-l-4 border-purple-500 hover:shadow-md transition flex items-start justify-between gap-2"
+                className="surface-card group p-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl flex items-start justify-between gap-2"
               >
                 {event.htmlLink ? (
                   <a
                     href={event.htmlLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-w-0 flex-1 block hover:opacity-80 transition"
+                    className="min-w-0 flex-1 block"
                   >
-                    <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                    <p className="font-medium text-zinc-900 dark:text-white text-sm truncate">
                       {event.summary}
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                       <ChevronRight size={12} />
                       {formatEventTime(event)}
                     </p>
                   </a>
                 ) : (
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                    <p className="font-medium text-zinc-900 dark:text-white text-sm truncate">
                       {event.summary}
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                       <ChevronRight size={12} />
                       {formatEventTime(event)}
                     </p>
                   </div>
                 )}
-                <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   <button
                     onClick={() => startEdit(event)}
                     title="Edit event"
-                    className="p-1 rounded-md text-gray-400 hover:bg-purple-200 hover:text-purple-700 dark:hover:bg-purple-900/40 dark:hover:text-purple-300 transition"
+                    className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 dark:hover:bg-zinc-800 dark:hover:text-indigo-400 transition-colors duration-150"
                   >
                     <Pencil size={13} />
                   </button>
                   <button
                     onClick={() => handleDeleteEvent(event.id)}
                     title="Delete event"
-                    className="p-1 rounded-md text-gray-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition"
+                    className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-500 dark:hover:bg-zinc-800 dark:hover:text-red-400 transition-colors duration-150"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -357,13 +357,13 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
             )
           )
         ) : (
-          <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
+          <div className="text-center text-zinc-500 dark:text-zinc-400 text-sm py-4">
             No upcoming events
           </div>
         )}
       </div>
 
-      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+      <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 text-center">
         {upcomingEvents.length} events shown
       </div>
     </div>

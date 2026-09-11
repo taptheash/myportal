@@ -9,35 +9,13 @@ export interface TabDef {
 }
 
 interface TabContainerProps {
-  sectionLabel: string;
+  sectionLabel?: string;        // used only for the tablist's aria-label now — the visible heading moved to the page header
   tabs: TabDef[];              // rendered in current order
   activeType: string;
   onSelect: (type: string) => void;
   onReorder: (newOrderTypes: string[]) => void;
   controls?: React.ReactNode;
   children: React.ReactNode;
-}
-
-// Precomputed & WCAG-verified per-color 3-stop gradient endpoints (light tint
-// -> vivid base -> rich dark shade). Baked in rather than computed from a
-// shared formula because safe darken/lighten headroom differs a lot by hue —
-// vermillion is already dark and has almost no safe room to darken further,
-// while yellow starts bright and has plenty. Each triple's worst-case
-// contrast against its assigned text color was verified >= 4.5:1 (WCAG AA).
-const GRADIENT_STOPS: Record<string, { light: string; dark: string }> = {
-  '#E69F00': { light: '#EDBB4C', dark: '#AE7800' }, // orange
-  '#56B4E9': { light: '#88CAEF', dark: '#428AB3' }, // sky blue
-  '#009E73': { light: '#4CBB9D', dark: '#00946C' }, // bluish green
-  '#F0E442': { light: '#F4EC7A', dark: '#908827' }, // yellow
-  '#0072B2': { light: '#0C79B5', dark: '#003E61' }, // blue (white text)
-  '#D55E00': { light: '#E18E4C', dark: '#D55E00' }, // vermillion — negligible safe darken room
-  '#CC79A7': { light: '#DBA1C1', dark: '#B56B94' }, // reddish purple
-};
-
-function activeGradient(color: string): string {
-  const stops = GRADIENT_STOPS[color];
-  if (!stops) return color; // safety net if an unlisted color ever shows up
-  return `linear-gradient(135deg, ${stops.light}, ${color}, ${stops.dark})`;
 }
 
 export default function TabContainer({
@@ -49,8 +27,6 @@ export default function TabContainer({
   controls,
   children,
 }: TabContainerProps) {
-  const active = tabs.find((t) => t.type === activeType) ?? tabs[0];
-
   // Drag-to-reorder state. Horizontal-only, constrained to this row — dragging
   // never crosses into the other container, and the insertion point is always
   // shown explicitly before drop so nothing jumps around unexpectedly.
@@ -116,13 +92,9 @@ export default function TabContainer({
 
   return (
     <section className="flex-1 min-w-0 flex flex-col">
-      <h2 className="text-lg font-bold tracking-wide text-gray-900 dark:text-white uppercase mb-3 px-1">
-        {sectionLabel}
-      </h2>
-
       <div
         ref={rowRef}
-        className="flex gap-1 overflow-x-hidden flex-wrap"
+        className="flex gap-1 overflow-x-hidden flex-wrap mb-2"
         role="tablist"
         aria-label={sectionLabel}
         onDrop={handleDrop}
@@ -131,13 +103,12 @@ export default function TabContainer({
         {tabs.map((tab, index) => {
           const isActive = tab.type === activeType;
           const Icon = tab.icon;
-          const textColor = tab.activeText === 'white' ? '#FFFFFF' : '#111111';
           const isDragging = draggedIndex === index;
 
           return (
             <React.Fragment key={tab.type}>
               {dropIndex === index && (
-                <div className="w-0.5 self-stretch bg-blue-500 rounded-full flex-shrink-0" aria-hidden="true" />
+                <div className="w-0.5 self-stretch bg-indigo-500 rounded-full flex-shrink-0" aria-hidden="true" />
               )}
               <button
                 role="tab"
@@ -150,39 +121,38 @@ export default function TabContainer({
                 onClick={() => onSelect(tab.type)}
                 title={`${tab.label} — drag to reorder, or focus and use Alt+Left/Right`}
                 // Active state is signaled by THREE independent cues, not color alone:
-                // bold weight, elevation/shadow, and the fill. That way the active tab
-                // is still identifiable if color can't be perceived at all.
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-t-xl text-sm whitespace-nowrap transition-all cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 border-t-4 ${
+                // weight, a background surface + shadow, and the category dot. That way
+                // the active tab is still identifiable if color can't be perceived at all.
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] whitespace-nowrap transition-all duration-150 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-zinc-950 ${
                   isDragging ? 'opacity-40' : ''
                 } ${
                   isActive
-                    ? 'font-bold shadow-md relative z-10 -mb-px'
-                    : 'font-semibold hover:opacity-80 relative text-gray-700 dark:text-gray-300'
+                    ? 'font-medium bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200/80 dark:ring-zinc-800'
+                    : 'font-medium text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100/70 dark:hover:bg-zinc-900/50 hover:text-zinc-700 dark:hover:text-zinc-300'
                 }`}
-                style={
-                  isActive
-                    ? { backgroundImage: activeGradient(tab.color), color: textColor, borderTopColor: tab.color, borderTopStyle: 'solid', boxShadow: `0 4px 14px ${tab.color}4D` }
-                    : { backgroundColor: `${tab.color}26`, borderTopColor: 'transparent', borderTopStyle: 'solid' } // ~15% tint wash
-                }
               >
-                <Icon size={15} className="flex-shrink-0" />
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: tab.color, opacity: isActive ? 1 : 0.55 }}
+                  aria-hidden="true"
+                />
+                <Icon size={14} className="flex-shrink-0" />
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             </React.Fragment>
           );
         })}
         {dropIndex === tabs.length && (
-          <div className="w-0.5 self-stretch bg-blue-500 rounded-full flex-shrink-0" aria-hidden="true" />
+          <div className="w-0.5 self-stretch bg-indigo-500 rounded-full flex-shrink-0" aria-hidden="true" />
         )}
       </div>
 
       <div
         role="tabpanel"
-        className="panel-fade-in bg-white dark:bg-slate-800 rounded-b-2xl rounded-tr-2xl shadow-lg border border-gray-200 dark:border-slate-700 relative z-0 overflow-hidden flex-1 flex flex-col"
-        style={{ borderTopColor: active.color, borderTopWidth: '4px', borderTopStyle: 'solid' }}
+        className="panel-fade-in surface-card bg-white dark:bg-zinc-900 rounded-2xl relative z-0 overflow-hidden flex-1 flex flex-col"
       >
         {controls && (
-          <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-900/30 flex items-center justify-end gap-2">
+          <div className="px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/30 flex items-center justify-end gap-2">
             {controls}
           </div>
         )}

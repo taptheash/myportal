@@ -95,7 +95,7 @@ export default function DailyQuote() {
         transition: 'opacity 0.4s ease-in-out',
       }}
     >
-      <p className="text-xl font-medium text-gray-600 dark:text-gray-200 italic leading-tight w-full">
+      <p className="text-xl font-medium text-zinc-600 dark:text-zinc-300 italic leading-tight w-full">
         {current.text}
       </p>
     </div>

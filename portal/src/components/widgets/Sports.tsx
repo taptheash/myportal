@@ -251,17 +251,17 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
   return (
     <div className="flex flex-col gap-2">
       {config.showAdd && (
-        <div className="p-3 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-700 dark:to-slate-600 rounded-lg">
+        <div className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900 dark:text-white">
               {selectedLeague && (
-                <button onClick={() => { setSelectedLeague(null); setLeagueTeams([]); }} className="p-0.5 hover:bg-black/5 dark:hover:bg-white/10 rounded">
+                <button onClick={() => { setSelectedLeague(null); setLeagueTeams([]); }} className="p-0.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors duration-150">
                   <ArrowLeft size={14} />
                 </button>
               )}
               {selectedLeague ? `Add a ${selectedLeague.label} team` : 'Add a team'}
             </div>
-            <button onClick={closeAdd} className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded">
+            <button onClick={closeAdd} className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors duration-150">
               <X size={14} />
             </button>
           </div>
@@ -272,7 +272,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
                 <button
                   key={lg.league}
                   onClick={() => pickLeague(lg)}
-                  className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg text-sm font-semibold text-gray-900 dark:text-white hover:shadow-md transition"
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-semibold text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-150"
                 >
                   <span>{lg.emoji}</span> {lg.label}
                 </button>
@@ -282,7 +282,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
 
           {selectedLeague && loadingLeagueTeams && (
             <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
             </div>
           )}
 
@@ -301,10 +301,10 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
                     key={t.id}
                     onClick={() => addTeam(t)}
                     disabled={already}
-                    className={`text-left px-2.5 py-1.5 rounded-md text-sm transition ${
+                    className={`text-left px-2.5 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
                       already
-                        ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                        : 'text-gray-900 dark:text-white bg-white dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-slate-700'
+                        ? 'text-zinc-400 dark:text-zinc-500 cursor-not-allowed'
+                        : 'text-zinc-900 dark:text-white bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:bg-indigo-50 dark:hover:bg-zinc-800'
                     }`}
                   >
                     {t.displayName} {already && '(added)'}
@@ -317,17 +317,17 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
       )}
 
       {results.map((r) => (
-        <div key={r.key} className={`group p-2.5 bg-gray-50 dark:bg-slate-700 rounded-lg border-l-4 ${r.accent}`}>
+        <div key={r.key} className={`group surface-card p-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl border-l-4 ${r.accent} transition-colors duration-150`}>
           <div className="flex justify-between items-center gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-lg flex-shrink-0">{r.emoji}</span>
               <div className="min-w-0">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-bold text-sm text-gray-900 dark:text-white">{r.name}</span>
-                  {r.record && <span className="text-xs text-gray-500 dark:text-gray-400">{r.record}</span>}
+                  <span className="font-bold text-sm text-zinc-900 dark:text-white">{r.name}</span>
+                  {r.record && <span className="text-xs text-zinc-500 dark:text-zinc-400">{r.record}</span>}
                 </div>
                 {r.status === 'loading' && (
-                  <div className="text-xs text-gray-400 dark:text-gray-500">Loading...</div>
+                  <div className="text-xs text-zinc-400 dark:text-zinc-500">Loading...</div>
                 )}
                 {r.status === 'error' && (
                   <div className="text-xs text-red-500 flex items-center gap-1">
@@ -336,10 +336,10 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
                 )}
                 {r.status === 'ok' && (
                   <>
-                    <div className="text-xs text-gray-700 dark:text-gray-300 truncate">{r.line}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{r.detail}</div>
+                    <div className="text-xs text-zinc-700 dark:text-zinc-300 truncate">{r.line}</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{r.detail}</div>
                     {r.nextGame && (
-                      <div className="text-xs text-blue-500 dark:text-blue-400 truncate">{r.nextGame}</div>
+                      <div className="text-xs text-indigo-500 dark:text-indigo-400 truncate">{r.nextGame}</div>
                     )}
                   </>
                 )}
@@ -348,7 +348,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
             <button
               onClick={() => removeTeam(r.key)}
               title="Remove team"
-              className="flex-shrink-0 p-1 rounded-md text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition"
+              className="flex-shrink-0 p-1 rounded-lg text-zinc-400 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition-colors duration-150"
             >
               <Trash2 size={13} />
             </button>
@@ -357,7 +357,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
       ))}
 
       {results.length === 0 && (
-        <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
+        <div className="text-center text-zinc-500 dark:text-zinc-400 text-sm py-4">
           No teams added yet
         </div>
       )}

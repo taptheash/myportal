@@ -31,3 +31,44 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 .no-scrollbar::-webkit-scrollbar {
   display: none;             /* Chrome, Safari, Edge (Chromium) */
 }
+
+/* ---- Shared "command center" design tokens ------------------------------
+   Small, restrained set of surface/shadow tokens reused across the shell,
+   tabs, and Quick Links so the redesign reads as one system instead of
+   one-off utility soup. Kept intentionally minimal per the "avoid AI-generated
+   dashboard" brief: no glow, no big blur, no rainbow gradients. */
+:root {
+  --surface-border: rgba(15, 23, 42, 0.08);
+  --surface-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --surface-shadow-hover: 0 6px 16px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -2px rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --surface-shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 1px rgba(0, 0, 0, 0.16);
+  --surface-shadow-hover: 0 8px 20px -4px rgba(0, 0, 0, 0.45), 0 2px 8px -2px rgba(0, 0, 0, 0.3);
+}
+
+.surface-card {
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.surface-card:hover {
+  box-shadow: var(--surface-shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Smooth expand/collapse for folder contents in Quick Links. Height can't be
+   animated directly on an auto-sized block, so this fades + lifts the
+   content in on mount instead of a hard show/hide — cheap and tasteful
+   rather than a full grid-rows height transition. */
+@keyframes folder-expand {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.folder-content-enter {
+  animation: folder-expand 160ms ease-out;
+}

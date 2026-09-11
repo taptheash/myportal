@@ -58,29 +58,29 @@ export default function Headlines({ config, onUpdateConfig }: HeadlinesProps) {
     return `${Math.floor(diffHours / 24)}d ago`;
   };
 
-  if (loading) return <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div></div>;
+  if (loading) return <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div></div>;
   if (error) return <div className="flex flex-col items-center justify-center h-24 gap-2 text-red-600"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>;
 
   return (
     <div className="flex flex-col gap-1.5">
       {articles.length === 0 && (
-        <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-6">
+        <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">
           No articles found — the source may be temporarily unavailable.
         </div>
       )}
       {articles.map((article, idx) => (
         <a key={idx} href={article.link} target="_blank" rel="noopener noreferrer"
-          className="block p-2 bg-red-50 dark:bg-slate-700 hover:bg-red-100 dark:hover:bg-slate-600 rounded-lg border-l-4 border-red-500 transition group">
+          className="surface-card block p-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl border-l-4 border-indigo-500 transition-all duration-150 group">
           <div className="flex justify-between items-start gap-2">
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition">{article.title}</p>
-              <div className="flex items-center gap-2 mt-1 text-xs text-gray-600 dark:text-gray-400">
+              <p className="font-semibold text-zinc-900 dark:text-white text-sm line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150">{article.title}</p>
+              <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 <span className="truncate">{article.sourceName}</span>
                 <span>•</span>
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>
             </div>
-            <ExternalLink size={14} className="flex-shrink-0 text-gray-400 mt-1" />
+            <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
           </div>
         </a>
       ))}

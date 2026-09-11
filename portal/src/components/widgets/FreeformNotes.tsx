@@ -66,11 +66,11 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
   return (
     <div className="flex flex-col gap-2">
       {notes.map((note) => (
-        <div key={note.id} className="bg-amber-50 dark:bg-slate-700 rounded-lg border border-amber-200 dark:border-slate-600 overflow-hidden">
+        <div key={note.id} className="surface-card bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
           <div className="flex items-center gap-1 px-1">
             <button
               onClick={() => toggleCollapsed(note.id)}
-              className="p-1.5 flex-shrink-0 text-amber-600 dark:text-amber-400"
+              className="p-1.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150"
               title={note.collapsed ? 'Expand' : 'Collapse'}
             >
               {note.collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -80,9 +80,9 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
               value={note.title}
               onChange={(e) => updateTitle(note.id, e.target.value)}
               placeholder="Untitled"
-              className="font-bold text-sm text-gray-900 dark:text-white bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-amber-400 rounded px-1 py-2 flex-1 min-w-0"
+              className="font-semibold text-sm text-zinc-900 dark:text-white bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1 py-2 flex-1 min-w-0"
             />
-            <button onClick={() => deleteNote(note.id)} className="p-1.5 flex-shrink-0 text-gray-400 hover:text-red-500 transition">
+            <button onClick={() => deleteNote(note.id)} className="p-1.5 flex-shrink-0 text-zinc-400 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150">
               <X size={14} />
             </button>
           </div>
@@ -91,7 +91,7 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
             note.text.trim() && (
               <button
                 onClick={() => toggleCollapsed(note.id)}
-                className="w-full text-left px-3 pb-2 text-xs text-gray-500 dark:text-gray-400 truncate"
+                className="w-full text-left px-3 pb-2 text-xs text-zinc-500 dark:text-zinc-400 truncate"
               >
                 {previewOf(note.text)}
               </button>
@@ -103,7 +103,7 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
                 onChange={(e) => updateText(note.id, e.target.value)}
                 placeholder="Write freely..."
                 rows={4}
-                className="w-full px-2 py-1.5 text-sm rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white border border-amber-200 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-400 resize-y"
+                className="w-full px-2 py-1.5 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-y"
               />
             </div>
           )}
@@ -118,15 +118,15 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
             onChange={(e) => setNewNoteTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addNote()}
             placeholder="Note name (e.g. Ideas)"
-            className="flex-1 px-2 py-1.5 text-sm rounded-lg bg-white dark:bg-slate-600 text-gray-900 dark:text-white border border-amber-200 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
+            className="flex-1 px-2 py-1.5 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             autoFocus
           />
-          <button onClick={addNote} className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-gray-900 rounded-lg text-sm font-semibold transition">
+          <button onClick={addNote} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150">
             Add
           </button>
           <button
             onClick={() => { setShowNewNote(false); setNewNoteTitle(''); }}
-            className="px-2 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white rounded-lg text-sm transition"
+            className="px-2 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm transition-colors duration-150"
           >
             <X size={14} />
           </button>
@@ -134,7 +134,7 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
       ) : (
         <button
           onClick={() => setShowNewNote(true)}
-          className="w-full py-2 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-gray-900 rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"
+          className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors duration-150 text-sm"
         >
           <Plus size={16} /> New Note
         </button>

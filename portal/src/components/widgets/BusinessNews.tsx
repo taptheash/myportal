@@ -64,23 +64,23 @@ export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsPro
     <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
       {articles.length > 0 ? (
         articles.map((article, idx) => (
-          <div key={idx} className="p-2 bg-indigo-50 dark:bg-slate-700 rounded-lg border-l-4 border-indigo-500 hover:shadow-md transition">
+          <div key={idx} className="surface-card p-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl border-l-4 border-indigo-500 transition-all duration-150">
             <a href={article.link} target="_blank" rel="noopener noreferrer"
               className="flex items-start justify-between gap-2 group">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition line-clamp-2">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150 line-clamp-2">
                   {article.title}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatTime(article.pubDate)}</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{formatTime(article.pubDate)}</p>
               </div>
-              <ExternalLink size={14} className="flex-shrink-0 text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition mt-0.5" />
+              <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150 mt-0.5" />
             </a>
           </div>
         ))
       ) : (
-        <p className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">No articles</p>
+        <p className="text-center text-zinc-500 dark:text-zinc-400 text-sm py-4">No articles</p>
       )}
-      <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mt-2">
         {articles.length} articles • {SOURCE_NAME}
       </p>
     </div>
