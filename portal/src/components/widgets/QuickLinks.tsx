@@ -498,11 +498,11 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
                     onDragStart={handleDragStart('root', index)}
                     onDragEnd={handleDragEnd}
                     title="Drag to reorder"
-                    className="p-1 pl-2 flex-shrink-0 self-stretch flex items-center text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded transition-colors duration-150"
+                    className="p-1 flex-shrink-0 self-stretch flex items-center text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded transition-colors duration-150"
                   >
                     <GripVertical size={14} />
                   </button>
-                  <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 py-2.5 pr-2 min-w-0 text-left group/foldertoggle">
+                  <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 py-2.5 pl-3 pr-2 min-w-0 text-left group/foldertoggle">
                     <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center transition-transform duration-150 group-hover/foldertoggle:scale-105">
                       {entry.expanded ? <FolderOpen size={16} className="text-amber-500 dark:text-amber-400" /> : <Folder size={16} className="text-amber-500 dark:text-amber-400" />}
                     </span>
