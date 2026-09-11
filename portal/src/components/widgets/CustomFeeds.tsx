@@ -44,13 +44,12 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'NPR', url: 'https://feeds.npr.org/1002/rss.xml', genre: 'News' },
   { name: 'CNN World', url: 'http://rss.cnn.com/rss/edition_world.rss', genre: 'News' },
   { name: 'CNN US', url: 'http://rss.cnn.com/rss/edition_us.rss', genre: 'News' },
-  { name: 'NYT World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', genre: 'News' },
   { name: 'NBC News', url: 'https://feeds.nbcnews.com/feeds/topstories', genre: 'News' },
   { name: 'Politico', url: 'https://www.politico.com/rss/politicopicks.xml', genre: 'News' },
   { name: 'The Guardian World', url: 'https://www.theguardian.com/world/rss', genre: 'News' }, // PATTERN
 
   // Business & Finance
-  { name: 'NYT Business', url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', genre: 'Business' },
+  // NYT World/Business removed by request — paywalled beyond a few free articles.
   { name: 'CNBC Top News', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html', genre: 'Business' }, // PATTERN
 
   // Technology

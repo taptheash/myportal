@@ -11,8 +11,8 @@ interface BusinessNewsProps {
 
 interface NewsItem { title: string; link: string; pubDate: string; }
 
-const FEED_URL = 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml';
-const SOURCE_NAME = 'NYT Business';
+const FEED_URL = 'https://www.cnbc.com/id/100003114/device/rss/rss.html';
+const SOURCE_NAME = 'CNBC';
 
 export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsProps) {
   const [articles, setArticles] = useState<NewsItem[]>([]);
