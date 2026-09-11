@@ -97,11 +97,16 @@ function useNationalDay() {
   const load = () => {
     if (loaded) return;
 
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const cacheKey = `national-day-${mm}-${dd}`;
+
     const run = async () => {
       try {
         setLoading(true);
         const items = await fetchRssWithCache(
-          'national-day-today',
+          cacheKey,
           'https://api.checkiday.com/rss',
           40,
           CACHE_MAX_AGE_MS

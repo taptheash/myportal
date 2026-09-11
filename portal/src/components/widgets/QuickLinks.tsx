@@ -488,35 +488,37 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
                 onDragOver={handleFolderDragOver(entry.id, index)}
                 className={`flex flex-col gap-1 group/folder ${dragSource?.containerId === 'root' && dragSource.index === index ? 'opacity-40' : ''}`}
               >
-                <div
-                  className={`surface-card flex items-center gap-0.5 rounded-xl bg-white dark:bg-zinc-900 ${
-                    dropFolderId === entry.id ? 'ring-2 ring-amber-400 border-amber-300 dark:border-amber-700' : ''
-                  }`}
-                >
+                <div className="flex items-center gap-0.5">
                   <button
                     draggable
                     onDragStart={handleDragStart('root', index)}
                     onDragEnd={handleDragEnd}
                     title="Drag to reorder"
-                    className="p-1 flex-shrink-0 self-stretch flex items-center text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded transition-colors duration-150"
+                    className="p-1 flex-shrink-0 self-stretch flex items-center text-zinc-300 dark:text-zinc-700 opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded transition-opacity duration-150"
                   >
                     <GripVertical size={14} />
                   </button>
-                  <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 py-2.5 pl-3 pr-2 min-w-0 text-left group/foldertoggle">
-                    <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center transition-transform duration-150 group-hover/foldertoggle:scale-105">
-                      {entry.expanded ? <FolderOpen size={16} className="text-amber-500 dark:text-amber-400" /> : <Folder size={16} className="text-amber-500 dark:text-amber-400" />}
-                    </span>
-                    <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{entry.label}</span>
-                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 flex-shrink-0">{entry.links.length}</span>
-                    {entry.expanded ? <ChevronDown size={14} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600 ml-auto" /> : <ChevronRight size={14} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600 ml-auto" />}
-                  </button>
-                  <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/folder:opacity-100 transition-opacity duration-150">
-                    <button onClick={() => startRenameFolder(entry)} className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Rename folder">
-                      <Pencil size={13} />
+                  <div
+                    className={`surface-card flex-1 flex items-center gap-0.5 rounded-xl bg-white dark:bg-zinc-900 min-w-0 ${
+                      dropFolderId === entry.id ? 'ring-2 ring-amber-400 border-amber-300 dark:border-amber-700' : ''
+                    }`}
+                  >
+                    <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 px-3 py-2 min-w-0 text-left group/foldertoggle">
+                      <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center transition-transform duration-150 group-hover/foldertoggle:scale-105">
+                        {entry.expanded ? <FolderOpen size={16} className="text-amber-500 dark:text-amber-400" /> : <Folder size={16} className="text-amber-500 dark:text-amber-400" />}
+                      </span>
+                      <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{entry.label}</span>
+                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500 flex-shrink-0">{entry.links.length}</span>
+                      {entry.expanded ? <ChevronDown size={14} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600 ml-auto" /> : <ChevronRight size={14} className="flex-shrink-0 text-zinc-300 dark:text-zinc-600 ml-auto" />}
                     </button>
-                    <button onClick={() => deleteFolder(entry.id)} className="p-1.5 mr-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete folder (keeps its links)">
-                      <X size={13} />
-                    </button>
+                    <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/folder:opacity-100 transition-opacity duration-150">
+                      <button onClick={() => startRenameFolder(entry)} className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Rename folder">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => deleteFolder(entry.id)} className="p-1.5 mr-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete folder (keeps its links)">
+                        <X size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
