@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Search, Link2, StickyNote, ListChecks, Calendar as CalendarIcon, Newspaper, Trophy,
+  Search, Link2, StickyNote, ListChecks, Newspaper, Trophy,
   TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText,
 } from 'lucide-react';
 import { getWidgetConfig } from '../lib/portalStorage';
