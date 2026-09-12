@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp, Star } from 'lucide-react';
+import { recordLinkClick } from '../../lib/recentLinks';
 
 interface QuickLinksProps {
   id: string;
@@ -13,6 +14,7 @@ interface LinkItem {
   id: string;
   label: string;
   url: string;
+  favorite?: boolean;
 }
 
 interface FolderItem {
@@ -36,7 +38,7 @@ const DEFAULT_ENTRIES: Entry[] = [
 // Backward-compatible with links saved before folders existed — those
 // entries have no `type` field at all, just {id, label, url}. Treat any
 // entry without type: 'folder' as a plain link.
-function normalizeEntries(raw: any[] | undefined): Entry[] {
+export function normalizeEntries(raw: any[] | undefined): Entry[] {
   if (!raw) return DEFAULT_ENTRIES;
   return raw.map((e): Entry => {
     if (e && e.type === 'folder') {
@@ -45,11 +47,29 @@ function normalizeEntries(raw: any[] | undefined): Entry[] {
         id: e.id,
         label: e.label,
         expanded: e.expanded !== false,
-        links: (e.links || []).map((l: any) => ({ type: 'link', id: l.id, label: l.label, url: l.url })),
+        links: (e.links || []).map((l: any) => ({ type: 'link', id: l.id, label: l.label, url: l.url, favorite: !!l.favorite })),
       };
     }
-    return { type: 'link', id: e.id, label: e.label, url: e.url };
+    return { type: 'link', id: e.id, label: e.label, url: e.url, favorite: !!e.favorite };
   });
+}
+
+// Flattens both root-level links and links tucked inside folders into one
+// list, tagged with which favorites are currently starred. Exported so Home
+// (and eventually the Command Palette) can read favorites/all-links without
+// duplicating QuickLinks' storage format or its folder-traversal logic.
+export function flattenLinks(entries: Entry[]): LinkItem[] {
+  const out: LinkItem[] = [];
+  for (const e of entries) {
+    if (e.type === 'link') out.push(e);
+    else out.push(...e.links);
+  }
+  return out;
+}
+
+export function getFavoriteLinks(config: Record<string, any>): LinkItem[] {
+  const entries = normalizeEntries(config?.links);
+  return flattenLinks(entries).filter((l) => l.favorite);
 }
 
 function getHostname(url: string): string {
@@ -239,6 +259,18 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
     setRenameValue('');
   };
 
+  const toggleFavorite = (containerId: string, id: string) => {
+    if (containerId === 'root') {
+      save(entries.map((e) => (e.type === 'link' && e.id === id ? { ...e, favorite: !e.favorite } : e)));
+    } else {
+      save(entries.map((e) =>
+        e.type === 'folder' && e.id === containerId
+          ? { ...e, links: e.links.map((l) => (l.id === id ? { ...l, favorite: !l.favorite } : l)) }
+          : e
+      ));
+    }
+  };
+
   const removeLink = (containerId: string, id: string) => {
     if (containerId === 'root') {
       save(entries.filter((e) => !(e.type === 'link' && e.id === id)));
@@ -381,6 +413,7 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         target="_blank"
         rel="noopener noreferrer"
         draggable={false}
+        onClick={() => recordLinkClick({ id: link.id, label: link.label, url: link.url })}
         className="surface-card flex-1 flex items-center gap-2.5 px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl min-w-0"
       >
         <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center transition-transform duration-150 group-hover/link:scale-105">
@@ -391,6 +424,17 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
           <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">{getHostname(link.url)}</span>
         </span>
       </a>
+      <button
+        onClick={() => toggleFavorite(containerId, link.id)}
+        className={`p-1.5 flex-shrink-0 rounded-lg transition-all duration-150 ${
+          link.favorite
+            ? 'text-amber-500 hover:text-amber-600'
+            : 'text-zinc-300 dark:text-zinc-700 opacity-0 group-hover/link:opacity-100 focus-visible:opacity-100 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+        }`}
+        title={link.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
+      >
+        <Star size={13} fill={link.favorite ? 'currentColor' : 'none'} />
+      </button>
       <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/link:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
         <button onClick={() => startEdit(link)} className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Edit link">
           <Pencil size={13} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, X, Check, ChevronDown, ChevronRight, CalendarClock } from 'lucide-react';
 
 interface NotesProps {
   id: string;
@@ -12,6 +12,7 @@ interface ListItem {
   id: string;
   text: string;
   done: boolean;
+  dueDate?: string; // ISO yyyy-mm-dd, optional — undated tasks behave exactly as before
 }
 
 interface Note {
@@ -21,6 +22,24 @@ interface Note {
   collapsed: boolean;
 }
 
+// Exported so Home's Attention module can read "how many tasks are due
+// today / overdue" without re-implementing this file's storage shape.
+export function getAllTaskItems(config: Record<string, any>): Array<ListItem & { noteId: string; noteTitle: string }> {
+  const notes: Note[] = config?.notes || [];
+  const out: Array<ListItem & { noteId: string; noteTitle: string }> = [];
+  for (const n of notes) {
+    for (const item of n.items || []) {
+      out.push({ ...item, noteId: n.id, noteTitle: n.title });
+    }
+  }
+  return out;
+}
+
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function Notes({ config, onUpdateConfig }: NotesProps) {
   const [notes, setNotes] = useState<Note[]>(() =>
     (config.notes || []).map((n: any) => ({ ...n, collapsed: n.collapsed ?? false }))
@@ -28,6 +47,8 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [showNewNote, setShowNewNote] = useState(false);
   const [newItemText, setNewItemText] = useState<Record<string, string>>({});
+  const [newItemDue, setNewItemDue] = useState<Record<string, string>>({});
+  const [editingDueId, setEditingDueId] = useState<string | null>(null);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -54,10 +75,18 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
   const addItem = (noteId: string) => {
     const text = (newItemText[noteId] || '').trim();
     if (!text) return;
+    const dueDate = newItemDue[noteId] || undefined;
     setNotes(notes.map((n) =>
-      n.id === noteId ? { ...n, items: [...n.items, { id: Date.now().toString(), text, done: false }] } : n
+      n.id === noteId ? { ...n, items: [...n.items, { id: Date.now().toString(), text, done: false, dueDate }] } : n
     ));
     setNewItemText({ ...newItemText, [noteId]: '' });
+    setNewItemDue({ ...newItemDue, [noteId]: '' });
+  };
+
+  const setItemDueDate = (noteId: string, itemId: string, dueDate: string) => {
+    setNotes(notes.map((n) =>
+      n.id === noteId ? { ...n, items: n.items.map((i) => i.id === itemId ? { ...i, dueDate: dueDate || undefined } : i) } : n
+    ));
   };
 
   const toggleItem = (noteId: string, itemId: string) => {
@@ -98,19 +127,53 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
             {!note.collapsed && (
               <div className="px-3 pb-3">
                 <div className="flex flex-col gap-1">
-                  {note.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-2 group">
-                      <button onClick={() => toggleItem(note.id, item.id)}
-                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors duration-150 ${
-                          item.done ? 'bg-green-500 border-green-500 text-white' : 'border-zinc-300 dark:border-zinc-600 hover:border-indigo-400'
-                        }`}>
-                        {item.done && <Check size={12} />}
-                      </button>
-                      <span className={`text-sm flex-1 ${item.done ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200'}`}>{item.text}</span>
-                      <button onClick={() => deleteItem(note.id, item.id)}
-                        className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-colors duration-150"><X size={12} /></button>
-                    </div>
-                  ))}
+                  {note.items.map((item) => {
+                    const isOverdue = !!item.dueDate && !item.done && item.dueDate < todayKey();
+                    const isDueToday = !!item.dueDate && item.dueDate === todayKey();
+                    return (
+                      <div key={item.id} className="flex items-center gap-2 group">
+                        <button onClick={() => toggleItem(note.id, item.id)}
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors duration-150 ${
+                            item.done ? 'bg-green-500 border-green-500 text-white' : 'border-zinc-300 dark:border-zinc-600 hover:border-indigo-400'
+                          }`}>
+                          {item.done && <Check size={12} />}
+                        </button>
+                        <span className={`text-sm flex-1 ${item.done ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200'}`}>{item.text}</span>
+                        {editingDueId === item.id ? (
+                          <input
+                            type="date"
+                            autoFocus
+                            value={item.dueDate || ''}
+                            onChange={(e) => setItemDueDate(note.id, item.id, e.target.value)}
+                            onBlur={() => setEditingDueId(null)}
+                            onKeyDown={(e) => e.key === 'Enter' && setEditingDueId(null)}
+                            className="text-xs px-1.5 py-0.5 rounded-md bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setEditingDueId(item.id)}
+                            title={item.dueDate ? 'Change due date' : 'Set due date'}
+                            className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md flex-shrink-0 transition-colors duration-150 ${
+                              isOverdue
+                                ? 'text-red-500 bg-red-50 dark:bg-red-950/40'
+                                : isDueToday
+                                ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40'
+                                : item.dueDate
+                                ? 'text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800'
+                                : 'text-zinc-300 dark:text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-indigo-500'
+                            }`}
+                          >
+                            <CalendarClock size={11} />
+                            {item.dueDate
+                              ? new Date(`${item.dueDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                              : 'Due date'}
+                          </button>
+                        )}
+                        <button onClick={() => deleteItem(note.id, item.id)}
+                          className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-colors duration-150"><X size={12} /></button>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="flex gap-1 mt-2">
                   <input type="text" value={newItemText[note.id] || ''}
@@ -118,6 +181,10 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
                     onKeyDown={(e) => e.key === 'Enter' && addItem(note.id)}
                     placeholder="Add item, press Enter"
                     className="flex-1 px-2 py-1 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                  <input type="date" value={newItemDue[note.id] || ''}
+                    onChange={(e) => setNewItemDue({ ...newItemDue, [note.id]: e.target.value })}
+                    title="Optional due date"
+                    className="w-[130px] px-2 py-1 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                 </div>
               </div>
             )}

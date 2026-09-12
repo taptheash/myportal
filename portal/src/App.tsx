@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
-  StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles,
-  Calendar as CalendarIcon,
+  StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
+  Calendar as CalendarIcon, Search as SearchIcon,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
 import TabContainer, { TabDef } from './components/TabContainer';
 import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
+import HomeDashboard from './components/HomeDashboard';
+import CommandPalette from './components/CommandPalette';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
 import Headlines from './components/widgets/Headlines';
@@ -97,6 +99,7 @@ const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'tech', 'local', 
 // the way the old side-by-side/stacked columns required every time a
 // section was added.
 const SECTIONS = [
+  { id: 'home', label: 'Home', icon: HomeIcon },
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'news', label: 'News', icon: Newspaper },
   { id: 'sports', label: 'Sports', icon: Trophy },
@@ -110,7 +113,7 @@ export default function App() {
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
   const [activeSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
   const [activeStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
-  const [activeSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'tools');
+  const [activeSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
@@ -118,6 +121,20 @@ export default function App() {
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Ctrl+K (or Cmd+K on Mac) opens the command palette from anywhere in the
+  // app. Prevented from also typing "k" into whatever's focused.
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
 
   // Live clock: Weekday, Full Month, Day Year HH:MM:SS
   useEffect(() => {
@@ -339,6 +356,7 @@ export default function App() {
 
   const activeSectionMeta = SECTIONS.find((s) => s.id === activeSection)!;
   const sectionSubtitle: Record<string, string> = {
+    home: 'Everything that matters today, at a glance',
     tools: 'Your shortcuts, utilities and frequently used services',
     news: 'Headlines and feeds, curated to what you actually read',
     sports: 'Live scores and schedules for the teams you follow',
@@ -377,26 +395,38 @@ export default function App() {
               <NationalDayPill />
             </div>
 
-            <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 gap-0.5 flex-shrink-0">
-              {(['light', 'system', 'dark'] as ThemeMode[]).map((m) => {
-                const Icon = m === 'light' ? Sun : m === 'dark' ? Moon : Monitor;
-                const isActive = mode === m;
-                return (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    title={m.charAt(0).toUpperCase() + m.slice(1)}
-                    aria-pressed={isActive}
-                    className={`p-1.5 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-                      isActive
-                        ? 'bg-white dark:bg-zinc-950 shadow-sm text-indigo-600 dark:text-indigo-400'
-                        : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-                    }`}
-                  >
-                    <Icon size={15} />
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setPaletteOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                title="Search everything (Ctrl+K)"
+              >
+                <SearchIcon size={14} />
+                <span className="hidden lg:inline">Search…</span>
+                <kbd className="hidden lg:inline text-[10px] font-medium bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">Ctrl K</kbd>
+              </button>
+
+              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 gap-0.5">
+                {(['light', 'system', 'dark'] as ThemeMode[]).map((m) => {
+                  const Icon = m === 'light' ? Sun : m === 'dark' ? Moon : Monitor;
+                  const isActive = mode === m;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      title={m.charAt(0).toUpperCase() + m.slice(1)}
+                      aria-pressed={isActive}
+                      className={`p-1.5 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                        isActive
+                          ? 'bg-white dark:bg-zinc-950 shadow-sm text-indigo-600 dark:text-indigo-400'
+                          : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
+                      }`}
+                    >
+                      <Icon size={15} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </header>
@@ -446,6 +476,10 @@ export default function App() {
                   </span>
                 )}
               </div>
+
+              {activeSection === 'home' && (
+                <HomeDashboard onNavigate={setActiveSection} />
+              )}
 
               {activeSection === 'tools' && (
                 <TabContainer
@@ -517,6 +551,12 @@ export default function App() {
             </div>
           </div>
         </main>
+
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          onNavigate={setActiveSection}
+        />
       </div>
     </div>
   );
