@@ -37,24 +37,57 @@ export function makeTeamSchedule(
       const fetchSchedule = async () => {
         try {
           setLoading(true);
-          const season = new Date().getFullYear();
+          // ESPN's `season` param means different things per league: NFL
+          // numbers a season by the calendar year it STARTS in (the 2026
+          // season = fall 2026), but NBA/NHL number a season by the year it
+          // ENDS in (a season starting fall 2026 is ESPN season 2027, since
+          // it runs into 2027). Using getFullYear() alone works for NFL but
+          // silently asks for an already-completed season for NBA/NHL for
+          // roughly the back half of every year — ESPN still returns 200 OK
+          // with real (past) games, so this fails quietly: every game gets
+          // filtered out by the upcoming-events check below, and the UI just
+          // reads "No upcoming games scheduled," indistinguishable from an
+          // actual off-season with nothing to show.
+          // Fetching both the current calendar year AND the next one (deduped
+          // by event id) covers both numbering conventions without needing
+          // per-league special-casing that could drift again next year.
+          const thisYear = new Date().getFullYear();
           // limit=100 is generous on purpose — ESPN's schedule endpoint
           // defaults to a small page size (seen defaulting to 25 elsewhere)
           // unless a limit is set explicitly, which cut Patriots' schedule
           // down to 3 games the first time this was built.
           // seasontype=2 (regular season) is required too — without it the
-          // endpoint defaults to preseason-only for that season, which is
-          // why Patriots/Celtics/Bruins showed "no upcoming games" once
-          // their preseasons had already ended for the year.
-          const res = await fetch(
-            `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&seasontype=2&limit=100`
-          );
-          if (!res.ok) throw new Error('Failed to fetch schedule');
-          const data = await res.json();
-          const events = data?.events || [];
+          // endpoint defaults to preseason-only for that season.
+          const fetchSeason = async (season: number) => {
+            const res = await fetch(
+              `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&seasontype=2&limit=100`
+            );
+            if (!res.ok) return [];
+            const data = await res.json();
+            return data?.events || [];
+          };
+
+          const [thisYearEvents, nextYearEvents] = await Promise.all([
+            fetchSeason(thisYear),
+            fetchSeason(thisYear + 1),
+          ]);
+
+          const seen = new Set<string>();
+          const events = [...thisYearEvents, ...nextYearEvents].filter((e: any) => {
+            const key = e?.id || e?.date;
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          if (thisYearEvents.length === 0 && nextYearEvents.length === 0) {
+            throw new Error('Failed to fetch schedule');
+          }
 
           const now = Date.now();
-          const upcomingEvents = events.filter((e: any) => e?.date && new Date(e.date).getTime() >= now);
+          const upcomingEvents = events
+            .filter((e: any) => e?.date && new Date(e.date).getTime() >= now)
+            .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
           const parsed: ScheduleGame[] = upcomingEvents.map((e: any) => {
             const comp = e?.competitions?.[0];
