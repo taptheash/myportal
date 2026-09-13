@@ -29,10 +29,13 @@ interface SeasonBounds {
 
 const HOUR_MS = 3600000;
 const DAY_MS = 24 * HOUR_MS;
-// A few days of slack past the last known game before calling it
-// "off-season" — playoff/postseason dates aren't in this regular-season
-// feed, so the real last game of the year is often later than `endDate`.
-const OFFSEASON_GRACE_MS = 5 * DAY_MS;
+// Slack past the last known game before calling it "off-season." Both
+// regular-season AND postseason games are fetched and folded into `bounds`,
+// so `endDate` already reflects a deep playoff run for a team still
+// playing — this grace period only covers a team that's been eliminated
+// (or missed the playoffs) and is waiting for next season's schedule, where
+// there's normally a real gap of a week or more before that shows up.
+const OFFSEASON_GRACE_MS = 10 * DAY_MS;
 
 // Returns a component pre-configured for one specific team, so multiple
 // team-schedule tabs (Patriots, Red Sox, etc.) can share one implementation
@@ -100,49 +103,57 @@ export function makeTeamSchedule(
           // defaults to a small page size (seen defaulting to 25 elsewhere)
           // unless a limit is set explicitly, which cut Patriots' schedule
           // down to 3 games the first time this was built.
-          // seasontype=2 (regular season) is required too — without it the
-          // endpoint defaults to preseason-only for that season.
-          const fetchSeason = async (season: number) => {
+          // seasontype=2 is the regular season; seasontype=3 is the
+          // postseason — these are two entirely separate event lists on
+          // ESPN's side, not one feed that includes both. Fetching only
+          // seasontype=2 meant a tracked team making the playoffs (a real
+          // possibility for the Celtics/Bruins, not a hypothetical) would
+          // just silently show nothing once the regular season ended, right
+          // when its games matter most.
+          const fetchSeasonType = async (season: number, seasontype: 2 | 3) => {
             const res = await fetch(
-              `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&seasontype=2&limit=100`
+              `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&seasontype=${seasontype}&limit=100`
             );
             if (!res.ok) return [];
             const data = await res.json();
             return data?.events || [];
           };
 
-          const [thisYearEvents, nextYearEvents] = await Promise.all([
-            fetchSeason(thisYear),
-            fetchSeason(thisYear + 1),
+          const [thisYearReg, thisYearPost, nextYearReg, nextYearPost] = await Promise.all([
+            fetchSeasonType(thisYear, 2),
+            fetchSeasonType(thisYear, 3),
+            fetchSeasonType(thisYear + 1, 2),
+            fetchSeasonType(thisYear + 1, 3),
           ]);
 
           const seen = new Set<string>();
-          const events = [...thisYearEvents, ...nextYearEvents].filter((e: any) => {
+          const events = [...thisYearReg, ...thisYearPost, ...nextYearReg, ...nextYearPost].filter((e: any) => {
             const key = e?.id || e?.date;
             if (!key || seen.has(key)) return false;
             seen.add(key);
             return true;
           });
 
-          if (thisYearEvents.length === 0 && nextYearEvents.length === 0) {
+          if (events.length === 0) {
             throw new Error('Failed to fetch schedule');
           }
 
           // Season bounds come from whatever schedule we actually got back —
-          // ESPN's own data is the source of truth for when a season runs,
-          // rather than guessing calendar dates per league. If the fetched
+          // ESPN's own data is the source of truth for when a season runs
+          // (postseason games included, so a deep playoff run pushes
+          // `endDate` out correctly instead of the widget assuming
+          // off-season the moment the regular season ends). If the fetched
           // games extend past what we'd previously stored, a new season has
           // been published — replace the stored bounds outright rather than
           // widening them, so `startDate` tracks the CURRENT season rather
           // than accumulating into an ever-wider range across every season
-          // this widget has ever seen.
-          if (events.length > 0) {
-            const dates = events.map((e: any) => e.date).filter(Boolean).sort();
-            const [newStart, newEnd] = [dates[0], dates[dates.length - 1]];
-            const previous = readBounds();
-            const isNewSeason = !previous || newEnd > previous.endDate;
-            writeBounds(isNewSeason ? { startDate: newStart, endDate: newEnd } : previous);
-          }
+          // this widget has ever seen. (`events` is guaranteed non-empty
+          // here — the throw above already handles the empty case.)
+          const dates = events.map((e: any) => e.date).filter(Boolean).sort();
+          const [newStart, newEnd] = [dates[0], dates[dates.length - 1]];
+          const previous = readBounds();
+          const isNewSeason = !previous || newEnd > previous.endDate;
+          writeBounds(isNewSeason ? { startDate: newStart, endDate: newEnd } : previous);
 
           const now = Date.now();
           const bounds = readBounds();
