@@ -14,6 +14,7 @@ import CommandPalette from './components/CommandPalette';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
 import Headlines from './components/widgets/Headlines';
+import UsNews from './components/widgets/UsNews';
 import TechNews from './components/widgets/TechNews';
 import LocalNews from './components/widgets/LocalNews';
 import WeirdNews from './components/widgets/WeirdNews';
@@ -62,6 +63,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   sports:     { type: 'sports',     label: 'Sports',      icon: Trophy,       component: Sports,       color: '#F0E442', activeText: 'black' },
   sportsnews: { type: 'sportsnews', label: 'NE Sports',   icon: Megaphone,    component: SportsNews,   color: '#56B4E9', activeText: 'black' },
   headlines:  { type: 'headlines',  label: 'Headlines',   icon: Globe,        component: Headlines,    color: '#D55E00', activeText: 'black' },
+  usnews:     { type: 'usnews',     label: 'US News',     icon: Newspaper,    component: UsNews,       color: '#CC79A7', activeText: 'black' },
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
   local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,    color: '#009E73', activeText: 'black' },
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
@@ -78,7 +80,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird', 'feeds', 'reddit'];
+const NEWS_TYPES = ['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'feeds', 'reddit'];
 const SPORTS_TYPES = ['sports', 'nflSchedule', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
 const STOCK_TYPES = ['watchlist', 'marketOverview'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES];
@@ -92,7 +94,7 @@ function makeDefaultWidgets(): WidgetInstance[] {
   }));
 }
 
-const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'tech', 'local', 'business', 'weird']);
+const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird']);
 
 // Top-level section nav — adding a future section is one entry here, plus
 // one more conditional render branch below. No layout-width juggling needed

@@ -1,0 +1,92 @@
+import React, { useState, useEffect } from 'react';
+import { ExternalLink, AlertCircle } from 'lucide-react';
+import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
+
+interface UsNewsProps {
+  id: string;
+  config: Record<string, any>;
+  onUpdateConfig: (config: Record<string, any>) => void;
+  isEditing: boolean;
+}
+
+interface NewsItem { title: string; link: string; pubDate: string; sourceName: string; }
+
+// Distinct from Headlines (world/general AP+BBC+NPR top-news) and from NH
+// Local (NHPR only) — this pool is specifically U.S. national news. NPR's
+// national-affairs desk and PBS NewsHour's politics feed both cover national
+// stories that wouldn't be pulled by Headlines' general top-news feeds; CBS
+// News' U.S. feed adds a distinct outlet's editorial judgment. All three are
+// free, no-paywall wire/public sources — same criterion Headlines used when
+// NYT was dropped.
+const SOURCES: NewsSource[] = [
+  { name: 'NPR National', url: 'https://feeds.npr.org/1003/rss.xml' },
+  { name: 'PBS NewsHour', url: 'https://www.pbs.org/newshour/feeds/rss/politics' },
+  { name: 'CBS News', url: 'https://www.cbsnews.com/latest/rss/us' },
+];
+
+export default function UsNews({ config, onUpdateConfig }: UsNewsProps) {
+  const [articles, setArticles] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const articleCount = config.articleCount || 10;
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        // Pulls a random 2-3 of the 3 available sources each refresh, merged
+        // and sorted by recency — same pattern as Headlines.
+        const items = await fetchMergedRssWithCache('usnews', SOURCES, 3, articleCount, 3600000);
+        setArticles(items);
+        setError(null);
+        onUpdateConfig({ ...config, articleCount, lastFetchedCount: items.length });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error fetching news');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNews();
+    const interval = setInterval(fetchNews, 3600000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articleCount]);
+
+  const formatTime = (pubDate: string) => {
+    const date = new Date(pubDate.replace(' ', 'T') + 'Z');
+    const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div></div>;
+  if (error) return <div className="flex flex-col items-center justify-center h-24 gap-2 text-red-600"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {articles.length === 0 && (
+        <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">
+          No articles found — the source may be temporarily unavailable.
+        </div>
+      )}
+      {articles.map((article, idx) => (
+        <a key={idx} href={article.link} target="_blank" rel="noopener noreferrer"
+          className="surface-card block p-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl border-l-4 border-indigo-500 transition-all duration-150 group">
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-zinc-900 dark:text-white text-sm line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150">{article.title}</p>
+              <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="truncate">{article.sourceName}</span>
+                <span>•</span>
+                <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
+              </div>
+            </div>
+            <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
