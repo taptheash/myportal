@@ -67,7 +67,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   tech:       { type: 'tech',       label: 'Tech & AI',   icon: Laptop,       component: TechNews,     color: '#0072B2', activeText: 'white' },
   local:      { type: 'local',      label: 'NH Local',    icon: MapPin,       component: LocalNews,    color: '#009E73', activeText: 'black' },
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
-  reddit:     { type: 'reddit',     label: 'Reddit Popular', icon: Flame,     component: RedditPopular, color: '#F0E442', activeText: 'black' },
+  reddit:     { type: 'reddit',     label: 'Reddit',      icon: Flame,        component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
   nflSchedule: { type: 'nflSchedule', label: 'NFL Schedule', icon: CalendarIcon, component: NflSchedule, color: '#CC79A7', activeText: 'black' },
@@ -94,7 +94,7 @@ function makeDefaultWidgets(): WidgetInstance[] {
   }));
 }
 
-const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird']);
+const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'reddit']);
 
 // Top-level section nav — adding a future section is one entry here, plus
 // one more conditional render branch below. No layout-width juggling needed
