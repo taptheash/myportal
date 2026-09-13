@@ -80,10 +80,15 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'feeds', 'reddit'];
+const NEWS_TYPES = ['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'feeds'];
 const SPORTS_TYPES = ['sports', 'nflSchedule', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
 const STOCK_TYPES = ['watchlist', 'marketOverview'];
-const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES];
+// Reddit is its own top-level section (not a News tab) with exactly one
+// widget — no sub-tabs, so it doesn't need an "order" array the way
+// News/Sports/Stocks do, but it still needs to be in ALL_TYPES so its
+// widget instance gets created/found like every other type.
+const REDDIT_TYPES = ['reddit'];
+const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
   return ALL_TYPES.map((type) => ({
@@ -94,7 +99,7 @@ function makeDefaultWidgets(): WidgetInstance[] {
   }));
 }
 
-const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'reddit']);
+const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird']);
 
 // Top-level section nav — adding a future section is one entry here, plus
 // one more conditional render branch below. No layout-width juggling needed
@@ -104,6 +109,7 @@ const SECTIONS = [
   { id: 'home', label: 'Home', icon: HomeIcon },
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'news', label: 'News', icon: Newspaper },
+  { id: 'reddit', label: 'Reddit', icon: Flame },
   { id: 'sports', label: 'Sports', icon: Trophy },
   { id: 'stocks', label: 'Stocks', icon: TrendingUp },
 ];
@@ -211,6 +217,10 @@ export default function App() {
   const activeNewsWidget = widgets.find((w) => w.type === safeActiveNews)!;
   const activeSportsWidget = widgets.find((w) => w.type === activeSports)!;
   const activeStocksWidget = widgets.find((w) => w.type === activeStocks)!;
+  // Reddit has no sub-tabs (it's a single-widget section), so unlike the
+  // others there's no "active<X>" selection state to track — just the one
+  // widget instance.
+  const redditWidget = widgets.find((w) => w.type === 'reddit')!;
 
   const renderToolControls = () => {
     if (activeTool === 'weather') {
@@ -323,6 +333,29 @@ export default function App() {
     );
   };
 
+  const renderRedditControls = () => {
+    const count = redditWidget.config.articleCount || 10;
+    const displayCount = redditWidget.config.lastFetchedCount ?? count;
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Posts</span>
+        <button
+          onClick={() => updateWidgetConfig('reddit', { ...redditWidget.config, articleCount: Math.max(1, count - 1) })}
+          className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
+        >
+          <Minus size={13} />
+        </button>
+        <span className="text-xs font-semibold w-5 text-center text-zinc-700 dark:text-zinc-200">{displayCount}</span>
+        <button
+          onClick={() => updateWidgetConfig('reddit', { ...redditWidget.config, articleCount: Math.min(100, count + 1) })}
+          className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
+        >
+          <Plus size={13} />
+        </button>
+      </div>
+    );
+  };
+
   const renderSportsControls = () => {
     if (activeSports === 'sports') {
       return (
@@ -361,6 +394,7 @@ export default function App() {
     home: 'Everything that matters today, at a glance',
     tools: 'Your shortcuts, utilities and frequently used services',
     news: 'Headlines and feeds, curated to what you actually read',
+    reddit: 'Hot posts from the subreddits you follow',
     sports: 'Live scores and schedules for the teams you follow',
     stocks: 'Watchlist and market snapshot at a glance',
   };
@@ -512,6 +546,23 @@ export default function App() {
                     id={activeNewsWidget.id}
                     config={activeNewsWidget.config}
                     onUpdateConfig={(config: any) => updateWidgetConfig(safeActiveNews, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              )}
+
+              {activeSection === 'reddit' && (
+                <TabContainer
+                  tabs={[toTabDef('reddit')]}
+                  activeType="reddit"
+                  onSelect={() => {}}
+                  onReorder={() => {}}
+                  controls={renderRedditControls()}
+                >
+                  <RedditPopular
+                    id={redditWidget.id}
+                    config={redditWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig('reddit', config)}
                     isEditing={false}
                   />
                 </TabContainer>
