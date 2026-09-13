@@ -267,9 +267,15 @@ export function makeTeamSchedule(
             </div>
             <div className="text-right flex-shrink-0">
               <div className="text-sm font-medium" style={{ color: accentColor }}>{game.time}</div>
-              {game.broadcast && (
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">{game.broadcast}</div>
-              )}
+              {/* ESPN genuinely hasn't published a broadcast network yet for
+                  a lot of games further out on the calendar — national
+                  broadcasts (NBC, Prime Video, etc.) get locked in early,
+                  but regional/local assignments often lag until closer to
+                  game day. "TBD" here makes that an expected, not-broken
+                  state instead of a silent gap next to games that DO show a
+                  network — this re-fetches hourly in-season, so it fills in
+                  on its own once ESPN publishes it. */}
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">{game.broadcast || 'TBD'}</div>
             </div>
           </div>
         ))}
