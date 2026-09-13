@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, AlertCircle, Plus, X, Circle, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
+import { ExternalLink, AlertCircle, Plus, Circle, Sparkles, ChevronDown, ChevronRight, EyeOff } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 
 interface RedditPopularProps {
@@ -13,7 +13,11 @@ interface NewsItem { title: string; link: string; pubDate: string; sourceName: s
 
 interface Subreddit {
   name: string;      // display name, e.g. "r/popular"
-  slug: string;       // the part after r/, e.g. "popular"
+  slug: string;      // the part after r/, e.g. "popular"
+  // Subreddits are never deleted once added — only toggled on/off. That way
+  // turning one back on is a single click on its chip rather than having to
+  // retype or re-find it in the suggestions list.
+  enabled: boolean;
 }
 
 // Reddit's public .rss endpoints survived their 2023 API pricing changes —
@@ -28,23 +32,23 @@ function subredditUrl(slug: string): string {
 }
 
 const DEFAULT_SUBREDDITS: Subreddit[] = [
-  { name: 'r/popular', slug: 'popular' },
-  { name: 'r/outoftheloop', slug: 'outoftheloop' },
+  { name: 'r/popular', slug: 'popular', enabled: true },
+  { name: 'r/outoftheloop', slug: 'outoftheloop', enabled: true },
 ];
 
 // A handful of well-known, active subreddits offered as one-click suggestions.
 // Not exhaustive — Doug can add any subreddit by name below.
 const SUGGESTED_SUBREDDITS: Subreddit[] = [
-  { name: 'r/all', slug: 'all' },
-  { name: 'r/todayilearned', slug: 'todayilearned' },
-  { name: 'r/worldnews', slug: 'worldnews' },
-  { name: 'r/technology', slug: 'technology' },
-  { name: 'r/science', slug: 'science' },
-  { name: 'r/askreddit', slug: 'askreddit' },
-  { name: 'r/interestingasfuck', slug: 'interestingasfuck' },
-  { name: 'r/nottheonion', slug: 'nottheonion' },
-  { name: 'r/explainlikeimfive', slug: 'explainlikeimfive' },
-  { name: 'r/dataisbeautiful', slug: 'dataisbeautiful' },
+  { name: 'r/all', slug: 'all', enabled: true },
+  { name: 'r/todayilearned', slug: 'todayilearned', enabled: true },
+  { name: 'r/worldnews', slug: 'worldnews', enabled: true },
+  { name: 'r/technology', slug: 'technology', enabled: true },
+  { name: 'r/science', slug: 'science', enabled: true },
+  { name: 'r/askreddit', slug: 'askreddit', enabled: true },
+  { name: 'r/interestingasfuck', slug: 'interestingasfuck', enabled: true },
+  { name: 'r/nottheonion', slug: 'nottheonion', enabled: true },
+  { name: 'r/explainlikeimfive', slug: 'explainlikeimfive', enabled: true },
+  { name: 'r/dataisbeautiful', slug: 'dataisbeautiful', enabled: true },
 ];
 
 function normalizeSlug(input: string): string {
@@ -52,8 +56,15 @@ function normalizeSlug(input: string): string {
 }
 
 export default function RedditPopular({ config, onUpdateConfig }: RedditPopularProps) {
-  const subreddits: Subreddit[] = config.subreddits || DEFAULT_SUBREDDITS;
+  // Backfill guard: configs saved before `enabled` existed get it defaulted
+  // to true, so nothing already added silently disappears from the feed.
+  const subreddits: Subreddit[] = (config.subreddits || DEFAULT_SUBREDDITS).map((s: Subreddit) => ({
+    ...s,
+    enabled: s.enabled !== false,
+  }));
   const articleCount = config.articleCount || 10;
+  const enabledSubreddits = subreddits.filter((s) => s.enabled);
+  const disabledSubreddits = subreddits.filter((s) => !s.enabled);
 
   const [articles, setArticles] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,25 +74,22 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
   const [newSlug, setNewSlug] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [suggestionsExpanded, setSuggestionsExpanded] = useState(false);
+  const [showDisabled, setShowDisabled] = useState(false);
 
-  const subredditsKey = subreddits.map((s) => s.slug).join(',');
+  const enabledKey = enabledSubreddits.map((s) => s.slug).join(',');
 
   useEffect(() => {
     const fetchPosts = async () => {
       try {
         setLoading(true);
-        const pool: NewsSource[] = subreddits.map((s) => ({ name: s.name, url: subredditUrl(s.slug) }));
-        // Every subscribed subreddit is fetched every refresh (sourcesPerRefresh
+        const pool: NewsSource[] = enabledSubreddits.map((s) => ({ name: s.name, url: subredditUrl(s.slug) }));
+        // Every ENABLED subreddit is fetched every refresh (sourcesPerRefresh
         // = pool.length) — unlike Headlines/UsNews, which deliberately rotate a
         // random subset of a large editorial pool, this list is short and
         // hand-picked, so Doug should see all of it, not a random sample.
-        const items = await fetchMergedRssWithCache(
-          `reddit-${subredditsKey}`,
-          pool,
-          pool.length,
-          articleCount,
-          3600000
-        );
+        const items = pool.length
+          ? await fetchMergedRssWithCache(`reddit-${enabledKey}`, pool, pool.length, articleCount, 3600000)
+          : [];
         setArticles(items);
         setError(null);
         onUpdateConfig({ ...config, subreddits, articleCount, lastFetchedCount: items.length });
@@ -95,7 +103,7 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
     const interval = setInterval(fetchPosts, 3600000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subredditsKey, articleCount]);
+  }, [enabledKey, articleCount]);
 
   const formatTime = (pubDate: string) => {
     const date = new Date(pubDate.replace(' ', 'T') + 'Z');
@@ -109,19 +117,29 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
   const addSubreddit = (slug: string) => {
     const clean = normalizeSlug(slug);
     if (!clean) return;
-    if (subreddits.some((s) => s.slug === clean)) {
-      setAddError('Already added');
+    const existing = subreddits.find((s) => s.slug === clean);
+    if (existing) {
+      if (existing.enabled) {
+        setAddError('Already added');
+        return;
+      }
+      // Re-adding something that was toggled off just re-enables it, rather
+      // than erroring or creating a duplicate entry.
+      toggleSubreddit(clean);
+      setNewSlug('');
+      setAddError(null);
+      setShowAdd(false);
       return;
     }
-    const next = [...subreddits, { name: `r/${clean}`, slug: clean }];
+    const next = [...subreddits, { name: `r/${clean}`, slug: clean, enabled: true }];
     onUpdateConfig({ ...config, subreddits: next, articleCount });
     setNewSlug('');
     setAddError(null);
     setShowAdd(false);
   };
 
-  const removeSubreddit = (slug: string) => {
-    const next = subreddits.filter((s) => s.slug !== slug);
+  const toggleSubreddit = (slug: string) => {
+    const next = subreddits.map((s) => (s.slug === slug ? { ...s, enabled: !s.enabled } : s));
     onUpdateConfig({ ...config, subreddits: next, articleCount });
   };
 
@@ -131,22 +149,18 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Subscribed subreddit chips */}
+      {/* Subreddit chips — click to toggle on/off. Nothing is ever deleted
+          here, so turning one back on later is always one click. */}
       <div className="flex flex-wrap gap-1.5">
-        {subreddits.map((s) => (
-          <span
+        {enabledSubreddits.map((s) => (
+          <button
             key={s.slug}
-            className="group flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium"
+            onClick={() => toggleSubreddit(s.slug)}
+            title={`Hide ${s.name} (won't be removed — click again to bring it back)`}
+            className="flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors duration-150"
           >
             {s.name}
-            <button
-              onClick={() => removeSubreddit(s.slug)}
-              title={`Remove ${s.name}`}
-              className="p-0.5 rounded-full text-orange-400 hover:text-red-500 hover:bg-white dark:hover:bg-zinc-800 transition-colors duration-150"
-            >
-              <X size={11} />
-            </button>
-          </span>
+          </button>
         ))}
         {!showAdd && (
           <button
@@ -157,6 +171,33 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
           </button>
         )}
       </div>
+
+      {disabledSubreddits.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowDisabled((v) => !v)}
+            className="flex items-center gap-1 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150"
+          >
+            {showDisabled ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            {showDisabled ? 'Hide' : 'Show'} {disabledSubreddits.length} hidden
+          </button>
+          {showDisabled && (
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {disabledSubreddits.map((s) => (
+                <button
+                  key={s.slug}
+                  onClick={() => toggleSubreddit(s.slug)}
+                  title={`Show ${s.name} again`}
+                  className="flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-xs font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150 line-through decoration-zinc-300 dark:decoration-zinc-600"
+                >
+                  <EyeOff size={11} className="flex-shrink-0 no-underline" />
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showAdd && (
         <div className="flex flex-col gap-1.5 p-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700">
@@ -222,8 +263,8 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
         <div className="flex flex-col gap-1.5">
           {articles.length === 0 && (
             <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">
-              {subreddits.length === 0
-                ? 'No subreddits added yet — add one above.'
+              {enabledSubreddits.length === 0
+                ? 'No subreddits shown — add one above, or turn a hidden one back on.'
                 : "No posts found — Reddit's feed may be temporarily unavailable."}
             </div>
           )}
