@@ -16,6 +16,24 @@ interface ScheduleGame {
   broadcast: string | null;
 }
 
+// What we remember about the most recently seen schedule, so repeat polls
+// can tell "still the same season, just quiet today" apart from "the
+// season is actually over and we're waiting on next season's schedule to
+// be published." `endDate` is the last game's date in whatever schedule we
+// last successfully parsed — the real end of the season as ESPN sees it,
+// not a guessed calendar date.
+interface SeasonBounds {
+  startDate: string; // ISO
+  endDate: string;   // ISO
+}
+
+const HOUR_MS = 3600000;
+const DAY_MS = 24 * HOUR_MS;
+// A few days of slack past the last known game before calling it
+// "off-season" — playoff/postseason dates aren't in this regular-season
+// feed, so the real last game of the year is often later than `endDate`.
+const OFFSEASON_GRACE_MS = 5 * DAY_MS;
+
 // Returns a component pre-configured for one specific team, so multiple
 // team-schedule tabs (Patriots, Red Sox, etc.) can share one implementation
 // instead of duplicating the ESPN fetch/format logic per team. `team` must
@@ -28,12 +46,38 @@ export function makeTeamSchedule(
   shortName: string,
   accentColor: string
 ) {
+  const boundsKey = `pw6-season-bounds-${sport}-${league}-${team}`;
+
+  const readBounds = (): SeasonBounds | null => {
+    try {
+      const raw = localStorage.getItem(boundsKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeBounds = (bounds: SeasonBounds) => {
+    try {
+      localStorage.setItem(boundsKey, JSON.stringify(bounds));
+    } catch {
+      // localStorage full — not fatal, just re-derives bounds next fetch
+    }
+  };
+
   return function TeamSchedule(_props: TeamScheduleProps) {
     const [games, setGames] = useState<ScheduleGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Tracks whether the LAST completed fetch found us in-season or
+    // off-season, so the polling effect can pick the right cadence for the
+    // *next* poll without re-running the fetch just to find out.
+    const pollModeRef = React.useRef<'in-season' | 'off-season'>('in-season');
 
     useEffect(() => {
+      let cancelled = false;
+      let timer: ReturnType<typeof setTimeout>;
+
       const fetchSchedule = async () => {
         try {
           setLoading(true);
@@ -84,7 +128,27 @@ export function makeTeamSchedule(
             throw new Error('Failed to fetch schedule');
           }
 
+          // Season bounds come from whatever schedule we actually got back —
+          // ESPN's own data is the source of truth for when a season runs,
+          // rather than guessing calendar dates per league. If the fetched
+          // games extend past what we'd previously stored, a new season has
+          // been published — replace the stored bounds outright rather than
+          // widening them, so `startDate` tracks the CURRENT season rather
+          // than accumulating into an ever-wider range across every season
+          // this widget has ever seen.
+          if (events.length > 0) {
+            const dates = events.map((e: any) => e.date).filter(Boolean).sort();
+            const [newStart, newEnd] = [dates[0], dates[dates.length - 1]];
+            const previous = readBounds();
+            const isNewSeason = !previous || newEnd > previous.endDate;
+            writeBounds(isNewSeason ? { startDate: newStart, endDate: newEnd } : previous);
+          }
+
           const now = Date.now();
+          const bounds = readBounds();
+          const isOffSeason = !!bounds && now > new Date(bounds.endDate).getTime() + OFFSEASON_GRACE_MS;
+          pollModeRef.current = isOffSeason ? 'off-season' : 'in-season';
+
           const upcomingEvents = events
             .filter((e: any) => e?.date && new Date(e.date).getTime() >= now)
             .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -122,18 +186,40 @@ export function makeTeamSchedule(
             return { id: e.id || `${e.date}-${opponent}`, date, matchup, time, broadcast };
           });
 
-          setGames(parsed);
-          setError(null);
+          if (!cancelled) {
+            setGames(parsed);
+            setError(null);
+          }
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error fetching schedule');
+          if (!cancelled) setError(err instanceof Error ? err.message : 'Error fetching schedule');
         } finally {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
         }
       };
 
-      fetchSchedule();
-      const interval = setInterval(fetchSchedule, 3600000);
-      return () => clearInterval(interval);
+      // Off-season, there's nothing to gain by polling hourly — ESPN
+      // publishes a new season's schedule on its own unpredictable timeline,
+      // not something that changes within an hour. In-season keeps the
+      // existing hourly cadence (game times/broadcasts can still shift).
+      // pollModeRef reflects what the fetch that JUST finished found, so the
+      // wait picked here is for the NEXT poll, one poll behind — the
+      // response is still lag-free for what's on screen right now, since
+      // that came from the fetch that already ran.
+      const scheduleNext = () => {
+        if (cancelled) return;
+        const delay = pollModeRef.current === 'off-season' ? DAY_MS : HOUR_MS;
+        timer = setTimeout(async () => {
+          await fetchSchedule();
+          scheduleNext();
+        }, delay);
+      };
+
+      fetchSchedule().then(scheduleNext);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
     }, []);
 
     if (loading) {
