@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, AlertCircle, Plus, Circle, Sparkles, ChevronDown, ChevronRight, EyeOff } from 'lucide-react';
+import { ExternalLink, AlertCircle, Plus, Circle, Sparkles, ChevronDown, ChevronRight, EyeOff, Trash2 } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 
 interface RedditPopularProps {
@@ -143,6 +143,14 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
     onUpdateConfig({ ...config, subreddits: next, articleCount });
   };
 
+  // Permanent removal — only reachable from the hidden-subreddits panel, so
+  // it's a deliberate second step (toggle off, then delete) rather than
+  // something a stray click on the main chip row can trigger by accident.
+  const deleteSubreddit = (slug: string) => {
+    const next = subreddits.filter((s) => s.slug !== slug);
+    onUpdateConfig({ ...config, subreddits: next, articleCount });
+  };
+
   const availableSuggestions = SUGGESTED_SUBREDDITS.filter(
     (s) => !subreddits.some((sub) => sub.slug === s.slug)
   );
@@ -184,15 +192,26 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
           {showDisabled && (
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {disabledSubreddits.map((s) => (
-                <button
+                <span
                   key={s.slug}
-                  onClick={() => toggleSubreddit(s.slug)}
-                  title={`Show ${s.name} again`}
-                  className="flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-xs font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150 line-through decoration-zinc-300 dark:decoration-zinc-600"
+                  className="group flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 text-xs font-medium"
                 >
-                  <EyeOff size={11} className="flex-shrink-0 no-underline" />
-                  {s.name}
-                </button>
+                  <button
+                    onClick={() => toggleSubreddit(s.slug)}
+                    title={`Show ${s.name} again`}
+                    className="flex items-center gap-1 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150 line-through decoration-zinc-300 dark:decoration-zinc-600"
+                  >
+                    <EyeOff size={11} className="flex-shrink-0 no-underline" />
+                    {s.name}
+                  </button>
+                  <button
+                    onClick={() => deleteSubreddit(s.slug)}
+                    title={`Remove ${s.name} for good`}
+                    className="p-0.5 rounded-full text-zinc-400 dark:text-zinc-500 hover:text-red-500 hover:bg-white dark:hover:bg-zinc-700 transition-colors duration-150"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </span>
               ))}
             </div>
           )}
