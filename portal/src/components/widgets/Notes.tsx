@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, ChevronDown, ChevronRight, CalendarClock } from 'lucide-react';
+import { Plus, X, Check, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, CalendarClock } from 'lucide-react';
 
 interface NotesProps {
   id: string;
@@ -108,6 +108,13 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
   const toggleCollapsed = (noteId: string) =>
     setNotes(notes.map((n) => (n.id === noteId ? { ...n, collapsed: !n.collapsed } : n)));
 
+  // Matches Quick Links' bulk expand/collapse pattern: "any expanded" decides
+  // which direction the button goes next, so it reads/acts as Collapse All
+  // as long as at least one list is open, and only flips to Expand All once
+  // every list is closed.
+  const anyExpanded = notes.some((n) => !n.collapsed);
+  const toggleAllNotes = () => setNotes(notes.map((n) => ({ ...n, collapsed: anyExpanded })));
+
   const addItem = (noteId: string) => {
     const text = (newItemText[noteId] || '').trim();
     if (!text) return;
@@ -139,6 +146,16 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
 
   return (
     <div className="flex flex-col gap-2">
+      {notes.length > 0 && (
+        <button
+          onClick={toggleAllNotes}
+          className="self-start flex items-center gap-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 px-1 py-0.5 transition-colors duration-150"
+          title={anyExpanded ? 'Collapse all lists' : 'Expand all lists'}
+        >
+          {anyExpanded ? <ChevronsUp size={13} /> : <ChevronsDown size={13} />}
+          {anyExpanded ? 'Collapse all' : 'Expand all'}
+        </button>
+      )}
       {notes.map((note) => {
         const doneCount = note.items.filter((i) => i.done).length;
         return (

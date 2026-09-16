@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react';
 
 interface FreeformNotesProps {
   id: string;
@@ -100,8 +100,25 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
   const toggleCollapsed = (noteId: string) =>
     setNotes(notes.map((n) => (n.id === noteId ? { ...n, collapsed: !n.collapsed } : n)));
 
+  // Matches Quick Links' bulk expand/collapse pattern: "any expanded" decides
+  // which direction the button goes next, so it reads/acts as Collapse All
+  // as long as at least one note is open, and only flips to Expand All once
+  // every note is closed.
+  const anyExpanded = notes.some((n) => !n.collapsed);
+  const toggleAllNotes = () => setNotes(notes.map((n) => ({ ...n, collapsed: anyExpanded })));
+
   return (
     <div className="flex flex-col gap-2">
+      {notes.length > 0 && (
+        <button
+          onClick={toggleAllNotes}
+          className="self-start flex items-center gap-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 px-1 py-0.5 transition-colors duration-150"
+          title={anyExpanded ? 'Collapse all notes' : 'Expand all notes'}
+        >
+          {anyExpanded ? <ChevronsUp size={13} /> : <ChevronsDown size={13} />}
+          {anyExpanded ? 'Collapse all' : 'Expand all'}
+        </button>
+      )}
       {notes.map((note) => (
         <div key={note.id} className="surface-card bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
           <div className="flex items-center gap-1 px-1">
