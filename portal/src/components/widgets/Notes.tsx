@@ -50,8 +50,19 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
   const [newItemDue, setNewItemDue] = useState<Record<string, string>>({});
   const [editingDueId, setEditingDueId] = useState<string | null>(null);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
+  // See the matching comment in FreeformNotes.tsx — without this guard, the
+  // save-back this effect schedules right after mount would echo whatever
+  // `config.notes` looked like at that instant, clobbering a more recent
+  // write Home's Scratchpad just made directly into this same widget's
+  // config (lib/portalStorage.ts). Skipping the mount-triggered save means
+  // this component only ever persists a change the user actually made here.
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       onUpdateConfig({ ...config, notes });

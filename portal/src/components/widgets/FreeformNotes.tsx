@@ -35,8 +35,21 @@ export default function FreeformNotes({ config, onUpdateConfig }: FreeformNotesP
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [showNewNote, setShowNewNote] = useState(false);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
+  // This effect also fires once right after mount (every effect does, on the
+  // very first render) — without this guard that fires a save-back of
+  // whatever `config.notes` happened to look like at mount, which can
+  // clobber a more recent write made elsewhere (Home's Scratchpad writes
+  // into this same widget's config directly, bypassing props, while Home is
+  // showing — see lib/portalStorage.ts). Skipping the mount-triggered save
+  // means this component only ever persists a change the user actually made
+  // in it.
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       onUpdateConfig({ ...config, notes });
