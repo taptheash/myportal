@@ -148,6 +148,38 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
+  // storedWidgets is normally only ever changed through setWidgets below, so
+  // it's kept in sync with localStorage automatically. But Home's Scratchpad
+  // writes into the SAME 'pw6' localStorage key from outside React (via
+  // lib/portalStorage.ts, since Home renders independently of whichever
+  // Tools tab is active) — without this, a note or task filed from
+  // Scratchpad wouldn't show up on the Notes/Tasks tabs until a full page
+  // reload, because this component's in-memory copy never learned about the
+  // out-of-band write. portalStorage.ts fires 'pw6-sync' after every write
+  // for exactly this; the native 'storage' event is kept too as a fallback
+  // for the same key changing in another browser tab (it never fires in the
+  // tab that made the write, which is why 'pw6-sync' is needed at all).
+  useEffect(() => {
+    const syncWidgets = () => {
+      try {
+        const raw = window.localStorage.getItem('pw6');
+        if (raw) setWidgets(JSON.parse(raw));
+      } catch {
+        // malformed storage — ignore, keep current in-memory state
+      }
+    };
+    const onStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'pw6') syncWidgets();
+    };
+    window.addEventListener('pw6-sync', syncWidgets);
+    window.addEventListener('storage', onStorageEvent);
+    return () => {
+      window.removeEventListener('pw6-sync', syncWidgets);
+      window.removeEventListener('storage', onStorageEvent);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Live clock: Weekday, Full Month, Day Year HH:MM:SS
   useEffect(() => {
     const updateClock = () => {

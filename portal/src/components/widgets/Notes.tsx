@@ -40,10 +40,12 @@ function todayKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function normalizeTaskLists(raw: any[]): Note[] {
+  return (raw || []).map((n: any) => ({ ...n, collapsed: n.collapsed ?? false }));
+}
+
 export default function Notes({ config, onUpdateConfig }: NotesProps) {
-  const [notes, setNotes] = useState<Note[]>(() =>
-    (config.notes || []).map((n: any) => ({ ...n, collapsed: n.collapsed ?? false }))
-  );
+  const [notes, setNotes] = useState<Note[]>(() => normalizeTaskLists(config.notes));
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [showNewNote, setShowNewNote] = useState(false);
   const [newItemText, setNewItemText] = useState<Record<string, string>>({});
@@ -58,6 +60,14 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
   // this component only ever persists a change the user actually made here.
   const isFirstRender = useRef(true);
 
+  // Tracks the last value WE persisted, as a JSON string. Lets the sync
+  // effect below tell "config.notes changed because something else wrote
+  // it" (Scratchpad, or this same tab reacting to a write made from a
+  // second browser tab/window open to Home) apart from "config.notes
+  // changed because our own save just round-tripped back down as a new
+  // prop" — only the former should update local state.
+  const lastPersistedRef = useRef<string>(JSON.stringify(normalizeTaskLists(config.notes)));
+
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -65,11 +75,26 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      lastPersistedRef.current = JSON.stringify(notes);
       onUpdateConfig({ ...config, notes });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes]);
+
+  // Live-adopts an external config.notes change while this widget stays
+  // mounted — e.g. Tasks open in one tab/window while Scratchpad saves from
+  // Home in another — so the task shows up without navigating away and back
+  // or reloading the page.
+  useEffect(() => {
+    const incoming = normalizeTaskLists(config.notes);
+    const incomingKey = JSON.stringify(incoming);
+    if (incomingKey !== lastPersistedRef.current) {
+      lastPersistedRef.current = incomingKey;
+      setNotes(incoming);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.notes]);
 
   const addNote = () => {
     if (!newNoteTitle.trim()) return;
