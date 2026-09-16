@@ -27,6 +27,14 @@ function readWidgets(): WidgetInstance[] {
 function writeWidgets(widgets: WidgetInstance[]) {
   try {
     window.localStorage.setItem(WIDGETS_KEY, JSON.stringify(widgets));
+    // App.tsx holds its own React-state copy of this same key (via
+    // useLocalStorage) for rendering the Tools/News/Sports/Stocks tabs, and
+    // that copy is only ever set at mount or through App's own setWidgets —
+    // it has no way to notice a write made here, out of band, while some
+    // other section (e.g. Home's Scratchpad) is what's on screen. Firing
+    // this lets App.tsx re-sync immediately instead of only picking up the
+    // change on next full reload.
+    window.dispatchEvent(new Event('pw6-sync'));
   } catch {
     // localStorage full — not fatal
   }
