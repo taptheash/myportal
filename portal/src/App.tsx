@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
-  Calendar as CalendarIcon, Search as SearchIcon,
+  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -130,6 +130,10 @@ export default function App() {
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Purely a visual spin for the News refresh button — the actual re-fetch
+  // is triggered by bumping the active widget's config.refreshNonce, which
+  // each news widget watches to bypass its own cache for one fetch.
+  const [newsRefreshSpin, setNewsRefreshSpin] = useState(false);
 
   // Ctrl+K (or Cmd+K on Mac) opens the command palette from anywhere in the
   // app. Prevented from also typing "k" into whatever's focused.
@@ -308,26 +312,44 @@ export default function App() {
   };
 
   const renderNewsControls = () => {
-    if (!NEWS_ARTICLE_TYPES.has(safeActiveNews)) return null;
+    const isArticleType = NEWS_ARTICLE_TYPES.has(safeActiveNews);
     const count = activeNewsWidget.config.articleCount || 10;
     // Show what's actually on screen, not just the requested target — the
     // source feed doesn't always have as many items as asked for.
     const displayCount = activeNewsWidget.config.lastFetchedCount ?? count;
     return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Articles</span>
+      <div className="flex items-center gap-3">
+        {isArticleType && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Articles</span>
+            <button
+              onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.max(1, count - 1) })}
+              className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
+            >
+              <Minus size={13} />
+            </button>
+            <span className="text-xs font-semibold w-5 text-center text-zinc-700 dark:text-zinc-200">{displayCount}</span>
+            <button
+              onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.min(100, count + 1) })}
+              className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+        )}
         <button
-          onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.max(1, count - 1) })}
-          className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
+          onClick={() => {
+            // The widget itself watches for this nonce changing and does one
+            // cache-bypassing fetch when it does — see refreshNonce handling
+            // in each news widget component.
+            setNewsRefreshSpin(true);
+            updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, refreshNonce: Date.now() });
+            setTimeout(() => setNewsRefreshSpin(false), 900);
+          }}
+          title="Refresh this feed now"
+          className="flex items-center justify-center p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150"
         >
-          <Minus size={13} />
-        </button>
-        <span className="text-xs font-semibold w-5 text-center text-zinc-700 dark:text-zinc-200">{displayCount}</span>
-        <button
-          onClick={() => updateWidgetConfig(safeActiveNews, { ...activeNewsWidget.config, articleCount: Math.min(100, count + 1) })}
-          className="w-6 h-6 flex items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors duration-150"
-        >
-          <Plus size={13} />
+          <RefreshCw size={14} className={newsRefreshSpin ? 'animate-spin' : ''} />
         </button>
       </div>
     );

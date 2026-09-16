@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 
@@ -25,12 +25,20 @@ export default function LocalNews({ config, onUpdateConfig }: LocalNewsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const articleCount = config.articleCount || 10;
+  // Tracks the last refreshNonce we've seen so a manual refresh (App.tsx
+  // bumping config.refreshNonce via the header's refresh button) can be told
+  // apart from a mount or the normal hourly interval — only the manual case
+  // bypasses the cache.
+  const lastNonceRef = useRef(config.refreshNonce);
 
   useEffect(() => {
-    const fetchNews = async () => {
+    const forceRefresh = config.refreshNonce !== undefined && config.refreshNonce !== lastNonceRef.current;
+    lastNonceRef.current = config.refreshNonce;
+
+    const fetchNews = async (force: boolean) => {
       try {
         setLoading(true);
-        const items = await fetchMergedRssWithCache('local', SOURCES, 2, articleCount, 3600000);
+        const items = await fetchMergedRssWithCache('local', SOURCES, 2, articleCount, 3600000, force);
         setArticles(items);
         setError(null);
         onUpdateConfig({ ...config, articleCount, lastFetchedCount: items.length });
@@ -40,11 +48,11 @@ export default function LocalNews({ config, onUpdateConfig }: LocalNewsProps) {
         setLoading(false);
       }
     };
-    fetchNews();
-    const interval = setInterval(fetchNews, 3600000);
+    fetchNews(forceRefresh);
+    const interval = setInterval(() => fetchNews(false), 3600000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [articleCount]);
+  }, [articleCount, config.refreshNonce]);
 
   const formatTime = (pubDate: string) => {
     const date = new Date(pubDate.replace(' ', 'T') + 'Z');
@@ -55,8 +63,8 @@ export default function LocalNews({ config, onUpdateConfig }: LocalNewsProps) {
     return `${Math.floor(diffHours / 24)}d ago`;
   };
 
-  if (loading) return <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div></div>;
-  if (error) return <div className="flex flex-col items-center justify-center h-24 gap-2 text-orange-600 dark:text-orange-400"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>;
+  if (loading && articles.length === 0) return <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div></div>;
+  if (error && articles.length === 0) return <div className="flex flex-col items-center justify-center h-24 gap-2 text-orange-600 dark:text-orange-400"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>;
 
   return (
     <div className="flex flex-col gap-1.5">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Check, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Sparkles, Circle, CheckCircle2 } from 'lucide-react';
 import { fetchRssWithCache } from '../../lib/rssCache';
 
@@ -165,9 +165,16 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
   const [selectedSuggestionUrl, setSelectedSuggestionUrl] = useState<string | null>(null);
 
   const feedsKey = feeds.map((f) => f.id).join(',');
+  // Tracks the last refreshNonce we've seen so a manual refresh (App.tsx
+  // bumping config.refreshNonce via the header's refresh button) can be told
+  // apart from a mount, a feed list change, or the normal hourly interval —
+  // only the manual case bypasses the per-feed cache.
+  const lastNonceRef = useRef(config.refreshNonce);
 
   useEffect(() => {
     let cancelled = false;
+    const forceRefresh = config.refreshNonce !== undefined && config.refreshNonce !== lastNonceRef.current;
+    lastNonceRef.current = config.refreshNonce;
 
     setFeedData((prev) => {
       const next: Record<string, FeedState> = {};
@@ -175,20 +182,20 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
       return next;
     });
 
-    const fetchFeed = async (feed: CustomFeed) => {
+    const fetchFeed = async (feed: CustomFeed, force: boolean) => {
       try {
-        const items = await fetchRssWithCache(`custom-feed-${feed.id}`, feed.url, 15, 3600000);
+        const items = await fetchRssWithCache(`custom-feed-${feed.id}`, feed.url, 15, 3600000, force);
         if (!cancelled) setFeedData((prev) => ({ ...prev, [feed.id]: { items, status: 'ok' } }));
       } catch {
         if (!cancelled) setFeedData((prev) => ({ ...prev, [feed.id]: { items: [], status: 'error' } }));
       }
     };
 
-    feeds.forEach((f) => fetchFeed(f));
-    const interval = setInterval(() => feeds.forEach((f) => fetchFeed(f)), 3600000);
+    feeds.forEach((f) => fetchFeed(f, forceRefresh));
+    const interval = setInterval(() => feeds.forEach((f) => fetchFeed(f, false)), 3600000);
     return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedsKey]);
+  }, [feedsKey, config.refreshNonce]);
 
   const addFeed = (name: string, url: string) => {
     const feed: CustomFeed = { id: `feed${Date.now()}`, name, url, collapsed: false };

@@ -32,18 +32,21 @@ export async function fetchRssWithCache(
   cacheKey: string,
   feedUrl: string,
   count: number,
-  maxAgeMs: number
+  maxAgeMs: number,
+  force: boolean = false
 ): Promise<any[]> {
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const entry: CacheEntry = JSON.parse(cached);
-      if (Date.now() - entry.timestamp < maxAgeMs) {
-        return entry.data;
+  if (!force) {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const entry: CacheEntry = JSON.parse(cached);
+        if (Date.now() - entry.timestamp < maxAgeMs) {
+          return entry.data;
+        }
       }
+    } catch {
+      // corrupted cache entry, fall through to fetch
     }
-  } catch {
-    // corrupted cache entry, fall through to fetch
   }
 
   const apiKey = process.env.REACT_APP_RSS2JSON_API_KEY;
@@ -106,7 +109,8 @@ export async function fetchMergedRssWithCache(
   pool: NewsSource[],
   sourcesPerRefresh: number,
   totalCount: number,
-  maxAgeMs: number
+  maxAgeMs: number,
+  force: boolean = false
 ): Promise<Array<any & { sourceName: string }>> {
   const chosen = pickRandomSources(pool, sourcesPerRefresh);
 
@@ -116,7 +120,8 @@ export async function fetchMergedRssWithCache(
         `rss-${categoryKey}-${source.name}`,
         source.url,
         PER_SOURCE_POOL_SIZE,
-        maxAgeMs
+        maxAgeMs,
+        force
       );
       return items.map((item) => ({ ...item, sourceName: source.name }));
     })
