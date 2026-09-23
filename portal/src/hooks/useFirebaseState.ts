@@ -26,7 +26,7 @@ export interface FirebaseStateMeta {
 
 const SAVE_DEBOUNCE_MS = 500;
 
-function stateDocRef(uid: string, key: string) {
+export function stateDocRef(uid: string, key: string) {
   return doc(db, 'users', uid, 'appState', key);
 }
 
@@ -37,7 +37,7 @@ function stateDocRef(uid: string, key: string) {
 // localStorage already forced on every one of these values — drops any
 // `undefined` property the same way `JSON.stringify` always has, so this
 // stays behaviorally identical to what these components already do.
-function toFirestoreSafe<T>(value: T): T {
+export function toFirestoreSafe<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
