@@ -7,6 +7,7 @@ import {
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
+import AuthGate from './components/AuthGate';
 import TabContainer, { TabDef } from './components/TabContainer';
 import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
 import HomeDashboard from './components/HomeDashboard';
@@ -469,6 +470,7 @@ export default function App() {
   })();
 
   return (
+    <AuthGate>
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
@@ -666,5 +668,6 @@ export default function App() {
         />
       </div>
     </div>
+    </AuthGate>
   );
 }

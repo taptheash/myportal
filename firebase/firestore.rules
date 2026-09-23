@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Paste this into the Firebase console: Firestore Database -> Rules -> Edit
+// -> replace the contents -> Publish. Not deployed via the Firebase CLI
+// since this project doesn't use Firebase Hosting — the console's rules
+// editor is the simplest path here.
+//
+// Doug is the only user this app will ever have, but this is what makes it
+// safe that the Firebase web config (including apiKey) is public in the
+// built JS bundle (normal for Firebase, same as Supabase's anon key) —
+// without these rules, anyone with that config could read or write any
+// document in this database. Each user's data lives under
+// users/{their own uid}/appState/{key}, and this restricts every read and
+// write to exactly that path for the signed-in user.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/appState/{key} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
