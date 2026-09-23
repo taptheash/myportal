@@ -5,10 +5,12 @@ import {
   Calendar as CalendarIcon, Search as SearchIcon, RefreshCw,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
-import { useFirebaseState } from './hooks/useFirebaseState';
-import { primeWidgetsCache, getCachedWidgets } from './lib/portalStorage';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
-import AuthGate from './components/AuthGate';
+// AuthGate/Firebase temporarily disconnected (see below) until the Firebase
+// project is actually set up — DO NOT delete AuthGate.tsx/useFirebaseState.ts
+// /firebaseClient.ts, they're ready to re-enable once .env.local has real
+// Firebase config values.
 import TabContainer, { TabDef } from './components/TabContainer';
 import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
 import HomeDashboard from './components/HomeDashboard';
@@ -118,16 +120,16 @@ const SECTIONS = [
 
 export default function App() {
   const { mode, resolvedTheme, setMode } = useTheme();
-  const [storedWidgets, setWidgets, widgetsMeta] = useFirebaseState<WidgetInstance[]>('pw6', makeDefaultWidgets());
-  const [activeTool, setActiveTool] = useFirebaseState<string>('pw6-active-tool', 'weather');
-  const [activeNews, setActiveNews] = useFirebaseState<string>('pw6-active-news', 'headlines');
-  const [activeSports, setActiveSports] = useFirebaseState<string>('pw6-active-sports', 'sports');
-  const [activeStocks, setActiveStocks] = useFirebaseState<string>('pw6-active-stocks', 'watchlist');
-  const [activeSection, setActiveSection] = useFirebaseState<string>('pw6-active-section', 'home');
-  const [toolOrder, setToolOrder] = useFirebaseState<string[]>('pw6-tool-order', TOOL_TYPES);
-  const [newsOrder, setNewsOrder] = useFirebaseState<string[]>('pw6-news-order', NEWS_TYPES);
-  const [sportsOrder, setSportsOrder] = useFirebaseState<string[]>('pw6-sports-order', SPORTS_TYPES);
-  const [stocksOrder, setStocksOrder] = useFirebaseState<string[]>('pw6-stocks-order', STOCK_TYPES);
+  const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
+  const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
+  const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
+  const [activeSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
+  const [activeStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
+  const [activeSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
+  const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
+  const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
+  const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
+  const [stocksOrder, setStocksOrder] = useLocalStorage<string[]>('pw6-stocks-order', STOCK_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -161,26 +163,24 @@ export default function App() {
   // for exactly this; the native 'storage' event is kept too as a fallback
   // for the same key changing in another browser tab (it never fires in the
   // tab that made the write, which is why 'pw6-sync' is needed at all).
-  // Keeps lib/portalStorage.ts's cache primed with the latest Firestore-backed
-  // pw6 value, so its synchronous getWidgetConfig/updateWidgetConfig (used by
-  // Home/Scratchpad, which render outside this component's normal prop tree)
-  // always see current data without needing their own Firestore reads.
   useEffect(() => {
-    primeWidgetsCache(storedWidgets);
-  }, [storedWidgets]);
-
-  // Home's Scratchpad writes pw6 out-of-band via lib/portalStorage.ts (Home
-  // renders independently of whichever Tools tab is active, so it can't go
-  // through this component's own setWidgets). portalStorage.ts fires
-  // 'pw6-sync' after every such write; this pulls the updated data back out
-  // of its cache (already fresh — see above) into this component's own state.
-  // Note: this only catches writes made in THIS tab — Firestore updates made
-  // from another tab/device won't appear here until the page is reloaded,
-  // since this doesn't use a live onSnapshot listener.
-  useEffect(() => {
-    const syncWidgets = () => setWidgets(getCachedWidgets());
+    const syncWidgets = () => {
+      try {
+        const raw = window.localStorage.getItem('pw6');
+        if (raw) setWidgets(JSON.parse(raw));
+      } catch {
+        // malformed storage — ignore, keep current in-memory state
+      }
+    };
+    const onStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'pw6') syncWidgets();
+    };
     window.addEventListener('pw6-sync', syncWidgets);
-    return () => window.removeEventListener('pw6-sync', syncWidgets);
+    window.addEventListener('storage', onStorageEvent);
+    return () => {
+      window.removeEventListener('pw6-sync', syncWidgets);
+      window.removeEventListener('storage', onStorageEvent);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -472,22 +472,7 @@ export default function App() {
     return `${linkTotal} link${linkTotal === 1 ? '' : 's'}${folderTotal ? ` · ${folderTotal} folder${folderTotal === 1 ? '' : 's'}` : ''}`;
   })();
 
-  // Brief spinner while the main pw6 widget data loads from Firestore, so
-  // the UI doesn't flash makeDefaultWidgets() for a moment on every sign-in
-  // before the real saved config arrives (AuthGate shows the same spinner
-  // while it's checking for an existing session, just one layer up).
-  if (widgetsMeta.loading) {
-    return (
-      <AuthGate>
-        <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
-        </div>
-      </AuthGate>
-    );
-  }
-
   return (
-    <AuthGate>
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
@@ -685,6 +670,5 @@ export default function App() {
         />
       </div>
     </div>
-    </AuthGate>
   );
 }
