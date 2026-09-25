@@ -510,15 +510,18 @@ export default function App() {
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-        {/* Hidden entry point to the private links page. Deliberately styled
-            to be invisible — same fill as the page background, no hover
-            state, no title/tooltip, not focusable — a tiny hit-target
-            sitting flush in the bottom-left corner of the viewport. */}
+        {/* Hidden entry point to the private links page: a small box in the
+            bottom-left corner, filled with the page background color, with
+            a single 1px dot in its center in a slightly different color so
+            it's findable. The whole box is the click target. No hover
+            state, no tooltip, not focusable. */}
         <div
           onClick={() => setHiddenPageOpen(true)}
           aria-hidden="true"
-          className="fixed bottom-0 left-0 w-2.5 h-2.5 bg-zinc-50 dark:bg-zinc-950 z-[9999]"
-        />
+          className="fixed bottom-0 left-0 w-3 h-3 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 z-[9999]"
+        >
+          <span className="block w-px h-px bg-zinc-400 dark:bg-zinc-500" />
+        </div>
 
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
           <div className="px-6 py-3.5 flex justify-between items-center gap-4">
