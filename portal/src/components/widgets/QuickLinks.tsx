@@ -7,6 +7,14 @@ interface QuickLinksProps {
   config: Record<string, any>;
   onUpdateConfig: (config: Record<string, any>) => void;
   isEditing: boolean;
+  // Used only by the hidden links page (see App.tsx). When true: links open
+  // through the openpriv:// handoff instead of directly, so the destination
+  // launches in a private/incognito window (requires the local protocol
+  // handler described in README-private-links.md — falls back to doing
+  // nothing if that isn't installed, never falls back to a normal open,
+  // since that would defeat the point). Clicks also skip recordLinkClick so
+  // these links never show up in Home's Recent list.
+  privateMode?: boolean;
 }
 
 interface LinkItem {
@@ -155,7 +163,7 @@ function commitMove(
   return next;
 }
 
-export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) {
+export default function QuickLinks({ config, onUpdateConfig, privateMode }: QuickLinksProps) {
   const [entries, setEntries] = useState<Entry[]>(() => normalizeEntries(config.links));
   const [showInlineAdd, setShowInlineAdd] = useState(config.showAdd || false);
   const [showAddFolder, setShowAddFolder] = useState(false);
@@ -409,11 +417,11 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
         <GripVertical size={14} />
       </button>
       <a
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
+        href={privateMode ? `openpriv://${encodeURIComponent(link.url)}` : link.url}
+        target={privateMode ? undefined : '_blank'}
+        rel={privateMode ? undefined : 'noopener noreferrer'}
         draggable={false}
-        onClick={() => recordLinkClick({ id: link.id, label: link.label, url: link.url })}
+        onClick={() => { if (!privateMode) recordLinkClick({ id: link.id, label: link.label, url: link.url }); }}
         className="surface-card flex-1 flex items-center gap-2.5 px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl min-w-0"
       >
         <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center transition-transform duration-150 group-hover/link:scale-105">
@@ -529,10 +537,12 @@ export default function QuickLinks({ config, onUpdateConfig }: QuickLinksProps) 
               </div>
             ) : (
               <div
-                onDragOver={handleFolderDragOver(entry.id, index)}
                 className={`flex flex-col gap-1 group/folder ${dragSource?.containerId === 'root' && dragSource.index === index ? 'opacity-40' : ''}`}
               >
-                <div className="flex items-center gap-0.5">
+                <div
+                  onDragOver={handleFolderDragOver(entry.id, index)}
+                  className="flex items-center gap-0.5"
+                >
                   <button
                     draggable
                     onDragStart={handleDragStart('root', index)}

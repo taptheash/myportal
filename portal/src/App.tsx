@@ -134,6 +134,14 @@ export default function App() {
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Hidden links page. hiddenPageOpen is a plain useState (NOT
+  // useLocalStorage) on purpose — it must never be written to localStorage
+  // or reflected in the URL, so it always starts closed on every load and
+  // the only way back is reloading the tab. hiddenLinksConfig is a
+  // completely separate storage key from the main Quick Links widget, so it
+  // never appears in Home's Favorites/Recent lists.
+  const [hiddenPageOpen, setHiddenPageOpen] = useState(false);
+  const [hiddenLinksConfig, setHiddenLinksConfig] = useLocalStorage<Record<string, any>>('pw6-hidden-links', { links: [] });
   // Purely a visual spin for the News refresh button — the actual re-fetch
   // is triggered by bumping the active widget's config.refreshNonce, which
   // each news widget watches to bypass its own cache for one fetch.
@@ -222,6 +230,33 @@ export default function App() {
     };
     fetchBingWallpaper();
   }, []);
+
+  // Hidden links page — a bare page with nothing else on it. Bails out of
+  // the normal render entirely rather than being one more section, so none
+  // of the header/nav/clock/search/theme-toggle chrome renders here.
+  if (hiddenPageOpen) {
+    return (
+      <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 px-6 py-8">
+          <div className="max-w-md mx-auto flex flex-col gap-3">
+            <button
+              onClick={() => setHiddenLinksConfig({ ...hiddenLinksConfig, showAdd: true })}
+              className="self-start flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150"
+            >
+              <Plus size={13} /> Add link
+            </button>
+            <QuickLinks
+              id="hidden-links"
+              config={hiddenLinksConfig}
+              onUpdateConfig={setHiddenLinksConfig}
+              isEditing={false}
+              privateMode
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const byType = new Map(storedWidgets.map((w) => [w.type, w]));
   const widgets: WidgetInstance[] = ALL_TYPES.map(
@@ -475,6 +510,16 @@ export default function App() {
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+        {/* Hidden entry point to the private links page. Deliberately styled
+            to be invisible — same fill as the page background, no hover
+            state, no title/tooltip, not focusable — a tiny hit-target
+            sitting flush in the bottom-left corner of the viewport. */}
+        <div
+          onClick={() => setHiddenPageOpen(true)}
+          aria-hidden="true"
+          className="fixed bottom-0 left-0 w-2.5 h-2.5 bg-zinc-50 dark:bg-zinc-950 z-[9999]"
+        />
+
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
           <div className="px-6 py-3.5 flex justify-between items-center gap-4">
             <div className="flex items-center gap-2.5 flex-shrink-0">
