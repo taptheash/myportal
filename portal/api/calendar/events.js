@@ -4,6 +4,25 @@
 // never touches the browser, only this server-side function.
 
 const { JWT } = require('google-auth-library');
+const crypto = require('crypto');
+
+// Passcode gate. Without it, anyone who found this URL could read, create,
+// edit or delete events on the calendar. The passcode lives ONLY in Vercel's
+// env settings (PORTAL_API_KEY, no REACT_APP_ prefix, so it's never built
+// into the public JS) and in each browser where it was typed in once.
+// Fails closed: if the env var is missing, the calendar refuses every
+// request (only the calendar — the rest of the portal is unaffected).
+function checkPasscode(req) {
+  const expected = process.env.PORTAL_API_KEY;
+  if (!expected) return { ok: false, status: 503, error: 'PORTAL_API_KEY is not set in Vercel' };
+  const given = String(req.headers['x-portal-key'] || '');
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  if (!given || !crypto.timingSafeEqual(a, b)) {
+    return { ok: false, status: 401, error: 'Passcode required' };
+  }
+  return { ok: true };
+}
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
@@ -26,6 +45,11 @@ async function getAccessToken() {
 }
 
 module.exports = async (req, res) => {
+  // Never let a shared cache hold a copy of calendar data.
+  res.setHeader('Cache-Control', 'no-store');
+  const gate = checkPasscode(req);
+  if (!gate.ok) return res.status(gate.status).json({ error: gate.error, code: gate.status === 401 ? 'passcode' : 'unconfigured' });
+
   try {
     const calendarId = process.env.GOOGLE_CALENDAR_ID;
     if (!calendarId) {

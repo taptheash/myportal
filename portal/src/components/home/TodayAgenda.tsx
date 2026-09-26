@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { parseGCalTime, isAllDay } from '../../lib/calendarTime';
+import { calendarFetch, CalendarLockedError } from '../../lib/calendarApi';
 
 // Home's compact "today only" calendar view — same /api/calendar/events
 // endpoint the full Calendar tab uses, filtered down to just today's events.
@@ -24,7 +25,7 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
     const run = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/calendar/events');
+        const res = await calendarFetch('/api/calendar/events');
         if (!res.ok) throw new Error('Failed to fetch calendar events');
         const data = await res.json();
         const now = new Date();
@@ -43,7 +44,7 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
         onCount?.(todays.length);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unable to load calendar');
+        setError(err instanceof CalendarLockedError ? 'locked' : err instanceof Error ? err.message : 'Unable to load calendar');
       } finally {
         setLoading(false);
       }
@@ -63,7 +64,7 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
   if (error) {
     return (
       <div className="flex items-center gap-2 py-2 text-xs text-zinc-400 dark:text-zinc-500">
-        <AlertCircle size={13} /> Calendar unavailable
+        <AlertCircle size={13} /> {error === 'locked' ? 'Calendar locked — unlock it once in Tools › Calendar' : 'Calendar unavailable'}
       </div>
     );
   }

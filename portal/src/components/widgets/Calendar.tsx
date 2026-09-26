@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, AlertCircle, ChevronRight, Trash2, Pencil } from 'lucide-react';
+import { Plus, AlertCircle, ChevronRight, Trash2, Pencil, Lock } from 'lucide-react';
+import { calendarFetch, CalendarLockedError, setPortalKey, getPortalKey } from '../../lib/calendarApi';
 import { parseGCalTime, isAllDay, localDateKey, localPartsToIso } from '../../lib/calendarTime';
 
 interface CalendarProps {
@@ -107,6 +108,12 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editEvent, setEditEvent] = useState<EventFormValues>({ title: '', date: '', time: '' });
 
+  // Set when the API refuses us for lack of (or a wrong) passcode.
+  const [locked, setLocked] = useState<null | 'passcode' | 'unconfigured'>(null);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  // Bumped after a passcode is saved, to re-run the fetch effect.
+  const [reloadNonce, setReloadNonce] = useState(0);
+
   // Fetch events from backend
   useEffect(() => {
     if (isEditing) return;
@@ -114,7 +121,8 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/calendar/events');
+        const response = await calendarFetch('/api/calendar/events');
+        setLocked(null);
 
         if (!response.ok) {
           throw new Error('Failed to fetch calendar events');
@@ -124,7 +132,12 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
         setEvents(data.events || []);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error fetching events');
+        if (err instanceof CalendarLockedError) {
+          setLocked(err.reason);
+          setError(null);
+        } else {
+          setError(err instanceof Error ? err.message : 'Error fetching events');
+        }
         setEvents([]);
       } finally {
         setLoading(false);
@@ -134,10 +147,17 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     fetchEvents();
     const interval = setInterval(fetchEvents, 3600000); // Refresh every hour
     return () => clearInterval(interval);
-  }, [isEditing]);
+  }, [isEditing, reloadNonce]);
+
+  const savePasscode = () => {
+    if (!passcodeInput.trim()) return;
+    setPortalKey(passcodeInput.trim());
+    setPasscodeInput('');
+    setReloadNonce((n) => n + 1);
+  };
 
   const refreshEvents = async () => {
-    const response = await fetch('/api/calendar/events');
+    const response = await calendarFetch('/api/calendar/events');
     const data = await response.json();
     setEvents(data.events || []);
   };
@@ -146,7 +166,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     if (!newEvent.title.trim()) return;
 
     try {
-      const response = await fetch('/api/calendar/events', {
+      const response = await calendarFetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,7 +199,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     if (!editingId || !editEvent.title.trim()) return;
 
     try {
-      const response = await fetch(`/api/calendar/events?id=${encodeURIComponent(editingId)}`, {
+      const response = await calendarFetch(`/api/calendar/events?id=${encodeURIComponent(editingId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -201,7 +221,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     const previous = events;
     setEvents(events.filter((e) => e.id !== eventId)); // optimistic
     try {
-      const response = await fetch(`/api/calendar/events?id=${encodeURIComponent(eventId)}`, {
+      const response = await calendarFetch(`/api/calendar/events?id=${encodeURIComponent(eventId)}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Failed to delete event');
@@ -239,6 +259,45 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
           <li>3. Share calendar with service account email</li>
           <li>4. Add service account JSON to backend</li>
         </ol>
+      </div>
+    );
+  }
+
+  if (locked) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+        <Lock size={20} className="text-zinc-400" />
+        {locked === 'unconfigured' ? (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs">
+            The calendar passcode hasn't been set up yet. Add a <code>PORTAL_API_KEY</code> environment
+            variable in Vercel, then redeploy.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {getPortalKey()
+                ? "That passcode didn't work — try again."
+                : 'Enter your portal passcode to show your calendar on this browser.'}
+            </p>
+            <div className="flex gap-2 w-full max-w-xs">
+              <input
+                type="password"
+                value={passcodeInput}
+                onChange={(e) => setPasscodeInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && savePasscode()}
+                placeholder="Passcode"
+                autoComplete="current-password"
+                className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              />
+              <button
+                onClick={savePasscode}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150"
+              >
+                Unlock
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
