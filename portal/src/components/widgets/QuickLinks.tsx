@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp, Star } from 'lucide-react';
 import { recordLinkClick } from '../../lib/recentLinks';
+import { normalizeUrl } from '../../lib/url';
 
 interface QuickLinksProps {
   id: string;
@@ -205,7 +206,7 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
       type: 'link',
       id: Date.now().toString(),
       label: newLabel.trim(),
-      url: newUrl.startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`,
+      url: normalizeUrl(newUrl),
     };
     save([...entries, link]);
     setNewLabel('');
@@ -305,7 +306,7 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
     if (!editLabel.trim() || !editUrl.trim() || !editingId) return;
     const applyEdit = (l: LinkItem): LinkItem =>
       l.id === editingId
-        ? { ...l, label: editLabel.trim(), url: editUrl.startsWith('http') ? editUrl.trim() : `https://${editUrl.trim()}` }
+        ? { ...l, label: editLabel.trim(), url: normalizeUrl(editUrl) }
         : l;
     if (containerId === 'root') {
       save(entries.map((e) => (e.type === 'link' ? applyEdit(e) : e)));

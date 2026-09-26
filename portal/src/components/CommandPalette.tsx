@@ -41,10 +41,12 @@ export default function CommandPalette({
   open,
   onClose,
   onNavigate,
+  onAddLink,
 }: {
   open: boolean;
   onClose: () => void;
   onNavigate: (section: string) => void;
+  onAddLink?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
@@ -85,7 +87,7 @@ export default function CommandPalette({
       { id: 'act-stocks', group: 'Action', icon: TrendingUp, label: 'Go to Stocks', onSelect: () => onNavigate('stocks') },
       {
         id: 'act-addlink', group: 'Action', icon: Plus, label: 'Add a Quick Link',
-        onSelect: () => { onNavigate('tools'); },
+        onSelect: () => { if (onAddLink) onAddLink(); else onNavigate('tools'); },
       },
     ];
 
@@ -156,7 +158,7 @@ export default function CommandPalette({
     }
 
     return results.slice(0, 25);
-  }, [query, onNavigate]);
+  }, [query, onNavigate, onAddLink]);
 
   // Live results — News (cached RSS pool), Sports (ESPN team search), Stocks
   // (Finnhub symbol lookup). Debounced and skipped entirely for an empty

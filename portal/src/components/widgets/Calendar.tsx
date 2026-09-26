@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, AlertCircle, ChevronRight, Trash2, Pencil } from 'lucide-react';
+import { parseGCalTime, isAllDay, localDateKey, localPartsToIso } from '../../lib/calendarTime';
 
 interface CalendarProps {
   id: string;
@@ -28,8 +29,7 @@ interface EventFormValues {
   time: string;
 }
 
-function toLocalDateTimeParts(iso: string): { date: string; time: string } {
-  const d = new Date(iso);
+function toLocalDateTimeParts(d: Date): { date: string; time: string } {
   const pad = (n: number) => String(n).padStart(2, '0');
   return {
     date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
@@ -100,7 +100,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newEvent, setNewEvent] = useState<EventFormValues>({
     title: '',
-    date: new Date().toISOString().split('T')[0],
+    date: localDateKey(),
     time: '10:00',
   });
 
@@ -151,14 +151,14 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           summary: newEvent.title,
-          startDateTime: `${newEvent.date}T${newEvent.time}:00`,
+          startDateTime: localPartsToIso(newEvent.date, newEvent.time),
         }),
       });
 
       if (!response.ok) throw new Error('Failed to create event');
 
       await refreshEvents();
-      setNewEvent({ title: '', date: new Date().toISOString().split('T')[0], time: '10:00' });
+      setNewEvent({ title: '', date: localDateKey(), time: '10:00' });
       setShowCreateForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
@@ -166,8 +166,10 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   };
 
   const startEdit = (event: CalendarEvent) => {
-    const source = event.start.dateTime || event.start.date;
-    const parts = source ? toLocalDateTimeParts(source) : { date: '', time: '10:00' };
+    const startDate = parseGCalTime(event.start);
+    const parts = startDate
+      ? { ...toLocalDateTimeParts(startDate), ...(isAllDay(event.start) ? { time: '10:00' } : {}) }
+      : { date: '', time: '10:00' };
     setEditEvent({ title: event.summary, date: parts.date, time: parts.time });
     setEditingId(event.id);
     setShowCreateForm(false);
@@ -182,7 +184,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           summary: editEvent.title,
-          startDateTime: `${editEvent.date}T${editEvent.time}:00`,
+          startDateTime: localPartsToIso(editEvent.date, editEvent.time),
         }),
       });
 
@@ -210,10 +212,12 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   };
 
   const formatEventTime = (event: CalendarEvent) => {
-    const start = event.start.dateTime || event.start.date;
-    if (!start) return '';
+    const date = parseGCalTime(event.start);
+    if (!date) return '';
 
-    const date = new Date(start);
+    if (isAllDay(event.start)) {
+      return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · All day`;
+    }
     return date.toLocaleTimeString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -239,7 +243,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
     );
   }
 
-  if (loading) {
+  if (loading && events.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
@@ -261,9 +265,12 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   const now = new Date();
   const eventCount = config.eventCount || 5;
   const upcomingEvents = events
+    // Keep events that haven't ENDED yet — filtering on start time dropped
+    // a meeting the moment it began, and (with the UTC date parsing bug)
+    // dropped today's all-day events entirely.
     .filter((event) => {
-      const eventDate = new Date((event.start.dateTime || event.start.date) as string);
-      return eventDate >= now;
+      const end = parseGCalTime(event.end) || parseGCalTime(event.start);
+      return !!end && end > now;
     })
     .slice(0, eventCount);
 

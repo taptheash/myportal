@@ -32,7 +32,12 @@ export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsPro
     const fetchNews = async (force: boolean) => {
       try {
         setLoading(true);
-        const items = await fetchRssWithCache(`rss-business-${articleCount}`, FEED_URL, articleCount, 3600000, force);
+        // One fixed-size fetch under one cache key, sliced for display. Keying
+        // the cache (and the fetch size) on articleCount meant every +/- click
+        // fired a brand-new network request and left another stale
+        // rss-business-N entry in localStorage.
+        const pool = await fetchRssWithCache('rss-business', FEED_URL, Math.max(30, articleCount), 3600000, force);
+        const items = pool.slice(0, articleCount);
         setArticles(items);
         setError(null);
         onUpdateConfig({ ...config, articleCount, lastFetchedCount: items.length });

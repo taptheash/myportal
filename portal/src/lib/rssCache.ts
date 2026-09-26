@@ -18,14 +18,21 @@ const RSS2JSON_BASE = 'https://api.rss2json.com/v1/api.json';
 // This decodes those entities and then strips any resulting tags, so
 // titles always render as plain text regardless of what the source feed
 // embedded.
+function decodeEntities(text: string): string {
+  // A detached <textarea> decodes every named AND numeric entity (&#8217;,
+  // &#x2019;, &nbsp;, &hellip;, ...) without parsing or running any markup.
+  // The old hand-rolled list only handled five entities, so curly quotes and
+  // dashes from many feeds showed up as literal "&#8217;" text.
+  if (typeof document === 'undefined') return text;
+  const el = document.createElement('textarea');
+  el.innerHTML = text;
+  return el.value;
+}
+
 function cleanTitle(raw: string): string {
-  const decoded = raw
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"');
-  return decoded.replace(/<[^>]*>/g, '');
+  // Decode, strip any tags that were hiding behind escaped markup, then
+  // decode once more for double-escaped feeds (&amp;#8217;).
+  return decodeEntities(decodeEntities(raw).replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
 }
 
 export async function fetchRssWithCache(

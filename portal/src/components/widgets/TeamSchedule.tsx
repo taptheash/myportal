@@ -233,7 +233,7 @@ export function makeTeamSchedule(
       };
     }, []);
 
-    if (loading) {
+    if (loading && games.length === 0) {
       return (
         <div className="flex items-center justify-center h-24">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderBottomColor: accentColor }}></div>
@@ -241,7 +241,7 @@ export function makeTeamSchedule(
       );
     }
 
-    if (error) {
+    if (error && games.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-24 gap-2 text-red-500">
           <AlertCircle size={20} />

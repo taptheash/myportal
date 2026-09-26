@@ -98,7 +98,9 @@ export default function NflSchedule(_props: NflScheduleProps) {
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
+  // Only on first load — the 15-min refresh used to flash the whole table
+  // to a spinner, mid-game included.
+  if (loading && games.length === 0) {
     return (
       <div className="flex items-center justify-center h-24">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
@@ -106,7 +108,7 @@ export default function NflSchedule(_props: NflScheduleProps) {
     );
   }
 
-  if (error) {
+  if (error && games.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-24 gap-2 text-red-500">
         <AlertCircle size={20} />

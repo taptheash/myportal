@@ -259,20 +259,23 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {loading && (
+      {/* Spinner only on the very first load. Re-showing it on every
+          10-minute refresh blanked the widget and unmounted the radar map,
+          resetting any zoom/pan you'd done. */}
+      {loading && !weather && (
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
         </div>
       )}
 
-      {error && !loading && (
+      {error && !(loading && !weather) && (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-red-500">
           <AlertCircle size={24} />
           <p className="text-sm">{error}</p>
         </div>
       )}
 
-      {weather && !loading && !error && (
+      {weather && !error && (
         <div className="flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
           <div>
             <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">📍 {weather.name}</div>

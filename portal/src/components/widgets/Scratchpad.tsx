@@ -22,17 +22,40 @@ export default function Scratchpad() {
   const [savedFlash, setSavedFlash] = useState<'note' | 'task' | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Always holds the latest text so the unmount/pagehide flush below can
+  // write it even though the debounce timer was cancelled.
+  const latestTextRef = useRef(text);
+  latestTextRef.current = text;
+  const dirtyRef = useRef(false);
+
+  const persistNow = () => {
+    dirtyRef.current = false;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, latestTextRef.current);
+    } catch {
+      // localStorage full — not fatal
+    }
+  };
+
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, text);
-      } catch {
-        // full localStorage — not fatal, just won't persist this keystroke
-      }
-    }, 400);
+    dirtyRef.current = true;
+    saveTimer.current = setTimeout(persistNow, 400);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
+
+  // Leaving Home (or closing the tab) within 400ms of the last keystroke
+  // used to cancel the pending save and drop that text.
+  useEffect(() => {
+    const flush = () => { if (dirtyRef.current) persistNow(); };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const clear = () => setText('');
 

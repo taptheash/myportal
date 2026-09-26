@@ -59,6 +59,11 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
   // config (lib/portalStorage.ts). Skipping the mount-triggered save means
   // this component only ever persists a change the user actually made here.
   const isFirstRender = useRef(true);
+  const pendingSaveRef = useRef<(() => void) | null>(null);
+  // Latest props, so a flushed/debounced save merges into the CURRENT config
+  // rather than the one captured when the edit happened.
+  const latestPropsRef = useRef({ config, onUpdateConfig });
+  latestPropsRef.current = { config, onUpdateConfig };
 
   // Tracks the last value WE persisted, as a JSON string. Lets the sync
   // effect below tell "config.notes changed because something else wrote
@@ -74,13 +79,32 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
       return;
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
+    const persist = () => {
+      pendingSaveRef.current = null;
       lastPersistedRef.current = JSON.stringify(notes);
-      onUpdateConfig({ ...config, notes });
-    }, 500);
+      latestPropsRef.current.onUpdateConfig({ ...latestPropsRef.current.config, notes });
+    };
+    pendingSaveRef.current = persist;
+    saveTimer.current = setTimeout(persist, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes]);
+
+  // Flush a still-pending debounced save instead of dropping it. Before this,
+  // typing and then switching tabs (or closing/reloading the page) within
+  // 500ms unmounted the widget, the cleanup above cancelled the timer, and
+  // the last edit was silently lost.
+  useEffect(() => {
+    const flush = () => {
+      if (!pendingSaveRef.current) return;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      pendingSaveRef.current();
+    };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
 
   // Live-adopts an external config.notes change while this widget stays
   // mounted — e.g. Tasks open in one tab/window while Scratchpad saves from

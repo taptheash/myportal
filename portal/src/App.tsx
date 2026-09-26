@@ -121,11 +121,11 @@ const SECTIONS = [
 export default function App() {
   const { mode, resolvedTheme, setMode } = useTheme();
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
-  const [activeTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
+  const [storedActiveTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
-  const [activeSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
-  const [activeStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
-  const [activeSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
+  const [storedActiveSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
+  const [storedActiveStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
+  const [storedActiveSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
@@ -263,8 +263,19 @@ export default function App() {
     (type) => byType.get(type) ?? { id: type, type, title: WIDGET_DEFINITIONS[type].label, config: {} }
   );
 
+  // Functional update against the LATEST stored list, not the `widgets`
+  // snapshot from whichever render created this closure. Widgets call
+  // onUpdateConfig from long-lived timers (news: hourly, weather: 10 min),
+  // and the old `setWidgets(widgets.map(...))` form would write that stale
+  // snapshot back — reverting anything saved in the meantime (e.g. a note
+  // added in a second browser tab and synced in via the 'storage' event).
   const updateWidgetConfig = (type: string, config: Record<string, any>) => {
-    setWidgets(widgets.map((w) => (w.type === type ? { ...w, config } : w)));
+    setWidgets((prev) => {
+      const found = prev.some((w) => w.type === type);
+      return found
+        ? prev.map((w) => (w.type === type ? { ...w, config } : w))
+        : [...prev, { id: type, type, title: WIDGET_DEFINITIONS[type]?.label ?? type, config }];
+    });
   };
 
   const toTabDef = (type: string): TabDef => {
@@ -287,6 +298,14 @@ export default function App() {
   // that had it selected before Sports moved out of the News section —
   // falls back to a tab that's actually still in News.
   const safeActiveNews = NEWS_TYPES.includes(activeNews) ? activeNews : NEWS_TYPES[0];
+  // Same guard for every other section. Without it, a stored tab/section id
+  // that no longer exists (a renamed or removed widget type, or a hand-edited
+  // localStorage value) makes WIDGET_DEFINITIONS[...] undefined and the whole
+  // portal renders as a blank white page with no way to recover in the UI.
+  const activeTool = TOOL_TYPES.includes(storedActiveTool) ? storedActiveTool : TOOL_TYPES[0];
+  const activeSports = SPORTS_TYPES.includes(storedActiveSports) ? storedActiveSports : SPORTS_TYPES[0];
+  const activeStocks = STOCK_TYPES.includes(storedActiveStocks) ? storedActiveStocks : STOCK_TYPES[0];
+  const activeSection = SECTIONS.some((s) => s.id === storedActiveSection) ? storedActiveSection : 'home';
 
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
   const activeNewsWidget = widgets.find((w) => w.type === safeActiveNews)!;
@@ -715,6 +734,14 @@ export default function App() {
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}
           onNavigate={setActiveSection}
+          onAddLink={() => {
+            // "Add a Quick Link" used to only switch to Tools, leaving you on
+            // whatever tab was last open with no add form showing.
+            setActiveSection('tools');
+            setActiveTool('links');
+            const linksWidget = widgets.find((w) => w.type === 'links');
+            updateWidgetConfig('links', { ...(linksWidget?.config || {}), showAdd: true });
+          }}
         />
       </div>
     </div>

@@ -271,14 +271,14 @@ export default function RedditPopular({ config, onUpdateConfig }: RedditPopularP
         </div>
       )}
 
-      {loading && (
+      {loading && articles.length === 0 && (
         <div className="flex items-center justify-center h-24"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div></div>
       )}
-      {!loading && error && (
+      {!(loading && articles.length === 0) && error && (
         <div className="flex flex-col items-center justify-center h-24 gap-2 text-orange-600 dark:text-orange-400"><AlertCircle size={20} /><p className="text-xs text-center">{error}</p></div>
       )}
 
-      {!loading && !error && (
+      {!(loading && articles.length === 0) && !error && (
         <div className="flex flex-col gap-1.5">
           {articles.length === 0 && (
             <div className="text-center text-zinc-400 dark:text-zinc-500 text-sm py-6">

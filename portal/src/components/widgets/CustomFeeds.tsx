@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Check, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Sparkles, Circle, CheckCircle2 } from 'lucide-react';
 import { fetchRssWithCache } from '../../lib/rssCache';
+import { normalizeUrl } from '../../lib/url';
 
 interface CustomFeedsProps {
   id: string;
@@ -207,7 +208,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
       setError('Both fields are required');
       return;
     }
-    addFeed(newName.trim(), newUrl.startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`);
+    addFeed(newName.trim(), normalizeUrl(newUrl));
     setNewName('');
     setNewUrl('');
     setShowAdd(false);
@@ -230,7 +231,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
 
   const handleAddSuggestion = () => {
     if (!suggName.trim() || !suggUrl.trim()) return;
-    const url = suggUrl.startsWith('http') ? suggUrl.trim() : `https://${suggUrl.trim()}`;
+    const url = normalizeUrl(suggUrl);
     onUpdateConfig({ ...config, savedSuggestions: [...savedSuggestions, { name: suggName.trim(), url, genre: 'My Additions' }] });
     setSuggName('');
     setSuggUrl('');

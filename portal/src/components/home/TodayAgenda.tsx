@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import { parseGCalTime, isAllDay } from '../../lib/calendarTime';
 
 // Home's compact "today only" calendar view — same /api/calendar/events
 // endpoint the full Calendar tab uses, filtered down to just today's events.
@@ -11,6 +12,7 @@ interface CalendarEvent {
   summary: string;
   htmlLink?: string;
   start: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
 }
 
 export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void }) {
@@ -27,11 +29,15 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
         const data = await res.json();
         const now = new Date();
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        // "Still ahead of you today": starts before midnight and hasn't
+        // ended yet. Includes in-progress meetings and today's all-day
+        // events, which the old start >= now check (plus UTC parsing of
+        // all-day dates) always dropped.
         const todays = (data.events || []).filter((e: CalendarEvent) => {
-          const start = e.start.dateTime || e.start.date;
+          const start = parseGCalTime(e.start);
           if (!start) return false;
-          const d = new Date(start);
-          return d >= now && d <= endOfDay;
+          const end = parseGCalTime(e.end) || start;
+          return start <= endOfDay && end > now;
         });
         setEvents(todays);
         onCount?.(todays.length);
@@ -69,9 +75,11 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
   return (
     <div className="flex flex-col gap-1">
       {events.map((e) => {
-        const start = e.start.dateTime || e.start.date;
-        const time = start
-          ? new Date(start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        const start = parseGCalTime(e.start);
+        const time = isAllDay(e.start)
+          ? 'All day'
+          : start
+          ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
           : '';
         const Row = (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors duration-150">

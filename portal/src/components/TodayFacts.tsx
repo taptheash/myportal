@@ -25,13 +25,16 @@ function useOnThisDay() {
   const [events, setEvents] = useState<OnThisDayEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  // Which MM-DD the loaded content belongs to (not just "loaded yes/no") —
+  // this is a homepage that's often left open overnight, and a plain boolean
+  // kept showing yesterday's list after midnight until a full reload.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   const load = () => {
-    if (loaded) return; // fetch once per mount — panel content doesn't change while open
     const now = new Date();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
+    if (loadedFor === `${mm}-${dd}`) return; // already have today's content
     const cacheKey = `on-this-day-${mm}-${dd}`;
 
     const run = async () => {
@@ -44,7 +47,7 @@ function useOnThisDay() {
             if (Date.now() - entry.timestamp < CACHE_MAX_AGE_MS) {
               setEvents(entry.data);
               setLoading(false);
-              setLoaded(true);
+              setLoadedFor(`${mm}-${dd}`);
               return;
             }
           }
@@ -78,7 +81,7 @@ function useOnThisDay() {
         setError(err instanceof Error ? err.message : 'Unable to load historical events');
       } finally {
         setLoading(false);
-        setLoaded(true);
+        setLoadedFor(`${mm}-${dd}`);
       }
     };
 
@@ -92,14 +95,16 @@ function useNationalDay() {
   const [entries, setEntries] = useState<NationalDayEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  // Which MM-DD the loaded content belongs to (not just "loaded yes/no") —
+  // this is a homepage that's often left open overnight, and a plain boolean
+  // kept showing yesterday's list after midnight until a full reload.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   const load = () => {
-    if (loaded) return;
-
     const now = new Date();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
+    if (loadedFor === `${mm}-${dd}`) return; // already have today's content
     const cacheKey = `national-day-${mm}-${dd}`;
 
     const run = async () => {
@@ -117,7 +122,7 @@ function useNationalDay() {
         setError(err instanceof Error ? err.message : 'Unable to load today’s observances');
       } finally {
         setLoading(false);
-        setLoaded(true);
+        setLoadedFor(`${mm}-${dd}`);
       }
     };
 
