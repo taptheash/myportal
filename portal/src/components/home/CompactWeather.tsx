@@ -27,7 +27,7 @@ function iconFor(main: string) {
 async function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) { reject(new Error('Geolocation not supported')); return; }
-    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
+    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 15000, maximumAge: 5 * 60 * 1000 });
   });
 }
 

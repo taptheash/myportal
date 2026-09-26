@@ -344,8 +344,11 @@ export default function App() {
               // Weather.tsx, which re-runs the same geolocation path it
               // already uses when nothing's been manually set — no new
               // fetch logic needed, just handing back control to it.
-              const { location, ...rest } = activeToolWidget.config;
-              updateWidgetConfig('weather', rest);
+              // locateNonce forces a fresh position lookup every press, even
+              // if no manual location was set; clearing resolvedLocationName
+              // shows "Detecting…" so you can see it's working.
+              const { location, resolvedLocationName, ...rest } = activeToolWidget.config;
+              updateWidgetConfig('weather', { ...rest, locateNonce: Date.now() });
             }}
             title="Use current location"
             className="flex items-center justify-center p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150"

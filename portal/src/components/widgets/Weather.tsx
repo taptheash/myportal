@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
@@ -121,8 +121,25 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
       reject(new Error('Geolocation not supported'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
+    // maximumAge lets a fix from the last few minutes be reused (instant,
+    // no re-prompt); 15s timeout because Windows' Wi-Fi-based location can
+    // take longer than the old 8s, which silently dropped to the fallback.
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      timeout: 15000,
+      maximumAge: 5 * 60 * 1000,
+      enableHighAccuracy: false,
+    });
   });
+}
+
+// Plain-English reason for a failed lookup, so the widget can say WHY it's
+// showing the fallback instead of quietly pretending it found you.
+function describeGeoError(err: unknown): string {
+  const code = (err as GeolocationPositionError)?.code;
+  if (code === 1) return 'location permission is blocked for this site — click the icon at the left of the address bar and allow Location, then press the crosshair again';
+  if (code === 2) return "your computer couldn't determine its location — on Windows, turn on Settings › Privacy & security › Location (and \"Let apps access your location\")";
+  if (code === 3) return 'the location lookup timed out — press the crosshair to try again';
+  return 'this browser does not support location';
 }
 
 export default function Weather({ config, onUpdateConfig }: WeatherProps) {
@@ -138,12 +155,23 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
   const [radarFrame, setRadarFrame] = useState<RadarFrame | null>(null);
   const [radarError, setRadarError] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
+  const [geoNotice, setGeoNotice] = useState<string | null>(null);
+
+  // Latest props, so an async fetch writes resolvedLocationName into the
+  // CURRENT config. Writing `{ ...config }` from the closure could put back a
+  // `location` the crosshair had just cleared, flipping you straight back
+  // to the manually-typed place.
+  const configRef = useRef(config);
+  configRef.current = config;
+  const onUpdateConfigRef = useRef(onUpdateConfig);
+  onUpdateConfigRef.current = onUpdateConfig;
 
   const hasManualLocation = Boolean(config.location);
   const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
 
   useEffect(() => {
     if (!API_KEY) { setLoading(false); return; }
+    let cancelled = false;
 
     const fetchWeather = async () => {
       try {
@@ -153,6 +181,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
         let forecastUrl: string;
 
         if (hasManualLocation) {
+          setGeoNotice(null);
           const isZip = /^\d{5}$/.test(config.location.trim());
           const query = encodeURIComponent(isZip ? `${config.location.trim()},US` : config.location.trim());
           weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${API_KEY}&units=imperial`;
@@ -163,7 +192,9 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
             const { latitude, longitude } = pos.coords;
             weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
             forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
-          } catch {
+            if (!cancelled) setGeoNotice(null);
+          } catch (geoErr) {
+            if (!cancelled) setGeoNotice(describeGeoError(geoErr));
             weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
             forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
           }
@@ -173,11 +204,16 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
 
         if (!currentRes.ok) throw new Error('Location not found');
         const currentData: WeatherData = await currentRes.json();
+        // A newer fetch (crosshair pressed, location typed) superseded this one.
+        if (cancelled) return;
         setWeather(currentData);
-        onUpdateConfig({ ...config, resolvedLocationName: currentData.name });
+        if (configRef.current.resolvedLocationName !== currentData.name) {
+          onUpdateConfigRef.current({ ...configRef.current, resolvedLocationName: currentData.name });
+        }
 
         if (forecastRes.ok) {
           const forecastData = await forecastRes.json();
+          if (cancelled) return;
           const { days, tzOffsetMs } = aggregateForecast(forecastData);
           setForecast(days);
           setForecastTz(tzOffsetMs);
@@ -190,7 +226,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
           const geoRes = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`
           );
-          if (geoRes.ok) {
+          if (geoRes.ok && !cancelled) {
             const geoData = await geoRes.json();
             const addr = geoData?.address || {};
             const city = addr.city || addr.town || addr.village || addr.hamlet || currentData.name;
@@ -207,19 +243,22 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
           setWeatherBugUrl('https://www.weatherbug.com/');
         }
 
-        setError(null);
+        if (!cancelled) setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error fetching weather');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Error fetching weather');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchWeather();
     const interval = setInterval(fetchWeather, 600000);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; clearInterval(interval); };
+    // config.locateNonce is bumped by the header's crosshair button so a
+    // press ALWAYS re-asks the browser for your position — before, pressing
+    // it while already on auto-location changed no dependency and did nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_KEY, hasManualLocation, config.location]);
+  }, [API_KEY, hasManualLocation, config.location, config.locateNonce]);
 
   useEffect(() => {
     if (!showRadar) return;
@@ -278,6 +317,11 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
       {weather && !error && (
         <div className="flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
           <div>
+            {geoNotice && !hasManualLocation && (
+              <div className="mb-2 px-2.5 py-1.5 rounded-lg text-[11px] leading-snug text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                Couldn't use your current location: {geoNotice}. Showing a default location for now.
+              </div>
+            )}
             <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">📍 {weather.name}</div>
             <div className="flex items-center justify-between mb-3">
               <div>
