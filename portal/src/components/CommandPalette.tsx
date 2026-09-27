@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search, Link2, StickyNote, ListChecks, Newspaper, Trophy,
-  TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText,
+  TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText, Flame,
 } from 'lucide-react';
 import { getWidgetConfig } from '../lib/portalStorage';
 import { flattenLinks, normalizeEntries } from './widgets/QuickLinks';
 import { useDebounce } from '../hooks/useDebounce';
 import { fetchMergedRssWithCache, NewsSource } from '../lib/rssCache';
+import { recordLinkClick } from '../lib/recentLinks';
 
 // Global Ctrl+K search + quick actions. Per Doug's choice, this searches
 // EVERYTHING: local data (Quick Links/folders/Notes/Tasks/Calendar) resolves
@@ -85,6 +86,7 @@ export default function CommandPalette({
       { id: 'act-news', group: 'Action', icon: Newspaper, label: 'Go to News', onSelect: () => onNavigate('news') },
       { id: 'act-sports', group: 'Action', icon: Trophy, label: 'Go to Sports', onSelect: () => onNavigate('sports') },
       { id: 'act-stocks', group: 'Action', icon: TrendingUp, label: 'Go to Stocks', onSelect: () => onNavigate('stocks') },
+      { id: 'act-reddit', group: 'Action', icon: Flame, label: 'Go to Reddit', onSelect: () => onNavigate('reddit') },
       {
         id: 'act-addlink', group: 'Action', icon: Plus, label: 'Add a Quick Link',
         onSelect: () => { if (onAddLink) onAddLink(); else onNavigate('tools'); },
@@ -111,7 +113,10 @@ export default function CommandPalette({
           icon: Link2,
           label: link.label,
           sublabel: getHostname(link.url),
-          onSelect: () => window.open(link.url, '_blank', 'noopener,noreferrer'),
+          onSelect: () => {
+            recordLinkClick({ id: link.id, label: link.label, url: link.url });
+            window.open(link.url, '_blank', 'noopener,noreferrer');
+          },
         });
       }
     }

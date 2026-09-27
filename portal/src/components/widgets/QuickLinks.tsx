@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp, Star } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp, Star, MoreHorizontal, ExternalLink, Copy, FolderInput, Trash2, Link2 } from 'lucide-react';
 import { recordLinkClick } from '../../lib/recentLinks';
 import { normalizeUrl } from '../../lib/url';
 
@@ -32,7 +32,28 @@ interface FolderItem {
   label: string;
   links: LinkItem[];
   expanded: boolean;
+  color?: FolderColor; // undefined = amber, the original folder color
 }
+
+// Folder color choices. Every class is written out in full so Tailwind
+// keeps it in the build.
+type FolderColor = 'amber' | 'indigo' | 'emerald' | 'sky' | 'rose' | 'violet' | 'zinc';
+const FOLDER_COLORS: Record<FolderColor, { chip: string; icon: string; swatch: string }> = {
+  amber:   { chip: 'bg-amber-50 dark:bg-amber-950/40',     icon: 'text-amber-500 dark:text-amber-400',     swatch: 'bg-amber-400' },
+  indigo:  { chip: 'bg-indigo-50 dark:bg-indigo-950/40',   icon: 'text-indigo-500 dark:text-indigo-400',   swatch: 'bg-indigo-500' },
+  emerald: { chip: 'bg-emerald-50 dark:bg-emerald-950/40', icon: 'text-emerald-500 dark:text-emerald-400', swatch: 'bg-emerald-500' },
+  sky:     { chip: 'bg-sky-50 dark:bg-sky-950/40',         icon: 'text-sky-500 dark:text-sky-400',         swatch: 'bg-sky-400' },
+  rose:    { chip: 'bg-rose-50 dark:bg-rose-950/40',       icon: 'text-rose-500 dark:text-rose-400',       swatch: 'bg-rose-500' },
+  violet:  { chip: 'bg-violet-50 dark:bg-violet-950/40',   icon: 'text-violet-500 dark:text-violet-400',   swatch: 'bg-violet-500' },
+  zinc:    { chip: 'bg-zinc-100 dark:bg-zinc-800',         icon: 'text-zinc-500 dark:text-zinc-400',       swatch: 'bg-zinc-400' },
+};
+const folderColor = (f: FolderItem) => FOLDER_COLORS[f.color && f.color in FOLDER_COLORS ? f.color : 'amber'];
+
+// What the ⋯ / right-click menu is open on, and where to draw it.
+type MenuState =
+  | { kind: 'link'; x: number; y: number; link: LinkItem; containerId: string }
+  | { kind: 'folder'; x: number; y: number; folder: FolderItem }
+  | null;
 
 type Entry = LinkItem | FolderItem;
 
@@ -56,6 +77,7 @@ export function normalizeEntries(raw: any[] | undefined): Entry[] {
         id: e.id,
         label: e.label,
         expanded: e.expanded !== false,
+        color: e.color,
         links: (e.links || []).map((l: any) => ({ type: 'link', id: l.id, label: l.label, url: l.url, favorite: !!l.favorite })),
       };
     }
@@ -192,6 +214,44 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
     if (config.showAdd) setShowInlineAdd(true);
   }, [config.showAdd]);
 
+  const [menu, setMenu] = useState<MenuState>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the menu on outside click, Escape, scroll or resize.
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null); };
+    const close = () => setMenu(null);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [menu]);
+
+  const flash = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 1600);
+  };
+
+  // Opens at the pointer for a right-click, or under the ⋯ button.
+  const openMenuAt = (e: React.MouseEvent, next: NonNullable<MenuState>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const fromButton = e.type === 'click';
+    setMenu({ ...next, x: fromButton ? rect.right : e.clientX, y: fromButton ? rect.bottom + 4 : e.clientY } as MenuState);
+  };
+
   const save = (updated: Entry[]) => {
     setEntries(updated);
     onUpdateConfig({ ...config, links: updated });
@@ -288,6 +348,57 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
         e.type === 'folder' && e.id === containerId ? { ...e, links: e.links.filter((l) => l.id !== id) } : e
       ));
     }
+  };
+
+  const openLink = (link: LinkItem) => {
+    if (privateMode) {
+      window.location.href = `openpriv://${encodeURIComponent(link.url)}`;
+      return;
+    }
+    recordLinkClick({ id: link.id, label: link.label, url: link.url });
+    window.open(link.url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Inserts a copy right below the original, in the same folder.
+  const duplicateLink = (containerId: string, link: LinkItem) => {
+    const copy: LinkItem = { ...link, id: `${Date.now()}`, label: `${link.label} (copy)`, favorite: false };
+    const insertAfter = (list: LinkItem[]) => {
+      const i = list.findIndex((l) => l.id === link.id);
+      return [...list.slice(0, i + 1), copy, ...list.slice(i + 1)];
+    };
+    if (containerId === 'root') {
+      const i = entries.findIndex((e) => e.id === link.id);
+      save([...entries.slice(0, i + 1), copy, ...entries.slice(i + 1)]);
+    } else {
+      save(entries.map((e) => (e.type === 'folder' && e.id === containerId ? { ...e, links: insertAfter(e.links) } : e)));
+    }
+  };
+
+  // Moves a link into a folder (appended at the end) or out to the top level.
+  const moveLinkTo = (containerId: string, link: LinkItem, target: string) => {
+    const index = containerId === 'root'
+      ? entries.findIndex((e) => e.id === link.id)
+      : (entries.find((e): e is FolderItem => e.type === 'folder' && e.id === containerId)?.links.findIndex((l) => l.id === link.id) ?? -1);
+    if (index < 0) return;
+    const source = { containerId, index };
+    save(target === 'root'
+      ? commitMove(entries, source, { containerId: 'root', index: entries.length })
+      : commitMove(entries, source, { intoFolderId: target }));
+    const name = target === 'root' ? 'top level' : folders.find((f) => f.id === target)?.label;
+    flash(`Moved to ${name}`);
+  };
+
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      flash('URL copied');
+    } catch {
+      flash("Couldn't copy — the browser blocked clipboard access");
+    }
+  };
+
+  const setFolderColor = (folderId: string, color: FolderColor) => {
+    save(entries.map((e) => (e.type === 'folder' && e.id === folderId ? { ...e, color: color === 'amber' ? undefined : color } : e)));
   };
 
   const startEdit = (link: LinkItem) => {
@@ -423,6 +534,7 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
         rel={privateMode ? undefined : 'noopener noreferrer'}
         draggable={false}
         onClick={() => { if (!privateMode) recordLinkClick({ id: link.id, label: link.label, url: link.url }); }}
+        onContextMenu={(e) => openMenuAt(e, { kind: 'link', x: 0, y: 0, link, containerId })}
         className="surface-card flex-1 flex items-center gap-2.5 px-3 py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl min-w-0"
       >
         <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center transition-transform duration-150 group-hover/link:scale-105">
@@ -451,9 +563,93 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
         <button onClick={() => removeLink(containerId, link.id)} className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete link">
           <X size={13} />
         </button>
+        <button onClick={(e) => openMenuAt(e, { kind: 'link', x: 0, y: 0, link, containerId })} className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="More actions (or right-click the link)">
+          <MoreHorizontal size={13} />
+        </button>
       </div>
     </div>
   );
+
+  const menuItem = (icon: React.ReactNode, label: string, onClick: () => void, danger = false) => (
+    <button
+      key={label}
+      role="menuitem"
+      onClick={() => { setMenu(null); onClick(); }}
+      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left text-[13px] transition-colors duration-150 ${
+        danger
+          ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'
+          : 'text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
+  const renderMenu = (m: NonNullable<MenuState>) => {
+    // Keep the menu on screen near the right/bottom edges.
+    const width = 208;
+    const left = Math.min(m.x, window.innerWidth - width - 8);
+    const top = Math.min(m.y, window.innerHeight - 320);
+    const divider = <div className="my-1 h-px bg-zinc-100 dark:bg-zinc-800" />;
+    return (
+      <div
+        ref={menuRef}
+        role="menu"
+        style={{ left: Math.max(8, left), top: Math.max(8, top), width }}
+        className="fixed z-[100] p-1 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg"
+      >
+        {m.kind === 'link' ? (
+          <>
+            {menuItem(<ExternalLink size={13} />, privateMode ? 'Open privately' : 'Open in new tab', () => openLink(m.link))}
+            {menuItem(<Copy size={13} />, 'Copy URL', () => copyUrl(m.link.url))}
+            {menuItem(<Link2 size={13} />, 'Duplicate', () => duplicateLink(m.containerId, m.link))}
+            {menuItem(<Pencil size={13} />, 'Edit', () => startEdit(m.link))}
+            {(folders.length > 0) && (
+              <>
+                {divider}
+                <div className="px-2.5 pt-1 pb-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5">
+                  <FolderInput size={12} /> Move to
+                </div>
+                <div className="max-h-40 overflow-y-auto">
+                  {m.containerId !== 'root' && menuItem(<span className="w-[13px]" />, 'Top level', () => moveLinkTo(m.containerId, m.link, 'root'))}
+                  {folders.filter((f) => f.id !== m.containerId).map((f) =>
+                    menuItem(<Folder size={13} className={folderColor(f).icon} />, f.label, () => moveLinkTo(m.containerId, m.link, f.id))
+                  )}
+                </div>
+              </>
+            )}
+            {divider}
+            {menuItem(<Trash2 size={13} />, 'Delete', () => removeLink(m.containerId, m.link.id), true)}
+          </>
+        ) : (
+          <>
+            <div className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Color</div>
+            <div className="flex flex-wrap gap-1.5 px-2.5 pb-2">
+              {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c) => {
+                const active = (m.folder.color || 'amber') === c;
+                return (
+                  <button
+                    key={c}
+                    title={c}
+                    aria-label={`Folder color ${c}`}
+                    aria-pressed={active}
+                    onClick={() => { setFolderColor(m.folder.id, c); setMenu(null); }}
+                    className={`w-5 h-5 rounded-full ${FOLDER_COLORS[c].swatch} transition-transform duration-150 hover:scale-110 ${
+                      active ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-offset-zinc-900' : ''
+                    }`}
+                  />
+                );
+              })}
+            </div>
+            {divider}
+            {menuItem(<Pencil size={13} />, 'Rename', () => startRenameFolder(m.folder))}
+            {menuItem(<Trash2 size={13} />, 'Delete folder (keeps links)', () => deleteFolder(m.folder.id), true)}
+          </>
+        )}
+      </div>
+    );
+  };
 
   const renderEditForm = (containerId: string) => (
     <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -558,9 +754,13 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
                       dropFolderId === entry.id ? 'ring-2 ring-amber-400 border-amber-300 dark:border-amber-700' : ''
                     }`}
                   >
-                    <button onClick={() => toggleFolder(entry.id)} className="flex-1 flex items-center gap-2 px-3 py-2 min-w-0 text-left group/foldertoggle">
-                      <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center transition-transform duration-150 group-hover/foldertoggle:scale-105">
-                        {entry.expanded ? <FolderOpen size={16} className="text-amber-500 dark:text-amber-400" /> : <Folder size={16} className="text-amber-500 dark:text-amber-400" />}
+                    <button
+                      onClick={() => toggleFolder(entry.id)}
+                      onContextMenu={(e) => openMenuAt(e, { kind: 'folder', x: 0, y: 0, folder: entry })}
+                      className="flex-1 flex items-center gap-2 px-3 py-2 min-w-0 text-left group/foldertoggle"
+                    >
+                      <span className={`flex-shrink-0 w-8 h-8 rounded-lg ${folderColor(entry).chip} flex items-center justify-center transition-transform duration-150 group-hover/foldertoggle:scale-105`}>
+                        {entry.expanded ? <FolderOpen size={16} className={folderColor(entry).icon} /> : <Folder size={16} className={folderColor(entry).icon} />}
                       </span>
                       <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{entry.label}</span>
                       <span className="text-[11px] text-zinc-400 dark:text-zinc-500 flex-shrink-0">{entry.links.length}</span>
@@ -570,8 +770,11 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
                       <button onClick={() => startRenameFolder(entry)} className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Rename folder">
                         <Pencil size={13} />
                       </button>
-                      <button onClick={() => deleteFolder(entry.id)} className="p-1.5 mr-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete folder (keeps its links)">
+                      <button onClick={() => deleteFolder(entry.id)} className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Delete folder (keeps its links)">
                         <X size={13} />
+                      </button>
+                      <button onClick={(e) => openMenuAt(e, { kind: 'folder', x: 0, y: 0, folder: entry })} className="p-1.5 mr-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors duration-150" title="Folder color and more (or right-click the folder)">
+                        <MoreHorizontal size={13} />
                       </button>
                     </div>
                   </div>
@@ -604,6 +807,14 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
           <div className="h-0.5 mx-1 bg-indigo-500 rounded-full" aria-hidden="true" />
         )}
       </div>
+
+      {menu && renderMenu(menu)}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

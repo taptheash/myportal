@@ -1,46 +1,72 @@
-# Getting Started with Create React App
+# MyPortal
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Doug's personal homepage: a modern, customizable take on iGoogle. It's live at **portal.taptheash.us**, and also at myportal-gilt.vercel.app.
 
-## Available Scripts
+The front end is React 19, TypeScript and Tailwind (Create React App). The server side is a set of Vercel serverless functions in `api/`. Data is stored in each browser's localStorage, with optional Google sign-in that syncs it through Firebase Firestore.
 
-In the project directory, you can run:
+## What's on it
 
-### `npm start`
+- **Home**: a customizable set of cards.
+  - Today's summary, weather, today's calendar, favorite and recent links, Scratchpad, On This Day, top stories, sports and markets.
+  - Click Customize to show, hide or reorder them.
+- **Tools**: Weather (forecast, radar, current-location button), Quick Links, Google Calendar, Notes, Tasks with due dates.
+  - Quick Links has folders, favorites and drag-to-reorder.
+  - Right-click a link, or use its ⋯ button, for more actions: open, copy URL, duplicate, move, set folder color.
+- **News**: Headlines, US, Tech & AI, NH Local, NE Sports, Business, Other, and your own RSS feeds.
+- **Reddit**: posts from the subreddits you pick.
+- **Sports**: your teams with live scores, the NFL schedule, and Patriots/Red Sox/Celtics/Bruins schedules.
+- **Stocks**: a watchlist and a market overview, with charts.
+- **Header**: live clock, On This Day and National Day, search (**Ctrl+K**), cloud sync button, and the light/dark/system theme toggle.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Deploying
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Vercel builds automatically from GitHub. Only the **`main`** branch goes to the live site; pushes to other branches create Preview deployments. The Vercel project's Root Directory is `portal`.
 
-### `npm test`
+```powershell
+cd C:\Users\dwcha\Claude\MyPortal
+git status
+git add <files>
+git commit -m "..."
+git push
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+After a push, check the new deployment in Vercel, then hard-refresh the site (Ctrl+Shift+R).
 
-### `npm run build`
+## Environment variables (set in Vercel)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+| Variable | Type | Used by |
+|---|---|---|
+| `PORTAL_API_KEY` | Secret | Calendar passcode, checked by `api/calendar/events.js` |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`, `GOOGLE_CALENDAR_ID` | Secret | Google Calendar |
+| `OPENWEATHER_API_KEY` | Secret | `api/weather.js` |
+| `RSS2JSON_API_KEY` | Secret | `api/rss.js` (optional; without it each feed returns only 10 items) |
+| `FINNHUB_API_KEY` | Secret | `api/finnhub.js` |
+| `REACT_APP_FIREBASE_*` (6) | Config | Cloud sync. This config is public by design; `../firebase/firestore.rules` protects the data. |
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Never put a secret in a variable whose name starts with `REACT_APP_`. Create React App builds those into the public page. After changing a variable, redeploy for it to take effect.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Running locally
 
-### `npm run eject`
+```powershell
+cd C:\Users\dwcha\Claude\MyPortal\portal
+npm install
+npm start                        # the page only — weather, news, stocks and calendar need the /api functions
+npx vercel dev                   # page + /api functions (needs the Vercel CLI and your env vars)
+npm test -- --watchAll=false     # tests
+npm run build                    # production build
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Local variables go in `portal/.env.local`, which is never committed. A fresh clone won't have it; copy it from another machine.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+If `npm install` on Windows rewrites `package-lock.json`, run `git restore portal/package-lock.json` before switching branches. The committed lock file is the correct one.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Security notes
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+- Every keyed third-party API is called through `api/`, so no API key is ever in the browser.
+- The calendar API needs the portal passcode. Each browser asks for it once, in Tools › Calendar.
+- Cloud sync signs in with Google and is limited to taptheash@gmail.com, both in the app and in the Firestore rules. The calendar passcode is never synced.
+- The portal works fully when signed out, so Firebase can't lock you out.
 
-## Learn More
+## Hidden links page
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+The 1-pixel dot in the bottom-left corner opens a separate private link list. Those links open through a local `openpriv://` protocol handler, which launches a Chrome incognito or Edge InPrivate window. The handler has to be installed on each Windows machine. Its setup file, `README-private-links.md`, isn't in this repo yet.

@@ -57,3 +57,18 @@ test('normalizeUrl only adds a scheme when one is missing', () => {
   expect(normalizeUrl(' HTTPS://Example.com ')).toBe('HTTPS://Example.com');
   expect(normalizeUrl('http://a.com')).toBe('http://a.com');
 });
+
+test('old daily caches and stale feed caches are cleaned up, user data never touched', () => {
+  const { cleanUpOldCaches } = require('./lib/storageCleanup');
+  const now = new Date(2026, 8, 27, 10);
+  localStorage.setItem('on-this-day-09-27', '{}');
+  localStorage.setItem('on-this-day-09-26', '{}');
+  localStorage.setItem('national-day-01-01', '{}');
+  localStorage.setItem('rss-business-12', '{}');
+  localStorage.setItem('rss-headlines-NPR', JSON.stringify({ timestamp: now.getTime() - 3600000, data: [] }));
+  localStorage.setItem('reddit-old', JSON.stringify({ timestamp: now.getTime() - 30 * 86400000, data: [] }));
+  localStorage.setItem('pw6', '[]');
+  localStorage.setItem('pw6-portal-key', 'x');
+  expect(cleanUpOldCaches(now)).toBe(4);
+  expect(Object.keys(localStorage).sort()).toEqual(['on-this-day-09-27', 'pw6', 'pw6-portal-key', 'rss-headlines-NPR']);
+});

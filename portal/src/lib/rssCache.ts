@@ -130,6 +130,15 @@ export async function fetchMergedRssWithCache(
     })
   );
 
+  // Log which outlet failed, so a feed that has quietly died (AP News, for
+  // example) shows up in the browser console instead of just thinning out the list.
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      // eslint-disable-next-line no-console
+      console.warn(`[news] ${chosen[i].name} feed failed (${chosen[i].url}):`, r.reason?.message || r.reason);
+    }
+  });
+
   const merged = results
     .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
     .flatMap((r) => r.value);
