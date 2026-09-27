@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface TabDef {
   type: string;
@@ -33,6 +34,38 @@ export default function TabContainer({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
+
+  // The tab row stays on ONE line and scrolls sideways when there are more
+  // tabs than fit (News has 11), instead of wrapping a tab onto a second
+  // row. Arrow buttons appear on whichever side has hidden tabs.
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+  const updateArrows = useCallback(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 2);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener('scroll', updateArrows, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateArrows) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', updateArrows);
+    return () => {
+      el.removeEventListener('scroll', updateArrows);
+      ro?.disconnect();
+      window.removeEventListener('resize', updateArrows);
+    };
+  }, [updateArrows, tabs.length]);
+  // Keep the selected tab visible, e.g. after jumping to it with a shortcut.
+  useEffect(() => {
+    const el = rowRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [activeType]);
+  const scrollBy = (dir: number) => rowRef.current?.scrollBy({ left: dir * 240, behavior: 'smooth' });
 
   const commitReorder = (from: number, to: number) => {
     if (from === to) return;
@@ -92,9 +125,28 @@ export default function TabContainer({
 
   return (
     <section className="flex-1 min-w-0 flex flex-col">
+      <div className="relative mb-2">
+      {canLeft && (
+        <button
+          onClick={() => scrollBy(-1)}
+          aria-label="Scroll tabs left"
+          className="absolute left-0 top-0 bottom-0 z-10 flex items-center pl-0.5 pr-3 bg-gradient-to-r from-zinc-50 via-zinc-50/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          <ChevronLeft size={16} />
+        </button>
+      )}
+      {canRight && (
+        <button
+          onClick={() => scrollBy(1)}
+          aria-label="Scroll tabs right"
+          className="absolute right-0 top-0 bottom-0 z-10 flex items-center pr-0.5 pl-3 bg-gradient-to-l from-zinc-50 via-zinc-50/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+        >
+          <ChevronRight size={16} />
+        </button>
+      )}
       <div
         ref={rowRef}
-        className="flex gap-1 overflow-x-hidden flex-wrap mb-2"
+        className="flex flex-nowrap gap-0.5 overflow-x-auto no-scrollbar scroll-smooth"
         role="tablist"
         aria-label={sectionLabel}
         onDrop={handleDrop}
@@ -123,7 +175,7 @@ export default function TabContainer({
                 // Active state is signaled by THREE independent cues, not color alone:
                 // weight, a background surface + shadow, and the category dot. That way
                 // the active tab is still identifiable if color can't be perceived at all.
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] whitespace-nowrap transition-all duration-150 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-zinc-950 ${
+                className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[13px] whitespace-nowrap transition-all duration-150 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-zinc-950 ${
                   isDragging ? 'opacity-40' : ''
                 } ${
                   isActive
@@ -145,6 +197,7 @@ export default function TabContainer({
         {dropIndex === tabs.length && (
           <div className="w-0.5 self-stretch bg-indigo-500 rounded-full flex-shrink-0" aria-hidden="true" />
         )}
+      </div>
       </div>
 
       <div
