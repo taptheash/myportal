@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Trash2, ArrowLeft, X } from 'lucide-react';
+import { AlertCircle, Trash2, ArrowLeft, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SportsProps {
   id: string;
@@ -301,6 +301,26 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
     setLeagueTeams([]);
   };
 
+  // Teams grouped under league headings, in NFL / NBA / MLB / NHL order.
+  // Leagues with a game in progress move to the top, and live teams lead
+  // their group; otherwise teams keep the order they were added in.
+  const collapsedLeagues: string[] = config.collapsedLeagues || [];
+  const toggleLeague = (league: string) =>
+    onUpdateConfig({
+      ...config,
+      collapsedLeagues: collapsedLeagues.includes(league)
+        ? collapsedLeagues.filter((l) => l !== league)
+        : [...collapsedLeagues, league],
+    });
+  const groups = LEAGUES
+    .map((lg, order) => {
+      const inLeague = results.filter((r) => r.league === lg.league);
+      const sorted = [...inLeague.filter((r) => r.isLive), ...inLeague.filter((r) => !r.isLive)];
+      return { ...lg, order, teams: sorted, hasLive: sorted.some((r) => r.isLive) };
+    })
+    .filter((g) => g.teams.length > 0)
+    .sort((a, b) => (a.hasLive === b.hasLive ? a.order - b.order : a.hasLive ? -1 : 1));
+
   return (
     <div className="flex flex-col gap-2">
       {config.showAdd && (
@@ -369,7 +389,26 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         </div>
       )}
 
-      {results.map((r) => (
+      {groups.map((g) => {
+        const collapsed = collapsedLeagues.includes(g.league);
+        const liveCount = g.teams.filter((t) => t.isLive).length;
+        return (
+          <div key={g.league} className="flex flex-col gap-1.5">
+            <button
+              onClick={() => toggleLeague(g.league)}
+              className="flex items-center gap-1.5 px-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150"
+              title={collapsed ? 'Show teams' : 'Hide teams'}
+            >
+              {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+              <span>{g.emoji} {g.label}</span>
+              <span className="font-normal normal-case tracking-normal">· {g.teams.length}</span>
+              {liveCount > 0 && (
+                <span className="ml-1 px-1.5 py-px rounded-full bg-red-500 text-white text-[10px] font-bold normal-case tracking-normal">
+                  {liveCount} live
+                </span>
+              )}
+            </button>
+            {!collapsed && g.teams.map((r) => (
         <div key={r.key} className={`group surface-card p-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl border-l-4 ${r.accent} transition-colors duration-150`}>
           <div className="flex justify-between items-center gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -408,6 +447,9 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
           </div>
         </div>
       ))}
+          </div>
+        );
+      })}
 
       {results.length === 0 && (
         <div className="text-center text-zinc-500 dark:text-zinc-400 text-sm py-4">
