@@ -72,3 +72,19 @@ test('old daily caches and stale feed caches are cleaned up, user data never tou
   expect(cleanUpOldCaches(now)).toBe(4);
   expect(Object.keys(localStorage).sort()).toEqual(['on-this-day-09-27', 'pw6', 'pw6-portal-key', 'rss-headlines-NPR']);
 });
+
+test('Home layout auto-switch: weekend, work hours, evenings, and a manual pick for today', () => {
+  const { resolveActive, initialLayouts, localDay } = require('./lib/homeLayouts');
+  const state = initialLayouts(['weather', 'news']);
+  const sat = new Date(2026, 8, 26, 10);   // Saturday
+  const monWork = new Date(2026, 8, 28, 9); // Monday 9 AM
+  const monEve = new Date(2026, 8, 28, 19); // Monday 7 PM
+  expect(resolveActive(state, null, sat)).toBe('weekend');
+  expect(resolveActive(state, null, monWork)).toBe('work');
+  expect(resolveActive(state, null, monEve)).toBe('home');
+  // manual pick holds for that day only
+  expect(resolveActive(state, { id: 'home', date: localDay(monWork) }, monWork)).toBe('home');
+  expect(resolveActive(state, { id: 'home', date: '2026-09-27' }, monWork)).toBe('work');
+  // auto off: the pick sticks
+  expect(resolveActive({ ...state, auto: false }, { id: 'weekend', date: '2020-01-01' }, monWork)).toBe('weekend');
+});

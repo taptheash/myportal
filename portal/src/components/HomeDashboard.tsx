@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sun, CalendarClock, Star, Clock, StickyNote, Calendar as CalendarIcon,
-  Newspaper, Trophy, TrendingUp, Settings2, GripVertical, Eye, EyeOff,
+  Newspaper, Trophy, TrendingUp, Settings2, GripVertical, Eye, EyeOff, Plus, Trash2, Clock3,
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { HomeLayout, LayoutsState, ActiveChoice, MAX_LAYOUTS, initialLayouts, resolveActive, localDay } from '../lib/homeLayouts';
 import { getWidgetConfig } from '../lib/portalStorage';
 import { getFavoriteLinks } from './widgets/QuickLinks';
 import { getRecentLinks, RecentLink } from '../lib/recentLinks';
@@ -91,8 +92,43 @@ function ModuleCard({
 }
 
 export default function HomeDashboard({ onNavigate }: { onNavigate: (section: string) => void }) {
-  const [enabledModules, setEnabledModules] = useLocalStorage<string[]>('pw6-home-enabled', DEFAULT_MODULE_ORDER);
-  const [moduleOrder, setModuleOrder] = useLocalStorage<string[]>('pw6-home-order', DEFAULT_MODULE_ORDER);
+  // Layouts replace the single pw6-home-enabled / pw6-home-order pair; the
+  // first run copies that pair into the "Home" layout.
+  const [layoutsState, setLayoutsState] = useLocalStorage<LayoutsState>('pw6-home-layouts', initialLayouts(DEFAULT_MODULE_ORDER));
+  const [choice, setChoice] = useLocalStorage<ActiveChoice | null>('pw6-home-active', null);
+  // Re-check the auto schedule every minute so it flips at 8 AM / 5 PM.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const layouts = layoutsState.layouts?.length ? layoutsState.layouts : initialLayouts(DEFAULT_MODULE_ORDER).layouts;
+  const activeId = resolveActive({ ...layoutsState, layouts }, choice);
+  const active = layouts.find((l) => l.id === activeId) || layouts[0];
+  const enabledModules = active.enabled;
+  const moduleOrder = active.order;
+
+  const updateActive = (patch: Partial<HomeLayout>) =>
+    setLayoutsState((prev) => ({
+      ...prev,
+      layouts: (prev.layouts?.length ? prev.layouts : layouts).map((l) => (l.id === active.id ? { ...l, ...patch } : l)),
+    }));
+  const setEnabledModules = (enabled: string[]) => updateActive({ enabled });
+  const setModuleOrder = (order: string[]) => updateActive({ order });
+  const pickLayout = (id: string) => setChoice({ id, date: localDay() });
+
+  const addLayout = () => {
+    if (layouts.length >= MAX_LAYOUTS) return;
+    const id = `layout-${Date.now()}`;
+    setLayoutsState((prev) => ({ ...prev, layouts: [...layouts, { id, name: `Layout ${layouts.length + 1}`, enabled: [...active.enabled], order: [...active.order] }] }));
+    pickLayout(id);
+  };
+  const deleteActiveLayout = () => {
+    if (layouts.length <= 1) return;
+    setLayoutsState((prev) => ({ ...prev, layouts: layouts.filter((l) => l.id !== active.id) }));
+    setChoice(null);
+  };
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
@@ -168,7 +204,32 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
 
   return (
     <div>
-      <div className="flex justify-end mb-3">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 overflow-x-auto no-scrollbar" role="tablist" aria-label="Home layouts">
+          {layouts.map((l) => {
+            const isActive = l.id === active.id;
+            return (
+              <button
+                key={l.id}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => pickLayout(l.id)}
+                className={`px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all duration-150 ${
+                  isActive
+                    ? 'bg-white dark:bg-zinc-950 shadow-sm text-zinc-900 dark:text-white'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                }`}
+              >
+                {l.name}
+              </button>
+            );
+          })}
+          {layoutsState.auto && (
+            <span className="px-1.5 text-zinc-400 dark:text-zinc-500" title="Switches automatically: Work on weekdays 8 AM–5 PM, Weekend on Sat/Sun, Home otherwise. Picking one holds it for the rest of today.">
+              <Clock3 size={12} />
+            </span>
+          )}
+        </div>
         <button
           onClick={() => setCustomizing((c) => !c)}
           aria-pressed={customizing}
@@ -185,8 +246,45 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
 
       {customizing && (
         <div className="surface-card bg-white dark:bg-zinc-900 rounded-2xl p-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-3 px-1 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">Layout name</label>
+            <input
+              value={active.name}
+              onChange={(e) => updateActive({ name: e.target.value.slice(0, 24) })}
+              onBlur={(e) => { if (!e.target.value.trim()) updateActive({ name: 'Untitled' }); }}
+              className="px-2 py-1 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-36"
+            />
+            <button
+              onClick={addLayout}
+              disabled={layouts.length >= MAX_LAYOUTS}
+              className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors duration-150"
+              title={layouts.length >= MAX_LAYOUTS ? `Up to ${MAX_LAYOUTS} layouts` : 'Add a layout (starts as a copy of this one)'}
+            >
+              <Plus size={12} /> Add layout
+            </button>
+            {layouts.length > 1 && (confirmDelete ? (
+              <span className="flex items-center gap-1 text-xs">
+                Delete "{active.name}"?
+                <button onClick={() => { deleteActiveLayout(); setConfirmDelete(false); }} className="px-2 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium">Delete</button>
+                <button onClick={() => setConfirmDelete(false)} className="px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800">Cancel</button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-150">
+                <Trash2 size={12} /> Delete layout
+              </button>
+            ))}
+            <label className="ml-auto flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer" title="Work on weekdays 8 AM–5 PM, Weekend on Saturday and Sunday, Home otherwise. Picking a layout yourself holds it for the rest of the day.">
+              <input
+                type="checkbox"
+                checked={!!layoutsState.auto}
+                onChange={(e) => setLayoutsState((prev) => ({ ...prev, layouts, auto: e.target.checked }))}
+                className="accent-indigo-600"
+              />
+              Switch automatically
+            </label>
+          </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 px-1">
-            Drag to reorder, or toggle a module off to hide it from Home.
+            Drag to reorder, or toggle a card off to hide it from the "{active.name}" layout.
           </p>
           <div className="flex flex-col gap-1">
             {resolvedOrder.map((id, index) => {
@@ -213,7 +311,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
                   <button
                     onClick={() => toggleModule(id)}
                     className="p-1 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors duration-150"
-                    title={isOn ? 'Hide from Home' : 'Show on Home'}
+                    title={isOn ? `Hide from ${active.name}` : `Show on ${active.name}`}
                   >
                     {isOn ? <Eye size={14} /> : <EyeOff size={14} />}
                   </button>

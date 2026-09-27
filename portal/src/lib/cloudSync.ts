@@ -26,6 +26,7 @@ export const SYNC_KEYS = [
   'pw6-recent-links',
   'pw6-home-enabled',
   'pw6-home-order',
+  'pw6-home-layouts',  // Home / Work / Weekend layouts (which one is showing stays per device)
   'pw6-tool-order',
   'pw6-news-order',
   'pw6-sports-order',
