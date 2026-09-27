@@ -1,11 +1,16 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Firebase is loaded lazily and ONLY when its config is present. If the
+// REACT_APP_FIREBASE_* variables are missing (e.g. a deploy made before they
+// were added to Vercel) nothing Firebase-related runs at all: no sign-in
+// button, no errors, the portal just works on this browser's localStorage.
+// That's the lesson from the September lockout — cloud sync must never be
+// able to stop the portal itself from loading.
 
-// Single shared Firebase app — both AuthGate (sign-in/session) and
-// useFirebaseState (data read/write) import `auth`/`db` from here rather
-// than each initializing their own, so there's exactly one instance per tab.
+import type { FirebaseApp } from 'firebase/app';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
 
+// The web config is public by design (it's in every Firebase site's page).
+// Access control lives in firebase/firestore.rules.
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -15,13 +20,40 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  // eslint-disable-next-line no-console
-  console.error(
-    'Missing Firebase env vars — sign-in and Firestore-backed state will not work until these are set in .env.local.'
-  );
+// The only account allowed to sync. Also enforced server-side by the rules.
+export const SYNC_EMAIL = 'taptheash@gmail.com';
+
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId
+);
+
+export interface FirebaseHandles {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Firestore;
+  authMod: typeof import('firebase/auth');
+  fsMod: typeof import('firebase/firestore');
 }
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+let loading: Promise<FirebaseHandles> | null = null;
+
+// Dynamic imports keep the Firebase SDK out of the main bundle; it's only
+// downloaded when configured.
+export function getFirebase(): Promise<FirebaseHandles> {
+  if (!isFirebaseConfigured) return Promise.reject(new Error('Firebase is not configured'));
+  if (!loading) {
+    loading = (async () => {
+      const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+        import('firebase/app'),
+        import('firebase/auth'),
+        import('firebase/firestore'),
+      ]);
+      const app = initializeApp(firebaseConfig);
+      const auth = authMod.getAuth(app);
+      const db = fsMod.getFirestore(app);
+      return { app, auth, db, authMod, fsMod };
+    })();
+    loading.catch(() => { loading = null; });
+  }
+  return loading;
+}

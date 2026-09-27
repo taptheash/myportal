@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -33,6 +33,35 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     },
     [key]
   );
+
+  // Re-read when this key is changed from outside this hook: cloud sync
+  // applying an edit from another device ('portal-local-sync'), or another
+  // tab of the portal writing it (the native 'storage' event).
+  useEffect(() => {
+    const reread = () => {
+      try {
+        const item = window.localStorage.getItem(key);
+        const next = item ? JSON.parse(item) : initialValue;
+        valueRef.current = next;
+        setStoredValue(next);
+      } catch {
+        // malformed value — keep what we have
+      }
+    };
+    const onSync = (e: Event) => {
+      if ((e as CustomEvent).detail?.key === key) reread();
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === key) reread();
+    };
+    window.addEventListener('portal-local-sync', onSync);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('portal-local-sync', onSync);
+      window.removeEventListener('storage', onStorage);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   return [storedValue, setValue] as const;
 }

@@ -7,14 +7,14 @@ import {
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
-// AuthGate/Firebase temporarily disconnected (see below) until the Firebase
-// project is actually set up — DO NOT delete AuthGate.tsx/useFirebaseState.ts
-// /firebaseClient.ts, they're ready to re-enable once .env.local has real
-// Firebase config values.
+// Cloud sync is optional and lives in SyncButton + lib/cloudSync.ts: the
+// portal never waits on sign-in, and without Firebase config it simply
+// doesn't show the sync button.
 import TabContainer, { TabDef } from './components/TabContainer';
 import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
 import HomeDashboard from './components/HomeDashboard';
 import CommandPalette from './components/CommandPalette';
+import SyncButton from './components/SyncButton';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
 import Headlines from './components/widgets/Headlines';
@@ -560,6 +560,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
+              <SyncButton />
               <button
                 onClick={() => setPaletteOpen(true)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
