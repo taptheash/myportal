@@ -3,6 +3,7 @@ import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { weatherIcon, FALLBACK_LOCATION } from '../../lib/weatherIcons';
+import { setResolvedName } from '../../lib/weatherLocal';
 
 interface WeatherProps {
   id: string;
@@ -168,6 +169,14 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
   onUpdateConfigRef.current = onUpdateConfig;
 
   const hasManualLocation = Boolean(config.location);
+  // Bumped by the crosshair button (via lib/weatherLocal) to force a fresh
+  // location lookup on THIS device only.
+  const [locateNonce, setLocateNonce] = useState(0);
+  useEffect(() => {
+    const on = () => setLocateNonce((n) => n + 1);
+    window.addEventListener('weather-relocate', on);
+    return () => window.removeEventListener('weather-relocate', on);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +220,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
         // first (up to 8), so it can be picked again from the location menu.
         const cfg = configRef.current;
         const patch: Record<string, any> = {};
-        if (cfg.resolvedLocationName !== currentData.name) patch.resolvedLocationName = currentData.name;
+        setResolvedName(currentData.name);
         if (hasManualLocation && cfg.location) {
           const query = String(cfg.location).trim();
           const recents: Array<{ query: string; name: string }> = Array.isArray(cfg.recentLocations) ? cfg.recentLocations : [];
@@ -268,11 +277,11 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
     fetchWeather();
     const interval = setInterval(fetchWeather, 600000);
     return () => { cancelled = true; clearInterval(interval); };
-    // config.locateNonce is bumped by the header's crosshair button so a
+    // locateNonce is bumped (on this device only) by the crosshair button so a
     // press ALWAYS re-asks the browser for your position — before, pressing
     // it while already on auto-location changed no dependency and did nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasManualLocation, config.location, config.locateNonce]);
+  }, [hasManualLocation, config.location, locateNonce]);
 
   useEffect(() => {
     if (!showRadar) return;

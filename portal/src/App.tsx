@@ -15,6 +15,7 @@ import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
 import HomeDashboard from './components/HomeDashboard';
 import CommandPalette from './components/CommandPalette';
 import SyncButton from './components/SyncButton';
+import { useResolvedName, requestRelocate } from './lib/weatherLocal';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
 import Headlines from './components/widgets/Headlines';
@@ -138,6 +139,7 @@ export default function App() {
   const [stocksOrder, setStocksOrder] = useLocalStorage<string[]>('pw6-stocks-order', STOCK_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
+  const resolvedWeatherName = useResolvedName();
   const [currentTime, setCurrentTime] = useState<string>('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   // True for a moment after pressing G, while waiting for the section key.
@@ -390,7 +392,7 @@ export default function App() {
 
   const renderToolControls = () => {
     if (activeTool === 'weather') {
-      const displayLocation = activeToolWidget.config.location || activeToolWidget.config.resolvedLocationName || 'Detecting…';
+      const displayLocation = activeToolWidget.config.location || resolvedWeatherName || 'Detecting…';
       const recentLocations: Array<{ query: string; name: string }> = Array.isArray(activeToolWidget.config.recentLocations)
         ? activeToolWidget.config.recentLocations
         : [];
@@ -466,8 +468,14 @@ export default function App() {
               // locateNonce forces a fresh position lookup every press, even
               // if no manual location was set; clearing resolvedLocationName
               // shows "Detecting…" so you can see it's working.
-              const { location, resolvedLocationName, ...rest } = activeToolWidget.config;
-              updateWidgetConfig('weather', { ...rest, locateNonce: Date.now() });
+              // The re-locate signal and the resolved place name are kept on
+              // this device only (lib/weatherLocal.ts); the old synced
+              // resolvedLocationName/locateNonce fields are dropped here.
+              const { location, resolvedLocationName, locateNonce, ...rest } = activeToolWidget.config;
+              if (location !== undefined || resolvedLocationName !== undefined || locateNonce !== undefined) {
+                updateWidgetConfig('weather', rest);
+              }
+              requestRelocate();
             }}
             title="Use current location"
             className="flex items-center justify-center p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150"
