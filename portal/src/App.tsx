@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
-  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, Bookmark, Sunrise, LayoutList,
+  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -391,23 +391,70 @@ export default function App() {
   const renderToolControls = () => {
     if (activeTool === 'weather') {
       const displayLocation = activeToolWidget.config.location || activeToolWidget.config.resolvedLocationName || 'Detecting…';
+      const recentLocations: Array<{ query: string; name: string }> = Array.isArray(activeToolWidget.config.recentLocations)
+        ? activeToolWidget.config.recentLocations
+        : [];
+      const chooseLocation = (query: string) => {
+        updateWidgetConfig('weather', { ...activeToolWidget.config, location: query });
+        setWeatherEditing(false);
+      };
+      const forgetLocation = (query: string) =>
+        updateWidgetConfig('weather', {
+          ...activeToolWidget.config,
+          recentLocations: recentLocations.filter((r) => r.query !== query),
+        });
+      const filter = weatherInput.trim().toLowerCase();
+      const shownRecents = recentLocations.filter(
+        (r) => !filter || filter === displayLocation.toLowerCase() || r.query.toLowerCase().includes(filter) || r.name.toLowerCase().includes(filter)
+      );
       return weatherEditing ? (
-        <input
-          type="text"
-          value={weatherInput}
-          onChange={(e) => setWeatherInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && weatherInput.trim()) {
-              updateWidgetConfig('weather', { ...activeToolWidget.config, location: weatherInput.trim() });
-              setWeatherEditing(false);
-            }
-            if (e.key === 'Escape') setWeatherEditing(false);
-          }}
-          onBlur={() => setWeatherEditing(false)}
-          placeholder="ZIP or city"
-          className="px-2 py-1 text-xs rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-          autoFocus
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={weatherInput}
+            onChange={(e) => setWeatherInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && weatherInput.trim()) chooseLocation(weatherInput.trim());
+              if (e.key === 'Escape') setWeatherEditing(false);
+            }}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => setWeatherEditing(false)}
+            placeholder="ZIP or city"
+            className="px-2 py-1 text-xs rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-48"
+            autoFocus
+          />
+          {shownRecents.length > 0 && (
+            // onMouseDown + preventDefault so clicking a place doesn't blur
+            // (and close) the input before the click registers.
+            <div
+              onMouseDown={(e) => e.preventDefault()}
+              className="absolute right-0 mt-1 w-64 z-50 p-1 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg"
+            >
+              <div className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Recent locations</div>
+              {shownRecents.map((r) => (
+                <div key={r.query} className="group flex items-center gap-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                  <button
+                    onClick={() => chooseLocation(r.query)}
+                    className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-200"
+                  >
+                    <MapPin size={12} className="flex-shrink-0 text-zinc-400" />
+                    <span className="truncate">{r.name}</span>
+                    {r.query.toLowerCase() !== r.name.toLowerCase() && (
+                      <span className="text-zinc-400 dark:text-zinc-500 truncate">({r.query})</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => forgetLocation(r.query)}
+                    title="Remove from recent locations"
+                    className="p-1 mr-1 rounded text-zinc-300 dark:text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity duration-150"
+                  >
+                    <XIcon size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="flex items-center gap-1.5">
           <button

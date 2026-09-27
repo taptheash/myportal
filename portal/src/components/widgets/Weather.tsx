@@ -207,9 +207,23 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
         // A newer fetch (crosshair pressed, location typed) superseded this one.
         if (cancelled) return;
         setWeather(currentData);
-        if (configRef.current.resolvedLocationName !== currentData.name) {
-          onUpdateConfigRef.current({ ...configRef.current, resolvedLocationName: currentData.name });
+        // Remember every typed-in location that actually worked, most recent
+        // first (up to 8), so it can be picked again from the location menu.
+        const cfg = configRef.current;
+        const patch: Record<string, any> = {};
+        if (cfg.resolvedLocationName !== currentData.name) patch.resolvedLocationName = currentData.name;
+        if (hasManualLocation && cfg.location) {
+          const query = String(cfg.location).trim();
+          const recents: Array<{ query: string; name: string }> = Array.isArray(cfg.recentLocations) ? cfg.recentLocations : [];
+          const top = recents[0];
+          if (!top || top.query.toLowerCase() !== query.toLowerCase() || top.name !== currentData.name) {
+            patch.recentLocations = [
+              { query, name: currentData.name },
+              ...recents.filter((r) => r.query.toLowerCase() !== query.toLowerCase()),
+            ].slice(0, 8);
+          }
         }
+        if (Object.keys(patch).length) onUpdateConfigRef.current({ ...cfg, ...patch });
 
         if (forecastRes.ok) {
           const forecastData = await forecastRes.json();
