@@ -7,7 +7,6 @@ interface CacheEntry {
   data: any[];
 }
 
-const RSS2JSON_BASE = 'https://api.rss2json.com/v1/api.json';
 
 // Some publishers (Entertainment Weekly does this to italicize show titles)
 // embed HTML markup directly in their RSS <title> text — e.g. a title
@@ -56,17 +55,14 @@ export async function fetchRssWithCache(
     }
   }
 
-  const apiKey = process.env.REACT_APP_RSS2JSON_API_KEY;
-  const params = new URLSearchParams({ rss_url: feedUrl });
-  if (apiKey) {
-    params.set('api_key', apiKey);
-    params.set('count', String(count));
-    params.set('order_by', 'pubDate');
-    params.set('order_dir', 'desc');
-  }
+  // Goes through our own /api/rss function so the rss2json key stays on the
+  // server. A forced refresh adds a unique param so it can't be served from
+  // the function's short edge cache.
+  const params = new URLSearchParams({ rss_url: feedUrl, count: String(count) });
+  if (force) params.set('_', String(Date.now()));
 
-  const response = await fetch(`${RSS2JSON_BASE}?${params.toString()}`);
-  if (!response.ok) throw new Error('Failed to fetch RSS feed');
+  const response = await fetch(`/api/rss?${params.toString()}`);
+  if (!response.ok && response.status !== 422) throw new Error('Failed to fetch RSS feed');
   const json = await response.json();
   if (json.status !== 'ok') throw new Error(json.message || 'RSS feed error');
 

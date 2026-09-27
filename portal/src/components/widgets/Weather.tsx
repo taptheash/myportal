@@ -167,10 +167,8 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
   onUpdateConfigRef.current = onUpdateConfig;
 
   const hasManualLocation = Boolean(config.location);
-  const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
 
   useEffect(() => {
-    if (!API_KEY) { setLoading(false); return; }
     let cancelled = false;
 
     const fetchWeather = async () => {
@@ -184,24 +182,25 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
           setGeoNotice(null);
           const isZip = /^\d{5}$/.test(config.location.trim());
           const query = encodeURIComponent(isZip ? `${config.location.trim()},US` : config.location.trim());
-          weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${API_KEY}&units=imperial`;
-          forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${query}&appid=${API_KEY}&units=imperial`;
+          weatherUrl = `/api/weather?kind=weather&q=${query}`;
+          forecastUrl = `/api/weather?kind=forecast&q=${query}`;
         } else {
           try {
             const pos = await getCurrentPosition();
             const { latitude, longitude } = pos.coords;
-            weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
-            forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=imperial`;
+            weatherUrl = `/api/weather?kind=weather&lat=${latitude}&lon=${longitude}`;
+            forecastUrl = `/api/weather?kind=forecast&lat=${latitude}&lon=${longitude}`;
             if (!cancelled) setGeoNotice(null);
           } catch (geoErr) {
             if (!cancelled) setGeoNotice(describeGeoError(geoErr));
-            weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
-            forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=New%20Hampshire,US&appid=${API_KEY}&units=imperial`;
+            weatherUrl = `/api/weather?kind=weather&q=New%20Hampshire,US`;
+            forecastUrl = `/api/weather?kind=forecast&q=New%20Hampshire,US`;
           }
         }
 
         const [currentRes, forecastRes] = await Promise.all([fetch(weatherUrl), fetch(forecastUrl)]);
 
+        if (currentRes.status === 503) throw new Error('Weather API key is not set in Vercel');
         if (!currentRes.ok) throw new Error('Location not found');
         const currentData: WeatherData = await currentRes.json();
         // A newer fetch (crosshair pressed, location typed) superseded this one.
@@ -258,7 +257,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
     // press ALWAYS re-asks the browser for your position — before, pressing
     // it while already on auto-location changed no dependency and did nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_KEY, hasManualLocation, config.location, config.locateNonce]);
+  }, [hasManualLocation, config.location, config.locateNonce]);
 
   useEffect(() => {
     if (!showRadar) return;

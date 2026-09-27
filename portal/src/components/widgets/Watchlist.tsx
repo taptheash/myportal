@@ -32,11 +32,9 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
   const [addError, setAddError] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
-  const API_KEY = process.env.REACT_APP_FINNHUB_API_KEY;
   const tickersKey = tickers.map((t) => t.symbol).join(',');
 
   useEffect(() => {
-    if (!API_KEY) return;
     let cancelled = false;
 
     setQuotes((prev) => {
@@ -47,7 +45,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
 
     const fetchQuote = async (symbol: string) => {
       try {
-        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`);
+        const res = await fetch(`/api/finnhub?endpoint=quote&symbol=${encodeURIComponent(symbol)}`);
         if (!res.ok) throw new Error('failed');
         const data = await res.json();
         // Finnhub returns c:0 for a symbol it doesn't recognize, rather
@@ -72,7 +70,7 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
     const interval = setInterval(() => tickers.forEach((t) => fetchQuote(t.symbol)), 60000);
     return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API_KEY, tickersKey]);
+  }, [tickersKey]);
 
   const addTicker = () => {
     const symbol = newSymbol.trim().toUpperCase();
@@ -90,18 +88,6 @@ export default function Watchlist({ config, onUpdateConfig }: WatchlistProps) {
     onUpdateConfig({ ...config, tickers: tickers.filter((t) => t.symbol !== symbol) });
   };
 
-  if (!API_KEY) {
-    return (
-      <div className="flex flex-col items-center justify-center h-32 gap-2 text-zinc-400 dark:text-zinc-500 text-center px-4">
-        <AlertCircle size={20} />
-        <p className="text-sm">
-          Needs a free Finnhub API key — sign up at finnhub.io, then add it as
-          <br />
-          <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">REACT_APP_FINNHUB_API_KEY</code> in Vercel.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-2">

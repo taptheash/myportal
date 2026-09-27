@@ -37,9 +37,6 @@ export default function CompactWeather() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
-    if (!API_KEY) { setLoading(false); setError('Weather not configured'); return; }
-
     const location: string | undefined = getWidgetConfig('weather')?.location;
 
     const run = async () => {
@@ -58,9 +55,10 @@ export default function CompactWeather() {
           }
         }
         const [curRes, foreRes] = await Promise.all([
-          fetch(`https://api.openweathermap.org/data/2.5/weather?${query}&appid=${API_KEY}&units=imperial`),
-          fetch(`https://api.openweathermap.org/data/2.5/forecast?${query}&appid=${API_KEY}&units=imperial`),
+          fetch(`/api/weather?kind=weather&${query}`),
+          fetch(`/api/weather?kind=forecast&${query}`),
         ]);
+        if (curRes.status === 503) throw new Error('Weather not configured');
         if (!curRes.ok) throw new Error('Location not found');
         const cur = await curRes.json();
 

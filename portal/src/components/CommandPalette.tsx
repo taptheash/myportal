@@ -194,22 +194,19 @@ export default function CommandPalette({
       }
 
       try {
-        const finnhubKey = process.env.REACT_APP_FINNHUB_API_KEY;
-        if (finnhubKey) {
-          const res = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}&token=${finnhubKey}`);
-          if (res.ok) {
-            const data = await res.json();
-            const matches = (data.result || []).slice(0, 5);
-            for (const m of matches) {
-              out.push({
-                id: `stock-${m.symbol}`,
-                group: 'Stocks',
-                icon: TrendingUp,
-                label: m.symbol,
-                sublabel: m.description,
-                onSelect: () => onNavigate('stocks'),
-              });
-            }
+        const res = await fetch(`/api/finnhub?endpoint=search&q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const matches = (data.result || []).slice(0, 5);
+          for (const m of matches) {
+            out.push({
+              id: `stock-${m.symbol}`,
+              group: 'Stocks',
+              icon: TrendingUp,
+              label: m.symbol,
+              sublabel: m.description,
+              onSelect: () => onNavigate('stocks'),
+            });
           }
         }
       } catch {

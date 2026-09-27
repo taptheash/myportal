@@ -18,16 +18,15 @@ export default function StocksHighlight() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_KEY = process.env.REACT_APP_FINNHUB_API_KEY;
     const tickers: { symbol: string }[] = getWidgetConfig('watchlist')?.tickers || [];
-    if (!API_KEY || tickers.length === 0) { setLoading(false); return; }
+    if (tickers.length === 0) { setLoading(false); return; }
 
     const run = async () => {
       setLoading(true);
       const results = await Promise.all(
         tickers.slice(0, 4).map(async (t) => {
           try {
-            const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${t.symbol}&token=${API_KEY}`);
+            const res = await fetch(`/api/finnhub?endpoint=quote&symbol=${encodeURIComponent(t.symbol)}`);
             if (!res.ok) throw new Error('failed');
             const data = await res.json();
             if (!data || data.c === 0) throw new Error('no data');
