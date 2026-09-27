@@ -134,6 +134,8 @@ export default function App() {
   const [weatherInput, setWeatherInput] = useState('');
   const [currentTime, setCurrentTime] = useState<string>('');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // True for a moment after pressing G, while waiting for the section key.
+  const [goArmed, setGoArmed] = useState(false);
   // Hidden links page. hiddenPageOpen is a plain useState (NOT
   // useLocalStorage) on purpose — it must never be written to localStorage
   // or reflected in the URL, so it always starts closed on every load and
@@ -159,6 +161,43 @@ export default function App() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
+
+  // "G then a letter" jumps between sections: G H Home, G T Tools, G N News,
+  // G R Reddit, G S Sports, G M Markets (Stocks). Ignored while typing in a
+  // field, and when Ctrl/Alt/Cmd is held, so it never steals a keystroke.
+  useEffect(() => {
+    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks' };
+    let armedUntil = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const disarm = () => { armedUntil = 0; setGoArmed(false); };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      const key = e.key.toLowerCase();
+      if (Date.now() < armedUntil) {
+        const section = GO_KEYS[key];
+        disarm();
+        if (timer) clearTimeout(timer);
+        if (section) {
+          e.preventDefault();
+          setActiveSection(section);
+        }
+        return;
+      }
+      if (key === 'g' && !e.shiftKey) {
+        armedUntil = Date.now() + 1500;
+        setGoArmed(true);
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(disarm, 1500);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      if (timer) clearTimeout(timer);
+    };
+  }, [setActiveSection]);
 
   // storedWidgets is normally only ever changed through setWidgets below, so
   // it's kept in sync with localStorage automatically. But Home's Scratchpad
@@ -733,6 +772,18 @@ export default function App() {
             </div>
           </div>
         </main>
+
+        {goArmed && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-3 py-2 rounded-xl bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 text-xs shadow-lg backdrop-blur-sm flex items-center gap-3">
+            <span className="font-semibold">Go to…</span>
+            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets']].map(([k, label]) => (
+              <span key={k} className="flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 rounded bg-white/15 dark:bg-zinc-900/15 font-mono text-[11px]">{k}</kbd>
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
 
         <CommandPalette
           open={paletteOpen}

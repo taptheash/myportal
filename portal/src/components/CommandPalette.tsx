@@ -81,12 +81,12 @@ export default function CommandPalette({
     const results: Result[] = [];
 
     const actions: Result[] = [
-      { id: 'act-home', group: 'Action', icon: HomeIcon, label: 'Go to Home', onSelect: () => onNavigate('home') },
-      { id: 'act-tools', group: 'Action', icon: Wrench, label: 'Go to Tools', onSelect: () => onNavigate('tools') },
-      { id: 'act-news', group: 'Action', icon: Newspaper, label: 'Go to News', onSelect: () => onNavigate('news') },
-      { id: 'act-sports', group: 'Action', icon: Trophy, label: 'Go to Sports', onSelect: () => onNavigate('sports') },
-      { id: 'act-stocks', group: 'Action', icon: TrendingUp, label: 'Go to Stocks', onSelect: () => onNavigate('stocks') },
-      { id: 'act-reddit', group: 'Action', icon: Flame, label: 'Go to Reddit', onSelect: () => onNavigate('reddit') },
+      { id: 'act-home', group: 'Action', icon: HomeIcon, label: 'Go to Home', sublabel: 'G then H', onSelect: () => onNavigate('home') },
+      { id: 'act-tools', group: 'Action', icon: Wrench, label: 'Go to Tools', sublabel: 'G then T', onSelect: () => onNavigate('tools') },
+      { id: 'act-news', group: 'Action', icon: Newspaper, label: 'Go to News', sublabel: 'G then N', onSelect: () => onNavigate('news') },
+      { id: 'act-sports', group: 'Action', icon: Trophy, label: 'Go to Sports', sublabel: 'G then S', onSelect: () => onNavigate('sports') },
+      { id: 'act-stocks', group: 'Action', icon: TrendingUp, label: 'Go to Stocks', sublabel: 'G then M', onSelect: () => onNavigate('stocks') },
+      { id: 'act-reddit', group: 'Action', icon: Flame, label: 'Go to Reddit', sublabel: 'G then R', onSelect: () => onNavigate('reddit') },
       {
         id: 'act-addlink', group: 'Action', icon: Plus, label: 'Add a Quick Link',
         onSelect: () => { if (onAddLink) onAddLink(); else onNavigate('tools'); },

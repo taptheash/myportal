@@ -34,12 +34,41 @@ function cleanTitle(raw: string): string {
   return decodeEntities(decodeEntities(raw).replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
 }
 
+// --- Feed health ---------------------------------------------------------
+// Per-browser record of each feed's last real network result, so the News
+// tabs can show which sources are working and which have died. Cache hits
+// don't count; only actual fetches update it. Stored under 'feed-health',
+// which is not synced and not user data.
+
+export interface FeedHealthEntry {
+  name?: string;
+  lastOk?: number;      // ms timestamp of the last successful fetch
+  lastError?: number;   // ms timestamp of the last failed fetch
+  error?: string;       // message from the last failure
+  items?: number;       // how many items the last success returned
+}
+const HEALTH_KEY = 'feed-health';
+
+export function getFeedHealth(): Record<string, FeedHealthEntry> {
+  try { return JSON.parse(localStorage.getItem(HEALTH_KEY) || '{}') || {}; } catch { return {}; }
+}
+
+function recordFeedHealth(url: string, patch: FeedHealthEntry) {
+  try {
+    const all = getFeedHealth();
+    all[url] = { ...all[url], ...patch };
+    localStorage.setItem(HEALTH_KEY, JSON.stringify(all));
+    window.dispatchEvent(new CustomEvent('feed-health', { detail: { url } }));
+  } catch { /* not fatal */ }
+}
+
 export async function fetchRssWithCache(
   cacheKey: string,
   feedUrl: string,
   count: number,
   maxAgeMs: number,
-  force: boolean = false
+  force: boolean = false,
+  sourceName?: string
 ): Promise<any[]> {
   if (!force) {
     try {
@@ -61,14 +90,21 @@ export async function fetchRssWithCache(
   const params = new URLSearchParams({ rss_url: feedUrl, count: String(count) });
   if (force) params.set('_', String(Date.now()));
 
-  const response = await fetch(`/api/rss?${params.toString()}`);
-  if (!response.ok && response.status !== 422) throw new Error('Failed to fetch RSS feed');
-  const json = await response.json();
-  if (json.status !== 'ok') throw new Error(json.message || 'RSS feed error');
+  let items: any[];
+  try {
+    const response = await fetch(`/api/rss?${params.toString()}`);
+    if (!response.ok && response.status !== 422) throw new Error(`Feed request failed (HTTP ${response.status})`);
+    const json = await response.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'RSS feed error');
 
-  const items = (json.items || [])
-    .slice(0, count)
-    .map((item: any) => ({ ...item, title: item.title ? cleanTitle(item.title) : item.title }));
+    items = (json.items || [])
+      .slice(0, count)
+      .map((item: any) => ({ ...item, title: item.title ? cleanTitle(item.title) : item.title }));
+  } catch (err) {
+    recordFeedHealth(feedUrl, { name: sourceName, lastError: Date.now(), error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+  recordFeedHealth(feedUrl, { name: sourceName, lastOk: Date.now(), items: items.length, ...(items.length === 0 ? { error: 'Feed returned no items', lastError: Date.now() } : {}) });
 
   try {
     localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: items }));
@@ -124,7 +160,8 @@ export async function fetchMergedRssWithCache(
         source.url,
         PER_SOURCE_POOL_SIZE,
         maxAgeMs,
-        force
+        force,
+        source.name
       );
       return items.map((item) => ({ ...item, sourceName: source.name }));
     })

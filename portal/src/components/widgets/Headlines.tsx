@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
+import FeedHealth from './FeedHealth';
 
 interface HeadlinesProps {
   id: string;
@@ -92,6 +93,7 @@ export default function Headlines({ config, onUpdateConfig }: HeadlinesProps) {
           </div>
         </a>
       ))}
+      <FeedHealth sources={SOURCES} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchRssWithCache } from '../../lib/rssCache';
+import FeedHealth from './FeedHealth';
 
 interface BusinessNewsProps {
   id: string;
@@ -36,7 +37,7 @@ export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsPro
         // the cache (and the fetch size) on articleCount meant every +/- click
         // fired a brand-new network request and left another stale
         // rss-business-N entry in localStorage.
-        const pool = await fetchRssWithCache('rss-business', FEED_URL, Math.max(30, articleCount), 3600000, force);
+        const pool = await fetchRssWithCache('rss-business', FEED_URL, Math.max(30, articleCount), 3600000, force, SOURCE_NAME);
         const items = pool.slice(0, articleCount);
         setArticles(items);
         setError(null);
@@ -96,6 +97,7 @@ export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsPro
       <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mt-2">
         {articles.length} articles • {SOURCE_NAME}
       </p>
+      <FeedHealth sources={[{ name: SOURCE_NAME, url: FEED_URL }]} />
     </div>
   );
 }
