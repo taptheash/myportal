@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Check, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Sparkles, Circle, CheckCircle2 } from 'lucide-react';
 import { fetchRssWithCache } from '../../lib/rssCache';
 import { normalizeUrl } from '../../lib/url';
+import SaveButton from './SaveButton';
 
 interface CustomFeedsProps {
   id: string;
@@ -392,6 +393,7 @@ export default function CustomFeeds({ config, onUpdateConfig }: CustomFeedsProps
                         <p className="text-xs font-medium text-zinc-900 dark:text-white line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150">{item.title}</p>
                         <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{formatTime(item.pubDate)}</p>
                       </div>
+                      <SaveButton article={{ link: item.link, title: item.title, source: feed.name }} size={12} />
                       <ExternalLink size={11} className="flex-shrink-0 text-zinc-400 mt-0.5" />
                     </a>
                   ))}

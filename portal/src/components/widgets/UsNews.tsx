@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 import FeedHealth from './FeedHealth';
+import SaveButton from './SaveButton';
 
 interface UsNewsProps {
   id: string;
@@ -19,7 +20,7 @@ interface NewsItem { title: string; link: string; pubDate: string; sourceName: s
 // News' U.S. feed adds a distinct outlet's editorial judgment. All three are
 // free, no-paywall wire/public sources — same criterion Headlines used when
 // NYT was dropped.
-const SOURCES: NewsSource[] = [
+export const SOURCES: NewsSource[] = [
   { name: 'NPR National', url: 'https://feeds.npr.org/1003/rss.xml' },
   { name: 'PBS NewsHour', url: 'https://www.pbs.org/newshour/feeds/rss/politics' },
   { name: 'CBS News', url: 'https://www.cbsnews.com/latest/rss/us' },
@@ -92,6 +93,7 @@ export default function UsNews({ config, onUpdateConfig }: UsNewsProps) {
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>
             </div>
+            <SaveButton article={{ link: article.link, title: article.title, source: article.sourceName }} />
             <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
           </div>
         </a>

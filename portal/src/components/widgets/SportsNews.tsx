@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 import FeedHealth from './FeedHealth';
+import SaveButton from './SaveButton';
 
 interface SportsNewsProps {
   id: string;
@@ -12,7 +13,7 @@ interface SportsNewsProps {
 
 interface NewsItem { title: string; link: string; pubDate: string; sourceName: string; }
 
-const SOURCES: NewsSource[] = [
+export const SOURCES: NewsSource[] = [
   { name: 'Boston.com Sports', url: 'https://www.boston.com/category/sports/feed/' },
   { name: 'WHDH Sports', url: 'https://whdh.com/sports/feed' },
 ];
@@ -82,6 +83,7 @@ export default function SportsNews({ config, onUpdateConfig }: SportsNewsProps) 
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>
             </div>
+            <SaveButton article={{ link: article.link, title: article.title, source: article.sourceName }} />
             <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
           </div>
         </a>

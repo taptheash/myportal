@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchRssWithCache } from '../../lib/rssCache';
 import FeedHealth from './FeedHealth';
+import SaveButton from './SaveButton';
 
 interface BusinessNewsProps {
   id: string;
@@ -12,8 +13,8 @@ interface BusinessNewsProps {
 
 interface NewsItem { title: string; link: string; pubDate: string; }
 
-const FEED_URL = 'https://www.cnbc.com/id/100003114/device/rss/rss.html';
-const SOURCE_NAME = 'CNBC';
+export const FEED_URL = 'https://www.cnbc.com/id/100003114/device/rss/rss.html';
+export const SOURCE_NAME = 'CNBC';
 
 export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsProps) {
   const [articles, setArticles] = useState<NewsItem[]>([]);
@@ -87,6 +88,7 @@ export default function BusinessNews({ config, onUpdateConfig }: BusinessNewsPro
                 </p>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{formatTime(article.pubDate)}</p>
               </div>
+              <SaveButton article={{ link: article.link, title: article.title, source: SOURCE_NAME }} />
               <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-150 mt-0.5" />
             </a>
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 import FeedHealth from './FeedHealth';
+import SaveButton from './SaveButton';
 
 interface HeadlinesProps {
   id: string;
@@ -15,7 +16,7 @@ interface NewsItem { title: string; link: string; pubDate: string; sourceName: s
 // NYT was dropped from this pool — its articles hit a subscription wall,
 // which made headlines you couldn't actually read past the first paragraph.
 // These three are free, no-paywall wire/public sources.
-const SOURCES: NewsSource[] = [
+export const SOURCES: NewsSource[] = [
   { name: 'AP News', url: 'https://apnews.com/hub/ap-top-news.rss' },
   { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
   { name: 'NPR', url: 'https://feeds.npr.org/1002/rss.xml' },
@@ -89,6 +90,7 @@ export default function Headlines({ config, onUpdateConfig }: HeadlinesProps) {
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>
             </div>
+            <SaveButton article={{ link: article.link, title: article.title, source: article.sourceName }} />
             <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
           </div>
         </a>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 import FeedHealth from './FeedHealth';
+import SaveButton from './SaveButton';
 
 interface TechNewsProps {
   id: string;
@@ -16,7 +17,7 @@ interface NewsItem { title: string; link: string; pubDate: string; sourceName: s
 // articles are behind a metered/paid wall on their sites, same friction
 // NYT had in Headlines. Kept them in since headlines/excerpts alone are
 // still useful, but flagging this rather than pretending it's fully free.
-const SOURCES: NewsSource[] = [
+export const SOURCES: NewsSource[] = [
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
   { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
   { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index' },
@@ -87,6 +88,7 @@ export default function TechNews({ config, onUpdateConfig }: TechNewsProps) {
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>
             </div>
+            <SaveButton article={{ link: article.link, title: article.title, source: article.sourceName }} />
             <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
           </div>
         </a>

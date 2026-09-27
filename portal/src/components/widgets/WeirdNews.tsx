@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 import { fetchMergedRssWithCache, NewsSource } from '../../lib/rssCache';
 import FeedHealth from './FeedHealth';
+import SaveButton from './SaveButton';
 
 interface OtherNewsProps {
   id: string;
@@ -18,7 +19,7 @@ interface NewsItem { title: string; link: string; pubDate: string; sourceName: s
 // abandoned — which is why it showed a blank panel instead of an error.
 // All That's Interesting: confirmed active (Wikipedia lists current status
 // as Active, ~5.3M monthly visitors), independent digital publisher.
-const SOURCES: NewsSource[] = [
+export const SOURCES: NewsSource[] = [
   { name: "All That's Interesting", url: 'https://allthatsinteresting.com/feed' },
 ];
 
@@ -87,6 +88,7 @@ export default function OtherNews({ config, onUpdateConfig }: OtherNewsProps) {
                 <span className="flex-shrink-0">{formatTime(article.pubDate)}</span>
               </div>
             </div>
+            <SaveButton article={{ link: article.link, title: article.title, source: article.sourceName }} />
             <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
           </div>
         </a>

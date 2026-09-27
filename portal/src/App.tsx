@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
-  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw,
+  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, Bookmark, Sunrise, LayoutList,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -34,6 +34,9 @@ import { makeTeamSchedule } from './components/widgets/TeamSchedule';
 import NflSchedule from './components/widgets/NflSchedule';
 import Watchlist from './components/widgets/Watchlist';
 import MarketOverview from './components/widgets/MarketOverview';
+import MyNews from './components/widgets/MyNews';
+import SavedArticles from './components/widgets/SavedArticles';
+import DailyBrief from './components/widgets/DailyBrief';
 
 const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
 const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
@@ -73,6 +76,9 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
   reddit:     { type: 'reddit',     label: 'Reddit',      icon: Flame,        component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
+  mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
+  saved:      { type: 'saved',      label: 'Saved',       icon: Bookmark,     component: SavedArticles, color: '#009E73', activeText: 'black' },
+  brief:      { type: 'brief',      label: 'Daily Brief', icon: Sunrise,      component: DailyBrief,   color: '#E69F00', activeText: 'black' },
   weird:      { type: 'weird',      label: 'Other',       icon: Sparkles,     component: WeirdNews,    color: '#CC79A7', activeText: 'black' },
   nflSchedule: { type: 'nflSchedule', label: 'NFL Schedule', icon: CalendarIcon, component: NflSchedule, color: '#CC79A7', activeText: 'black' },
   patsSchedule: { type: 'patsSchedule', label: 'Patriots Schedule', icon: CalendarIcon, component: PatsSchedule, color: '#0072B2', activeText: 'white' },
@@ -84,7 +90,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
 };
 
 const TOOL_TYPES = ['weather', 'notes', 'tasks', 'calendar', 'links'];
-const NEWS_TYPES = ['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'feeds'];
+const NEWS_TYPES = ['mynews', 'saved', 'brief', 'sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird', 'feeds'];
 const SPORTS_TYPES = ['sports', 'nflSchedule', 'patsSchedule', 'soxSchedule', 'celticsSchedule', 'bruinsSchedule'];
 const STOCK_TYPES = ['watchlist', 'marketOverview'];
 // Reddit is its own top-level section (not a News tab) with exactly one
@@ -103,7 +109,7 @@ function makeDefaultWidgets(): WidgetInstance[] {
   }));
 }
 
-const NEWS_ARTICLE_TYPES = new Set(['sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird']);
+const NEWS_ARTICLE_TYPES = new Set(['mynews', 'sportsnews', 'headlines', 'usnews', 'tech', 'local', 'business', 'weird']);
 
 // Top-level section nav — adding a future section is one entry here, plus
 // one more conditional render branch below. No layout-width juggling needed
@@ -122,7 +128,7 @@ export default function App() {
   const { mode, resolvedTheme, setMode } = useTheme();
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
   const [storedActiveTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
-  const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'headlines');
+  const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'mynews');
   const [storedActiveSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
   const [storedActiveStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
   const [storedActiveSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
@@ -160,6 +166,21 @@ export default function App() {
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // One-time move for browsers set up before My News existed: put My News,
+  // Saved and Daily Brief at the front of the News tabs (a saved tab order
+  // would otherwise tack them on at the end) and open News on My News.
+  useEffect(() => {
+    const FLAG = 'news-v2-migrated';
+    try {
+      if (localStorage.getItem(FLAG)) return;
+      const front = ['mynews', 'saved', 'brief'];
+      setNewsOrder((prev) => [...front, ...prev.filter((t) => !front.includes(t))]);
+      setActiveNews('mynews');
+      localStorage.setItem(FLAG, '1');
+    } catch { /* storage blocked — defaults already put them first */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Widgets ask to move you elsewhere (e.g. a note's link to its task) via

@@ -46,7 +46,7 @@ const ACCENT_COLORS = [
 ];
 
 // New England's major pro teams — the default list before any customization.
-const DEFAULT_TEAMS: TeamEntry[] = [
+export const DEFAULT_TEAMS: TeamEntry[] = [
   { key: 'nfl-ne',  name: 'Patriots', emoji: '🏈', accent: 'border-blue-700',   sport: 'football',   league: 'nfl', team: 'ne' },
   { key: 'mlb-bos', name: 'Red Sox',  emoji: '⚾', accent: 'border-red-600',    sport: 'baseball',   league: 'mlb', team: 'bos' },
   { key: 'nba-bos', name: 'Celtics',  emoji: '🏀', accent: 'border-green-600',  sport: 'basketball', league: 'nba', team: 'bos' },
