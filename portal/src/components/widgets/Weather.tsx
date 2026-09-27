@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Cloud, CloudRain, Sun, Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Wind, Droplets, AlertCircle, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { weatherIcon, FALLBACK_LOCATION } from '../../lib/weatherIcons';
 
 interface WeatherProps {
   id: string;
@@ -193,8 +194,8 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
             if (!cancelled) setGeoNotice(null);
           } catch (geoErr) {
             if (!cancelled) setGeoNotice(describeGeoError(geoErr));
-            weatherUrl = `/api/weather?kind=weather&q=New%20Hampshire,US`;
-            forecastUrl = `/api/weather?kind=forecast&q=New%20Hampshire,US`;
+            weatherUrl = `/api/weather?kind=weather&lat=${FALLBACK_LOCATION.lat}&lon=${FALLBACK_LOCATION.lon}`;
+            forecastUrl = `/api/weather?kind=forecast&lat=${FALLBACK_LOCATION.lat}&lon=${FALLBACK_LOCATION.lon}`;
           }
         }
 
@@ -285,12 +286,8 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
 
   const getWeatherIcon = (main: string, size: 'lg' | 'sm' = 'lg') => {
     const cls = size === 'lg' ? 'w-12 h-12' : 'w-5 h-5';
-    switch (main.toLowerCase()) {
-      case 'rain':
-      case 'drizzle': return <CloudRain className={`${cls} text-blue-500`} />;
-      case 'clear': return <Sun className={`${cls} text-yellow-500`} />;
-      default: return <Cloud className={`${cls} text-zinc-400`} />;
-    }
+    const { Icon, color } = weatherIcon(main);
+    return <Icon className={`${cls} ${color}`} />;
   };
 
   const expandedDayData = forecast.find((d) => d.dateKey === expandedDay);
@@ -318,7 +315,7 @@ export default function Weather({ config, onUpdateConfig }: WeatherProps) {
           <div>
             {geoNotice && !hasManualLocation && (
               <div className="mb-2 px-2.5 py-1.5 rounded-lg text-[11px] leading-snug text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
-                Couldn't use your current location: {geoNotice}. Showing a default location for now.
+                Couldn't use your current location: {geoNotice}. Showing {FALLBACK_LOCATION.name} for now.
               </div>
             )}
             <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">📍 {weather.name}</div>

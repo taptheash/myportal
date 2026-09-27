@@ -102,26 +102,44 @@ module.exports = async (req, res) => {
 
     if (req.method === 'PATCH') {
       const eventId = req.query?.id;
-      const { summary, startDateTime } = req.body || {};
+      const { summary, startDateTime, endDateTime, startDate, endDate } = req.body || {};
       if (!eventId) {
         return res.status(400).json({ error: 'Event id is required (?id=...)' });
       }
-      if (!summary || !startDateTime) {
-        return res.status(400).json({ error: 'summary and startDateTime are required' });
+      if (!summary || (!startDateTime && !startDate)) {
+        return res.status(400).json({ error: 'summary and a start (startDateTime or startDate) are required' });
       }
 
-      const start = new Date(startDateTime);
-      const end = new Date(start.getTime() + 60 * 60000); // defaults to 1 hour
+      // Keeps the event's own shape and length. The old version always
+      // rewrote the event as a 1-hour timed event, so editing a 3-hour
+      // meeting shortened it and editing an all-day event turned it into
+      // a 1-hour slot. The unused field of each pair is sent as null so
+      // Google drops it rather than merging the two.
+      let start;
+      let end;
+      if (startDate) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) {
+          return res.status(400).json({ error: 'startDate/endDate must be YYYY-MM-DD' });
+        }
+        const next = new Date(`${startDate}T00:00:00Z`);
+        next.setUTCDate(next.getUTCDate() + 1);
+        start = { date: startDate, dateTime: null };
+        end = { date: endDate || next.toISOString().slice(0, 10), dateTime: null }; // end date is exclusive
+      } else {
+        const s = new Date(startDateTime);
+        const e = endDateTime ? new Date(endDateTime) : new Date(s.getTime() + 60 * 60000);
+        if (isNaN(s.getTime()) || isNaN(e.getTime()) || e <= s) {
+          return res.status(400).json({ error: 'Invalid start/end time' });
+        }
+        start = { dateTime: s.toISOString(), date: null };
+        end = { dateTime: e.toISOString(), date: null };
+      }
 
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
       const resp = await fetch(url, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          summary,
-          start: { dateTime: start.toISOString() },
-          end: { dateTime: end.toISOString() },
-        }),
+        body: JSON.stringify({ summary, start, end }),
       });
       const data = await resp.json();
 

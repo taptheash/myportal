@@ -77,7 +77,7 @@ test('a remote change does not clobber an unsynced local edit', async () => {
   f.remoteChange('pw6-scratchpad', 'other device');
   expect(localStorage.getItem('pw6-scratchpad')).toBe('typing…');
   jest.advanceTimersByTime(2100);
-  await flush();
+  await Promise.resolve(); // (a setTimeout-based flush would never fire under fake timers)
   expect(f.docs.get('pw6-scratchpad')).toBe('typing…');
 });
 

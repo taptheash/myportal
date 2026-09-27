@@ -28,6 +28,14 @@ interface EventFormValues {
   title: string;
   date: string;
   time: string;
+  allDay?: boolean; // editing an all-day event: date only, no time field
+}
+
+// yyyy-mm-dd + n days, done on the calendar date itself (no time zones).
+function addDaysToDateKey(key: string, days: number): string {
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
 }
 
 function toLocalDateTimeParts(d: Date): { date: string; time: string } {
@@ -68,12 +76,16 @@ function EventForm({
           onChange={(e) => onChange({ ...values, date: e.target.value })}
           className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         />
-        <input
-          type="time"
-          value={values.time}
-          onChange={(e) => onChange({ ...values, time: e.target.value })}
-          className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-        />
+        {values.allDay ? (
+          <span className="flex-1 flex items-center px-2.5 text-sm text-zinc-500 dark:text-zinc-400">All day</span>
+        ) : (
+          <input
+            type="time"
+            value={values.time}
+            onChange={(e) => onChange({ ...values, time: e.target.value })}
+            className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+        )}
       </div>
       <div className="flex gap-2">
         <button
@@ -107,6 +119,11 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editEvent, setEditEvent] = useState<EventFormValues>({ title: '', date: '', time: '' });
+  // The event as it was before editing, so a save can keep its length.
+  const [editingOriginal, setEditingOriginal] = useState<CalendarEvent | null>(null);
+  // Row currently asking "Delete this event?" — deletes are permanent in
+  // Google Calendar, so one stray click shouldn't do it.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Set when the API refuses us for lack of (or a wrong) passcode.
   const [locked, setLocked] = useState<null | 'passcode' | 'unconfigured'>(null);
@@ -187,12 +204,34 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
 
   const startEdit = (event: CalendarEvent) => {
     const startDate = parseGCalTime(event.start);
-    const parts = startDate
-      ? { ...toLocalDateTimeParts(startDate), ...(isAllDay(event.start) ? { time: '10:00' } : {}) }
-      : { date: '', time: '10:00' };
-    setEditEvent({ title: event.summary, date: parts.date, time: parts.time });
+    const allDay = isAllDay(event.start);
+    const parts = startDate ? toLocalDateTimeParts(startDate) : { date: '', time: '10:00' };
+    setEditEvent({ title: event.summary, date: parts.date, time: allDay ? '' : parts.time, allDay });
+    setEditingOriginal(event);
+    setConfirmDeleteId(null);
     setEditingId(event.id);
     setShowCreateForm(false);
+  };
+
+  // Moves the event to the new start while keeping its original length:
+  // all-day events keep their number of days, timed events keep their
+  // duration (a 3-hour meeting stays 3 hours).
+  const buildUpdateBody = () => {
+    const origStart = editingOriginal ? parseGCalTime(editingOriginal.start) : null;
+    const origEnd = editingOriginal ? parseGCalTime(editingOriginal.end) : null;
+    if (editEvent.allDay) {
+      const days = origStart && origEnd
+        ? Math.max(1, Math.round((origEnd.getTime() - origStart.getTime()) / 86400000))
+        : 1;
+      return { summary: editEvent.title, startDate: editEvent.date, endDate: addDaysToDateKey(editEvent.date, days) };
+    }
+    const durationMs = origStart && origEnd && origEnd > origStart ? origEnd.getTime() - origStart.getTime() : 3600000;
+    const startIso = localPartsToIso(editEvent.date, editEvent.time);
+    return {
+      summary: editEvent.title,
+      startDateTime: startIso,
+      endDateTime: new Date(new Date(startIso).getTime() + durationMs).toISOString(),
+    };
   };
 
   const handleUpdateEvent = async () => {
@@ -202,10 +241,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
       const response = await calendarFetch(`/api/calendar/events?id=${encodeURIComponent(editingId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          summary: editEvent.title,
-          startDateTime: localPartsToIso(editEvent.date, editEvent.time),
-        }),
+        body: JSON.stringify(buildUpdateBody()),
       });
 
       if (!response.ok) throw new Error('Failed to update event');
@@ -218,6 +254,7 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    setConfirmDeleteId(null);
     const previous = events;
     setEvents(events.filter((e) => e.id !== eventId)); // optimistic
     try {
@@ -403,6 +440,23 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
                     </p>
                   </div>
                 )}
+                {confirmDeleteId === event.id ? (
+                  <div className="flex-shrink-0 flex items-center gap-1 text-xs">
+                    <span className="text-zinc-500 dark:text-zinc-400 mr-1">Delete?</span>
+                    <button
+                      onClick={() => handleDeleteEvent(event.id)}
+                      className="px-2 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors duration-150"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors duration-150"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
                 <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   <button
                     onClick={() => startEdit(event)}
@@ -412,13 +466,14 @@ export default function Calendar({ config, onUpdateConfig, isEditing }: Calendar
                     <Pencil size={13} />
                   </button>
                   <button
-                    onClick={() => handleDeleteEvent(event.id)}
+                    onClick={() => setConfirmDeleteId(event.id)}
                     title="Delete event"
                     className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-500 dark:hover:bg-zinc-800 dark:hover:text-red-400 transition-colors duration-150"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
+                )}
               </div>
             )
           )

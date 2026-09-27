@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Cloud, CloudRain, Wind, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { weatherIcon, FALLBACK_LOCATION } from '../../lib/weatherIcons';
 import { getWidgetConfig } from '../../lib/portalStorage';
 
 // Home's restrained weather summary — current temp + condition + one-line
@@ -16,13 +17,6 @@ interface CompactData {
   locationName: string;
 }
 
-function iconFor(main: string) {
-  const m = main.toLowerCase();
-  if (m.includes('rain') || m.includes('drizzle') || m.includes('thunder')) return CloudRain;
-  if (m.includes('cloud')) return Cloud;
-  if (m.includes('wind')) return Wind;
-  return Sun;
-}
 
 async function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -51,7 +45,7 @@ export default function CompactWeather() {
             const pos = await getCurrentPosition();
             query = `lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`;
           } catch {
-            query = `q=${encodeURIComponent('New Hampshire,US')}`;
+            query = `lat=${FALLBACK_LOCATION.lat}&lon=${FALLBACK_LOCATION.lon}`;
           }
         }
         const [curRes, foreRes] = await Promise.all([
@@ -107,12 +101,12 @@ export default function CompactWeather() {
     );
   }
 
-  const Icon = iconFor(data.main);
+  const { Icon, color } = weatherIcon(data.main);
 
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2.5">
-        <Icon size={26} className="text-amber-500 flex-shrink-0" />
+        <Icon size={26} className={`${color} flex-shrink-0`} />
         <div className="leading-tight">
           <div className="text-2xl font-semibold text-zinc-900 dark:text-white tabular-nums">{data.temp}°</div>
           <div className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate max-w-[140px]">{data.locationName}</div>
