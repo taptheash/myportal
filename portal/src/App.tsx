@@ -162,6 +162,18 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
+  // Widgets ask to move you elsewhere (e.g. a note's link to its task) via
+  // lib/portalNav.ts.
+  useEffect(() => {
+    const onNav = (e: Event) => {
+      const { section, tool } = (e as CustomEvent).detail || {};
+      if (section) setActiveSection(section);
+      if (tool) setActiveTool(tool);
+    };
+    window.addEventListener('portal-navigate', onNav);
+    return () => window.removeEventListener('portal-navigate', onNav);
+  }, [setActiveSection, setActiveTool]);
+
   // "G then a letter" jumps between sections: G H Home, G T Tools, G N News,
   // G R Reddit, G S Sports, G M Markets (Stocks). Ignored while typing in a
   // field, and when Ctrl/Alt/Cmd is held, so it never steals a keystroke.

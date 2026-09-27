@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, CalendarClock } from 'lucide-react';
+import { Plus, X, Check, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, CalendarClock, StickyNote } from 'lucide-react';
+import { getWidgetConfig, updateWidgetConfig } from '../../lib/portalStorage';
+import { navigateTo, takeHighlight, flashItem } from '../../lib/portalNav';
 
 interface NotesProps {
   id: string;
@@ -13,6 +15,7 @@ interface ListItem {
   text: string;
   done: boolean;
   dueDate?: string; // ISO yyyy-mm-dd, optional — undated tasks behave exactly as before
+  noteId?: string;  // id of the Notes entry holding this task's details ("Add notes")
 }
 
 interface Note {
@@ -162,6 +165,46 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
     ));
   };
 
+  // Arriving from a link (a converted note, or a note's "Task:" link):
+  // expand the list if needed, then scroll to and flash the item.
+  useEffect(() => {
+    const id = takeHighlight();
+    if (!id) return;
+    setNotes((prev) => prev.map((n) =>
+      (n.id === id || n.items.some((i) => i.id === id)) && n.collapsed ? { ...n, collapsed: false } : n
+    ));
+    flashItem(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Ids of notes that currently exist, so a task only shows its note link
+  // while that note is still there.
+  const existingNoteIds = new Set<string>((getWidgetConfig('notes').notes || []).map((n: any) => n.id));
+
+  // Opens this task's detail note, creating it (titled with the task) the
+  // first time. The task itself stays a task.
+  const openTaskNote = (listId: string, item: ListItem) => {
+    if (item.noteId && existingNoteIds.has(item.noteId)) {
+      navigateTo('tools', 'notes', item.noteId);
+      return;
+    }
+    const note = { id: `${Date.now()}`, title: item.text, text: '', collapsed: false, linkedTask: { listId, itemId: item.id } };
+    const notesConfig = getWidgetConfig('notes');
+    updateWidgetConfig('notes', { notes: [...(notesConfig.notes || []), note] });
+    // Saved immediately — the tab switch below unmounts this widget before
+    // its debounced save would run.
+    const next = notes.map((n) =>
+      n.id === listId ? { ...n, items: n.items.map((i) => (i.id === item.id ? { ...i, noteId: note.id } : i)) } : n
+    );
+    setNotes(next);
+    // Drop any older pending save so it can't overwrite this one on unmount.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    pendingSaveRef.current = null;
+    lastPersistedRef.current = JSON.stringify(next);
+    latestPropsRef.current.onUpdateConfig({ ...latestPropsRef.current.config, notes: next });
+    navigateTo('tools', 'notes', note.id);
+  };
+
   const deleteItem = (noteId: string, itemId: string) => {
     setNotes(notes.map((n) =>
       n.id === noteId ? { ...n, items: n.items.filter((i) => i.id !== itemId) } : n
@@ -183,7 +226,7 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
       {notes.map((note) => {
         const doneCount = note.items.filter((i) => i.done).length;
         return (
-          <div key={note.id} className="surface-card bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+          <div key={note.id} data-item-id={note.id} className="surface-card bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
             <div className="flex items-center gap-1 px-1">
               <button
                 onClick={() => toggleCollapsed(note.id)}
@@ -208,7 +251,7 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
                     const isOverdue = !!item.dueDate && !item.done && item.dueDate < todayKey();
                     const isDueToday = !!item.dueDate && item.dueDate === todayKey();
                     return (
-                      <div key={item.id} className="flex items-center gap-2 group">
+                      <div key={item.id} data-item-id={item.id} className="flex items-center gap-2 group transition-shadow duration-300">
                         <button onClick={() => toggleItem(note.id, item.id)}
                           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors duration-150 ${
                             item.done ? 'bg-green-500 border-green-500 text-white' : 'border-zinc-300 dark:border-zinc-600 hover:border-indigo-400'
@@ -246,6 +289,22 @@ export default function Notes({ config, onUpdateConfig }: NotesProps) {
                               : 'Due date'}
                           </button>
                         )}
+                        {(() => {
+                          const hasNote = !!item.noteId && existingNoteIds.has(item.noteId);
+                          return (
+                            <button
+                              onClick={() => openTaskNote(note.id, item)}
+                              title={hasNote ? 'Open this task\'s notes' : 'Add notes to this task'}
+                              className={`flex-shrink-0 transition-colors duration-150 ${
+                                hasNote
+                                  ? 'text-indigo-500 hover:text-indigo-600 dark:text-indigo-400'
+                                  : 'text-zinc-300 dark:text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-indigo-500'
+                              }`}
+                            >
+                              <StickyNote size={12} />
+                            </button>
+                          );
+                        })()}
                         <button onClick={() => deleteItem(note.id, item.id)}
                           className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-colors duration-150"><X size={12} /></button>
                       </div>
