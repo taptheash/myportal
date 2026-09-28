@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, X, Bell, BellOff, Map as MapIcon } from 'lucide-react';
 import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf } from '../../lib/flights';
@@ -22,27 +23,30 @@ interface Props {
 
 interface Live { a: Aircraft | null; at: number; error?: string }
 
-// Frames the flight once when its map opens (and again when its route
-// arrives), then leaves the view alone: live updates every 15s never undo a
-// zoom or pan you made. If the plane drifts off-screen it pans to follow at
-// your zoom. "Fit" (refit bumps) re-frames the whole flight.
+const CLOSE_ZOOM = 12; // about 15 miles across: close enough to watch it move
+
+// Opens close in on the plane (or on the whole route when it isn't airborne),
+// then leaves the view alone: live updates never undo a zoom or pan you made.
+// "Fit flight" (refit bumps) zooms out to show the whole route.
 function FitTo({ flightId, points, pos, refit }: {
   flightId: string; points: Array<[number, number]>; pos: [number, number] | null; refit: number;
 }) {
   const map = useMap();
   const userMoved = useRef(false);
   const programmatic = useRef(false);
+  const framedPlane = useRef(false);
   const fittedWith = useRef(0);
+  const release = () => { setTimeout(() => { programmatic.current = false; }, 800); };
 
   useEffect(() => {
     const onStart = () => { if (!programmatic.current) userMoved.current = true; };
     const onEnd = () => { programmatic.current = false; };
-    map.on('zoomstart movestart', onStart);
+    map.on('zoomstart dragstart', onStart);
     map.on('moveend', onEnd);
-    return () => { map.off('zoomstart movestart', onStart); map.off('moveend', onEnd); };
+    return () => { map.off('zoomstart dragstart', onStart); map.off('moveend', onEnd); };
   }, [map]);
 
-  const frame = () => {
+  const fitAll = () => {
     if (!points.length) return;
     programmatic.current = true;
     if (points.length === 1) map.setView(points[0], 7);
@@ -50,35 +54,114 @@ function FitTo({ flightId, points, pos, refit }: {
     fittedWith.current = points.length;
     release();
   };
-  // If the view didn't actually change, Leaflet sends no moveend; don't let
-  // the flag swallow your next real zoom.
-  const release = () => { setTimeout(() => { programmatic.current = false; }, 800); };
+  const closeIn = (p: [number, number]) => {
+    programmatic.current = true;
+    map.setView(p, CLOSE_ZOOM);
+    framedPlane.current = true;
+    release();
+  };
 
-  // New flight on the map, or the Fit button: start fresh.
+  // New flight on the map: close in on the plane if it's flying.
   useEffect(() => {
     userMoved.current = false;
+    framedPlane.current = false;
     fittedWith.current = 0;
-    frame();
+    if (pos) closeIn(pos); else fitAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flightId, refit]);
+  }, [flightId]);
 
-  // More to show (route or position arrived) and you haven't moved the map yet.
+  // Fit flight button.
   useEffect(() => {
-    if (!userMoved.current && points.length > fittedWith.current) frame();
+    if (refit) fitAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points.length]);
+  }, [refit]);
 
-  // Keep the plane on screen at your zoom.
-  const posKey = pos ? `${pos[0]},${pos[1]}` : '';
+  // Position or route arrived after the map opened, and you haven't moved it.
   useEffect(() => {
-    if (!pos || !userMoved.current) return;
-    if (!map.getBounds().pad(-0.1).contains(pos)) {
-      programmatic.current = true;
-      map.panTo(pos, { animate: true });
-      release();
-    }
+    if (userMoved.current) return;
+    if (pos && !framedPlane.current) closeIn(pos);
+    else if (!pos && points.length > fittedWith.current) fitAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posKey]);
+  }, [!!pos, points.length]);
+  return null;
+}
+
+// The plane marker, animated between the 15-second updates: it glides along
+// its reported heading at its ground speed, and when a new position comes in
+// it eases onto it over two seconds instead of jumping. If the plane is about
+// to leave the screen the map pans with it (unless you'd panned it out of view).
+const EASE_MS = 2000;
+const MAX_EXTRAPOLATE_S = 60;
+
+function project(lat: number, lon: number, trackDeg: number, gsKt: number, seconds: number): [number, number] {
+  const nm = (gsKt * Math.min(seconds, MAX_EXTRAPOLATE_S)) / 3600;
+  const t = (trackDeg * Math.PI) / 180;
+  const dLat = (nm * Math.cos(t)) / 60;
+  const dLon = (nm * Math.sin(t)) / (60 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
+  return [lat + dLat, lon + dLon];
+}
+
+function MovingPlane({ a, label }: { a: Aircraft; label: string }) {
+  const map = useMap();
+  const layer = useRef<L.CircleMarker | null>(null);
+  const fix = useRef<{ a: Aircraft; t: number } | null>(null);
+  const shown = useRef<[number, number] | null>(null);
+  const ease = useRef<{ from: [number, number]; t: number } | null>(null);
+  const wasVisible = useRef(true);
+  const lastPan = useRef(0);
+
+  useEffect(() => {
+    const m = L.circleMarker([a.lat, a.lon], { radius: 7, color: a.military ? '#ef4444' : '#f59e0b', fillColor: a.military ? '#ff3b30' : '#ffb000', fillOpacity: 1 })
+      .bindTooltip(label, { permanent: true, direction: 'top' })
+      .addTo(map);
+    layer.current = m;
+    shown.current = [a.lat, a.lon];
+    let raf = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      if (now - last < 100) return; // ~10 fps is plenty for a plane
+      last = now;
+      const f = fix.current;
+      if (!f) return;
+      const cur = f.a;
+      const moving = !cur.onGround && cur.gs !== null && cur.gs > 30 && cur.track !== null;
+      let target: [number, number] = moving
+        ? project(cur.lat, cur.lon, cur.track as number, cur.gs as number, (Date.now() - f.t) / 1000)
+        : [cur.lat, cur.lon];
+      const e = ease.current;
+      if (e) {
+        const k = Math.min(1, (Date.now() - e.t) / EASE_MS);
+        const s = k * k * (3 - 2 * k); // smoothstep
+        target = [e.from[0] + (target[0] - e.from[0]) * s, e.from[1] + (target[1] - e.from[1]) * s];
+        if (k >= 1) ease.current = null;
+      }
+      shown.current = target;
+      m.setLatLng(target);
+      // Follow: only when the plane is flying off the edge, not when you've
+      // deliberately looked elsewhere.
+      const inner = map.getBounds().pad(-0.12);
+      const visible = map.getBounds().contains(target);
+      if (wasVisible.current && !inner.contains(target) && now - lastPan.current > 1500) {
+        lastPan.current = now;
+        map.panTo(target, { animate: true, duration: 1 });
+      }
+      wasVisible.current = visible;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); m.remove(); layer.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map]);
+
+  // A new position report: ease from wherever the marker is now.
+  const key = `${a.lat},${a.lon},${a.track},${a.gs}`;
+  useEffect(() => {
+    if (shown.current && fix.current) ease.current = { from: shown.current, t: Date.now() };
+    fix.current = { a, t: Date.now() };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  useEffect(() => { layer.current?.setTooltipContent(label); }, [label]);
   return null;
 }
 
@@ -282,7 +365,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
                 {trail.length > 1 && <Polyline positions={trail} pathOptions={{ color: '#22d3ee', weight: 3 }} />}
                 {o && <CircleMarker center={o} radius={5} pathOptions={{ color: '#a1a1aa', fillOpacity: 1 }}><Tooltip>{r?.origin?.iata || r?.origin?.icao} · {r?.origin?.city}</Tooltip></CircleMarker>}
                 {d && <CircleMarker center={d} radius={5} pathOptions={{ color: '#a1a1aa', fillOpacity: 1 }}><Tooltip>{r?.destination?.iata || r?.destination?.icao} · {r?.destination?.city}</Tooltip></CircleMarker>}
-                {pos && <CircleMarker center={pos} radius={7} pathOptions={{ color: '#f59e0b', fillColor: '#ffb000', fillOpacity: 1 }}><Tooltip permanent direction="top">{mapFlight.query}</Tooltip></CircleMarker>}
+                {a && <MovingPlane key={mapFlight.id} a={a} label={mapFlight.query} />}
               </MapContainer>
             );
           })()}
