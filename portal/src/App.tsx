@@ -3,6 +3,7 @@ import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
   Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList, Plane,
+  Gamepad2, Spade,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -39,6 +40,7 @@ import MyNews from './components/widgets/MyNews';
 import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
+import Klondike from './components/games/Klondike';
 
 const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
 const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
@@ -79,6 +81,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   reddit:     { type: 'reddit',     label: 'Reddit',      icon: Flame,        component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   flights:    { type: 'flights',    label: 'Flights',     icon: Plane,        component: FlightWall,   color: '#FFB000', activeText: 'black' },
+  solitaire:  { type: 'solitaire',  label: 'Solitaire',   icon: Spade,        component: Klondike,     color: '#009E73', activeText: 'black' },
   mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
   saved:      { type: 'saved',      label: 'Saved',       icon: Bookmark,     component: SavedArticles, color: '#009E73', activeText: 'black' },
   brief:      { type: 'brief',      label: 'Daily Brief', icon: Sunrise,      component: DailyBrief,   color: '#E69F00', activeText: 'black' },
@@ -102,7 +105,10 @@ const STOCK_TYPES = ['watchlist', 'marketOverview'];
 // widget instance gets created/found like every other type.
 const REDDIT_TYPES = ['reddit'];
 const FLIGHT_TYPES = ['flights'];
-const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES];
+// Games: one tab per game. More (Mahjong, FreeCell, Spider, Minesweeper,
+// Sudoku) get added here as they're built.
+const GAME_TYPES = ['solitaire'];
+const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES, ...GAME_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
   return ALL_TYPES.map((type) => ({
@@ -127,6 +133,7 @@ const SECTIONS = [
   { id: 'sports', label: 'Sports', icon: Trophy },
   { id: 'stocks', label: 'Stocks', icon: TrendingUp },
   { id: 'flights', label: 'Flights', icon: Plane },
+  { id: 'games', label: 'Games', icon: Gamepad2 },
 ];
 
 export default function App() {
@@ -136,11 +143,13 @@ export default function App() {
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'mynews');
   const [storedActiveSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
   const [storedActiveStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
+  const [storedActiveGame, setActiveGame] = useLocalStorage<string>('pw6-active-game', 'solitaire');
   const [storedActiveSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
   const [stocksOrder, setStocksOrder] = useLocalStorage<string[]>('pw6-stocks-order', STOCK_TYPES);
+  const [gamesOrder, setGamesOrder] = useLocalStorage<string[]>('pw6-games-order', GAME_TYPES);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const resolvedWeatherName = useResolvedName();
@@ -202,10 +211,10 @@ export default function App() {
   }, [setActiveSection, setActiveTool]);
 
   // "G then a letter" jumps between sections: G H Home, G T Tools, G N News,
-  // G R Reddit, G S Sports, G M Markets (Stocks). Ignored while typing in a
+  // G R Reddit, G S Sports, G M Markets (Stocks), G F Flights, G G Games. Ignored while typing in a
   // field, and when Ctrl/Alt/Cmd is held, so it never steals a keystroke.
   useEffect(() => {
-    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks', f: 'flights' };
+    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks', f: 'flights', g: 'games' };
     let armedUntil = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const disarm = () => { armedUntil = 0; setGoArmed(false); };
@@ -371,6 +380,7 @@ export default function App() {
   const newsTabs = resolveOrder(newsOrder, NEWS_TYPES).map(toTabDef);
   const sportsTabs = resolveOrder(sportsOrder, SPORTS_TYPES).map(toTabDef);
   const stocksTabs = resolveOrder(stocksOrder, STOCK_TYPES).map(toTabDef);
+  const gamesTabs = resolveOrder(gamesOrder, GAME_TYPES).map(toTabDef);
 
   // Guards against activeNews still pointing at 'sports' from a browser
   // that had it selected before Sports moved out of the News section —
@@ -383,12 +393,14 @@ export default function App() {
   const activeTool = TOOL_TYPES.includes(storedActiveTool) ? storedActiveTool : TOOL_TYPES[0];
   const activeSports = SPORTS_TYPES.includes(storedActiveSports) ? storedActiveSports : SPORTS_TYPES[0];
   const activeStocks = STOCK_TYPES.includes(storedActiveStocks) ? storedActiveStocks : STOCK_TYPES[0];
+  const activeGame = GAME_TYPES.includes(storedActiveGame) ? storedActiveGame : GAME_TYPES[0];
   const activeSection = SECTIONS.some((s) => s.id === storedActiveSection) ? storedActiveSection : 'home';
 
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
   const activeNewsWidget = widgets.find((w) => w.type === safeActiveNews)!;
   const activeSportsWidget = widgets.find((w) => w.type === activeSports)!;
   const activeStocksWidget = widgets.find((w) => w.type === activeStocks)!;
+  const activeGameWidget = widgets.find((w) => w.type === activeGame)!;
   // Reddit has no sub-tabs (it's a single-widget section), so unlike the
   // others there's no "active<X>" selection state to track — just the one
   // widget instance.
@@ -634,6 +646,7 @@ export default function App() {
   const NewsComponent = WIDGET_DEFINITIONS[safeActiveNews].component;
   const SportsComponent = WIDGET_DEFINITIONS[activeSports].component;
   const StocksComponent = WIDGET_DEFINITIONS[activeStocks].component;
+  const GameComponent = WIDGET_DEFINITIONS[activeGame].component;
 
   const activeSectionMeta = SECTIONS.find((s) => s.id === activeSection)!;
   const sectionSubtitle: Record<string, string> = {
@@ -644,6 +657,7 @@ export default function App() {
     sports: 'Live scores and schedules for the teams you follow',
     stocks: 'Watchlist and market snapshot at a glance',
     flights: 'Live aircraft over the areas you pick, FlightWall style',
+    games: 'Something to pass the time',
   };
   const linksEntries = activeTool === 'links' ? (activeToolWidget.config?.links as any[] | undefined) : undefined;
   const toolsMeta = (() => {
@@ -853,6 +867,23 @@ export default function App() {
                 />
               )}
 
+              {activeSection === 'games' && (
+                <TabContainer
+                  tabs={gamesTabs}
+                  activeType={activeGame}
+                  onSelect={setActiveGame}
+                  onReorder={setGamesOrder}
+                >
+                  <GameComponent
+                    key={activeGame}
+                    id={activeGameWidget.id}
+                    config={activeGameWidget.config}
+                    onUpdateConfig={(config: any) => updateWidgetConfig(activeGame, config)}
+                    isEditing={false}
+                  />
+                </TabContainer>
+              )}
+
               {activeSection === 'stocks' && (
                 <TabContainer
                   tabs={stocksTabs}
@@ -876,7 +907,7 @@ export default function App() {
         {goArmed && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-3 py-2 rounded-xl bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 text-xs shadow-lg backdrop-blur-sm flex items-center gap-3">
             <span className="font-semibold">Go to…</span>
-            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets'], ['F', 'Flights']].map(([k, label]) => (
+            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets'], ['F', 'Flights'], ['G', 'Games']].map(([k, label]) => (
               <span key={k} className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 rounded bg-white/15 dark:bg-zinc-900/15 font-mono text-[11px]">{k}</kbd>
                 {label}

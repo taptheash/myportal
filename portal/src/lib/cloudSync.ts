@@ -31,8 +31,10 @@ export const SYNC_KEYS = [
   'pw6-news-order',
   'pw6-sports-order',
   'pw6-stocks-order',
+  'pw6-games-order',
 ];
 // Deliberately NOT synced: pw6-active-* (which tab each device is on),
+// pw6-game-* (a game in progress stays on the device you're playing on),
 // pw6-portal-key (the calendar passcode stays per-browser), and caches.
 
 const STATE_KEY = 'pw6-sync-state';
