@@ -7,7 +7,7 @@ import {
 import AirlineLogo from './AirlineLogo';
 import AreaEditor from './AreaEditor';
 import TrackedFlights from './TrackedFlights';
-import { isFollowed, TrackedFlight } from '../../lib/flightTrack';
+import { isFollowed, TrackedFlight, MAX_TRACKED } from '../../lib/flightTrack';
 
 interface Props {
   config: Record<string, any>;
@@ -46,6 +46,33 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
   const [editing, setEditing] = useState(false);
   const tracked: TrackedFlight[] = Array.isArray(config.tracked) ? config.tracked : [];
   const trackedKey = tracked.map((t) => t.value).join(',');
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(''), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  // Click a flight on the wall or board to follow it (or jump to its card if
+  // you already are). Uses the callsign when there is one, else the tail number.
+  const scrollToCard = (id: string) => setTimeout(() => {
+    document.getElementById(`trk-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+  const trackFlight = (f: Aircraft) => {
+    const existing = tracked.find((t) => isFollowed(f, [t]));
+    if (existing) return scrollToCard(existing.id);
+    const cs = (f.callsign || '').trim().toUpperCase();
+    const reg = (f.reg || '').trim().toUpperCase();
+    if (!cs && !reg) return setNotice('THIS AIRCRAFT HAS NO CALLSIGN OR TAIL NUMBER TO TRACK');
+    if (tracked.length >= MAX_TRACKED) return setNotice(`ALREADY TRACKING ${MAX_TRACKED} FLIGHTS · REMOVE ONE FIRST`);
+    const t: TrackedFlight = cs
+      ? { id: `trk-${Date.now()}`, query: cs, kind: 'callsign', value: cs, alerts: false, addedAt: Date.now() }
+      : { id: `trk-${Date.now()}`, query: reg, kind: 'reg', value: reg, alerts: false, addedAt: Date.now() };
+    onUpdateConfig({ ...config, tracked: [...tracked, t] });
+    setNotice(`NOW TRACKING ${t.query}`);
+    scrollToCard(t.id);
+  };
+  const isTracked = (f: Aircraft) => isFollowed(f, tracked);
   const areaKey = `${area.lat},${area.lon},${area.radiusMi},${area.minFt},${area.maxFt}`;
   const typesKey = areaTypes(area).join(',');
   // Only aircraft in the air, plus any you're following even if parked.
@@ -181,11 +208,13 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
         ) : mode === 'panel' && featured ? (
           <FeaturedFlight key={featured.hex + (index % flights.length)} f={featured} route={featured.callsign ? routes[featured.callsign] : undefined}
             count={flights.length} position={index % flights.length} paused={paused}
-            onTogglePause={() => setPaused(!paused)} onPick={(i) => setIndex(i)} />
+            onTogglePause={() => setPaused(!paused)} onPick={(i) => setIndex(i)}
+            tracking={isTracked(featured)} onTrack={() => trackFlight(featured)} />
         ) : (
-          <Board flights={flights} routes={routes} />
+          <Board flights={flights} routes={routes} isTracked={isTracked} onTrack={trackFlight} />
         )}
       </div>
+      {notice && <div className="led-panel led-text led-cyan led-in text-lg rounded-lg border border-zinc-800 px-4 py-1.5 -mt-1">{notice}</div>}
       <div className="mt-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
         <TrackedFlights
           tracked={tracked}
@@ -201,9 +230,9 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
   );
 }
 
-function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPick }: {
+function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPick, tracking, onTrack }: {
   f: Tracked; route: RouteInfo | undefined; count: number; position: number; paused: boolean;
-  onTogglePause: () => void; onPick: (i: number) => void;
+  onTogglePause: () => void; onPick: (i: number) => void; tracking: boolean; onTrack: () => void;
 }) {
   const rt = routeText(route);
   const emerg = emergency(f.squawk);
@@ -215,7 +244,9 @@ function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPi
       <div className="flex flex-col gap-1.5 min-w-0 flex-1">
       <div className="flex items-baseline gap-3 flex-wrap">
         <span className="sm:hidden self-center"><AirlineLogo code={logoCode(f)} size={40} military={f.military} heli={groupOf(f) === 'heli'} /></span>
-        <span className={`text-5xl leading-none ${emerg ? 'led-red led-blink' : 'led-amber'}`}>{label(f)}</span>
+        <button onClick={onTrack} title={tracking ? 'You are tracking this flight: jump to its card' : 'Click to track this flight'}
+          className={`text-5xl leading-none hover:underline decoration-2 underline-offset-4 ${emerg ? 'led-red led-blink' : 'led-amber'}`}>{label(f)}</button>
+        {tracking && <span className="led-cyan text-xl">● TRACKING</span>}
         {route?.airline && <span className="led-dim text-2xl">{route.airline.toUpperCase()}</span>}
         {f.military && <span className="led-red text-xl">MILITARY</span>}
         {emerg && <span className="led-red text-2xl led-blink">SQUAWK {f.squawk} · {emerg}</span>}
@@ -234,8 +265,13 @@ function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPi
         {f.reg && <span>{f.reg}</span>}
         <span>{f.distMi.toFixed(1)} MI {compass(f.bearing)}</span>
       </div>
+      <div className="flex items-center gap-4 mt-3 flex-wrap">
+        <button onClick={onTrack}
+          className={`text-lg px-2.5 py-0.5 rounded border transition-colors ${tracking ? 'led-cyan border-cyan-400/40' : 'led-amber border-amber-400/40 hover:bg-white/5'}`}>
+          {tracking ? '● TRACKING · SHOW CARD' : '+ TRACK THIS FLIGHT'}
+        </button>
       {count > 1 && (
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2">
           <button onClick={onTogglePause} className="led-dim hover:text-white transition-colors" title={paused ? 'Resume rotation' : 'Hold this flight'}>
             {paused ? <Play size={14} /> : <Pause size={14} />}
           </button>
@@ -248,11 +284,14 @@ function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPi
         </div>
       )}
       </div>
+      </div>
     </div>
   );
 }
 
-function Board({ flights, routes }: { flights: Tracked[]; routes: Record<string, RouteInfo> }) {
+function Board({ flights, routes, isTracked, onTrack }: {
+  flights: Tracked[]; routes: Record<string, RouteInfo>; isTracked: (f: Aircraft) => boolean; onTrack: (f: Aircraft) => void;
+}) {
   const cell = 'px-3 py-1 whitespace-nowrap';
   return (
     <div className="led-text overflow-x-auto">
@@ -269,9 +308,11 @@ function Board({ flights, routes }: { flights: Tracked[]; routes: Record<string,
             const rt = routeText(f.callsign ? routes[f.callsign] : undefined);
             const emerg = emergency(f.squawk);
             return (
-              <tr key={f.hex} className="border-t border-white/5">
+              <tr key={f.hex} onClick={() => onTrack(f)}
+                title={isTracked(f) ? 'Tracking: click to jump to its card' : `Click to track ${label(f)}`}
+                className={`border-t border-white/5 cursor-pointer hover:bg-white/[0.06] ${isTracked(f) ? 'bg-cyan-400/[0.06]' : ''}`}>
                 <td className="pl-3 py-1 w-8"><AirlineLogo code={logoCode(f)} size={26} military={f.military} heli={groupOf(f) === 'heli'} /></td>
-                <td className={`${cell} ${emerg ? 'led-red led-blink' : f.military ? 'led-red' : 'led-amber'}`}>{label(f)}</td>
+                <td className={`${cell} ${emerg ? 'led-red led-blink' : f.military ? 'led-red' : 'led-amber'}`}>{label(f)}{isTracked(f) && <span className="led-cyan text-base ml-2">●</span>}</td>
                 <td className={`${cell} led-cyan`}>{rt ? rt.short : '—'}</td>
                 <td className={`${cell} led-dim`}>{f.type || '—'}</td>
                 <td className={`${cell} led-green text-right`}>{f.onGround ? 'GND' : f.alt === null ? '—' : `${Math.round(f.alt / 100).toString().padStart(3, '0')}${vsArrow(f.vs)}`}</td>
@@ -283,7 +324,7 @@ function Board({ flights, routes }: { flights: Tracked[]; routes: Record<string,
           })}
         </tbody>
       </table>
-      <div className="led-dim text-base px-3 py-1.5 border-t border-white/5">ALT IN HUNDREDS OF FT · SPD KT · DIST MI</div>
+      <div className="led-dim text-base px-3 py-1.5 border-t border-white/5">ALT IN HUNDREDS OF FT · SPD KT · DIST MI · CLICK A FLIGHT TO TRACK IT</div>
     </div>
   );
 }

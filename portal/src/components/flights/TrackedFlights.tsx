@@ -204,7 +204,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
             const emerg = emergency(a?.squawk ?? null);
             const routeLine = r?.found ? `${r.origin?.iata || r.origin?.icao || '???'} → ${r.destination?.iata || r.destination?.icao || '???'}` : null;
             return (
-              <div key={t.id} className="led-panel led-text rounded-xl border border-zinc-800 px-3 py-2 flex flex-col gap-0.5">
+              <div key={t.id} id={`trk-card-${t.id}`} className="led-panel led-text rounded-xl border border-zinc-800 px-3 py-2 flex flex-col gap-0.5">
                 <div className="flex items-center gap-2">
                   <AirlineLogo code={a ? logoCode(a) : t.kind === 'callsign' ? airlineCode(t.value) : null} size={30}
                     military={a?.military} heli={a ? groupOf(a) === 'heli' : false} title={r?.airline || undefined} />
