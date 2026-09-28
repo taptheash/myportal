@@ -22,14 +22,63 @@ interface Props {
 
 interface Live { a: Aircraft | null; at: number; error?: string }
 
-function FitTo({ points }: { points: Array<[number, number]> }) {
+// Frames the flight once when its map opens (and again when its route
+// arrives), then leaves the view alone: live updates every 15s never undo a
+// zoom or pan you made. If the plane drifts off-screen it pans to follow at
+// your zoom. "Fit" (refit bumps) re-frames the whole flight.
+function FitTo({ flightId, points, pos, refit }: {
+  flightId: string; points: Array<[number, number]>; pos: [number, number] | null; refit: number;
+}) {
   const map = useMap();
-  const key = points.length ? `${points[0]}|${points[points.length - 1]}` : '';
+  const userMoved = useRef(false);
+  const programmatic = useRef(false);
+  const fittedWith = useRef(0);
+
   useEffect(() => {
+    const onStart = () => { if (!programmatic.current) userMoved.current = true; };
+    const onEnd = () => { programmatic.current = false; };
+    map.on('zoomstart movestart', onStart);
+    map.on('moveend', onEnd);
+    return () => { map.off('zoomstart movestart', onStart); map.off('moveend', onEnd); };
+  }, [map]);
+
+  const frame = () => {
+    if (!points.length) return;
+    programmatic.current = true;
     if (points.length === 1) map.setView(points[0], 7);
-    else if (points.length > 1) map.fitBounds(points, { padding: [30, 30] });
+    else map.fitBounds(points, { padding: [30, 30] });
+    fittedWith.current = points.length;
+    release();
+  };
+  // If the view didn't actually change, Leaflet sends no moveend; don't let
+  // the flag swallow your next real zoom.
+  const release = () => { setTimeout(() => { programmatic.current = false; }, 800); };
+
+  // New flight on the map, or the Fit button: start fresh.
+  useEffect(() => {
+    userMoved.current = false;
+    fittedWith.current = 0;
+    frame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [flightId, refit]);
+
+  // More to show (route or position arrived) and you haven't moved the map yet.
+  useEffect(() => {
+    if (!userMoved.current && points.length > fittedWith.current) frame();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points.length]);
+
+  // Keep the plane on screen at your zoom.
+  const posKey = pos ? `${pos[0]},${pos[1]}` : '';
+  useEffect(() => {
+    if (!pos || !userMoved.current) return;
+    if (!map.getBounds().pad(-0.1).contains(pos)) {
+      programmatic.current = true;
+      map.panTo(pos, { animate: true });
+      release();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posKey]);
   return null;
 }
 
@@ -38,6 +87,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
   const [inputError, setInputError] = useState('');
   const [live, setLive] = useState<Record<string, Live>>({});
   const [routes, setRoutes] = useState<Record<string, RouteInfo>>({});
+  const [refit, setRefit] = useState(0);
   const [trails, setTrails] = useState<Record<string, TrailPoint[]>>({});
   const [mapId, setMapId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
@@ -207,7 +257,11 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
       )}
 
       {mapFlight && (
-        <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ height: 340 }}>
+        <div className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ height: 340 }}>
+          <button onClick={() => setRefit((n) => n + 1)} title="Zoom out to show the whole flight"
+            className="absolute top-2 right-2 z-[1000] text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800">
+            Fit flight
+          </button>
           {(() => {
             const trail = (trails[mapFlight.id] || []).map((p) => [p.lat, p.lon] as [number, number]);
             const a = live[mapFlight.id]?.a;
@@ -223,7 +277,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
                   url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
                   attribution={isDark ? '&copy; OpenStreetMap &copy; CARTO' : '&copy; OpenStreetMap contributors'}
                 />
-                <FitTo points={fitPts.length ? fitPts : trail} />
+                <FitTo flightId={mapFlight.id} points={fitPts.length ? fitPts : trail} pos={pos} refit={refit} />
                 {o && d && <Polyline positions={[o, d]} pathOptions={{ color: '#71717a', weight: 1, dashArray: '4 6' }} />}
                 {trail.length > 1 && <Polyline positions={trail} pathOptions={{ color: '#22d3ee', weight: 3 }} />}
                 {o && <CircleMarker center={o} radius={5} pathOptions={{ color: '#a1a1aa', fillOpacity: 1 }}><Tooltip>{r?.origin?.iata || r?.origin?.icao} · {r?.origin?.city}</Tooltip></CircleMarker>}
