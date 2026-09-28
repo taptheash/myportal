@@ -6,7 +6,7 @@ import { Search, X, Bell, BellOff } from 'lucide-react';
 import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf } from '../../lib/flights';
 import AirlineLogo from './AirlineLogo';
 import {
-  TrackedFlight, MAX_TRACKED, fetchTracked, addTrailPoint, getTrail,
+  TrackedFlight, MAX_TRACKED, fetchTracked, addTrailPoint, getTrail, lookupPhoto, AircraftPhoto,
   phaseOf, PHASE_LABEL, progressOf, alertFor, TrailPoint,
 } from '../../lib/flightTrack';
 
@@ -96,6 +96,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
   const [routes, setRoutes] = useState<Record<string, RouteInfo>>({});
   const [refit, setRefit] = useState(0);
   const [trails, setTrails] = useState<Record<string, TrailPoint[]>>({});
+  const [photos, setPhotos] = useState<Record<string, AircraftPhoto | null>>({});
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const prevRef = useRef<Record<string, Aircraft | null | undefined>>({});
   const trackedKey = tracked.map((t) => `${t.id}:${t.alerts}`).join(',');
@@ -155,6 +156,20 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
 
   const shown = tracked.find((t) => t.id === selectedId);
   const mapFlight = shown;
+
+  // Photo of the open flight's aircraft: by its transponder hex once it's
+  // been heard, else by tail number when that's what you're tracking.
+  const shownAc = shown ? live[shown.id]?.a ?? null : null;
+  const photoHex = shownAc?.hex || null;
+  const photoReg = shownAc?.reg || (shown?.kind === 'reg' ? shown.value : null);
+  useEffect(() => {
+    if (!shown || (!photoHex && !photoReg)) return;
+    let cancelled = false;
+    const id = shown.id;
+    lookupPhoto(photoHex, photoReg).then((p) => { if (!cancelled) setPhotos((x) => ({ ...x, [id]: p })); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown?.id, photoHex, photoReg]);
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   return (
@@ -171,7 +186,8 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
             const emerg = emergency(a?.squawk ?? null);
             const routeLine = r?.found ? `${r.origin?.iata || r.origin?.icao || '???'} → ${r.destination?.iata || r.destination?.icao || '???'}` : null;
             return (
-              <div key={t.id} id={`trk-card-${t.id}`} className="led-panel led-text rounded-xl border border-zinc-800 px-3 py-2 flex flex-col gap-0.5">
+              <div key={t.id} id={`trk-card-${t.id}`} className="led-panel led-text rounded-xl border border-zinc-800 px-3 py-2 flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <div className="flex items-center gap-2">
                   <AirlineLogo code={a ? logoCode(a) : t.kind === 'callsign' ? airlineCode(t.value) : null} size={30}
                     military={a?.military} heli={a ? groupOf(a) === 'heli' : false} title={r?.airline || undefined} />
@@ -216,6 +232,18 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
                   <div className="led-dim text-base">Not airborne yet, or out of receiver range (over the ocean, for example). It will reappear once a receiver picks it up.</div>
                 )}
                 {l?.error && <div className="led-red text-base">{l.error}</div>}
+                </div>
+                {photos[t.id] && (() => {
+                  const ph = photos[t.id]!;
+                  return (
+                    <a href={ph.link} target="_blank" rel="noopener noreferrer" title="See this photo on Planespotters.net"
+                      className="shrink-0 self-start flex flex-col gap-0.5 group">
+                      <img src={ph.src} width={ph.width} height={ph.height} alt={`${t.query} aircraft`} loading="lazy"
+                        className="rounded-md border border-white/10" />
+                      <span className="font-sans text-[11px] text-zinc-400 group-hover:text-white">© {ph.photographer} · Planespotters.net</span>
+                    </a>
+                  );
+                })()}
               </div>
             );
           })}

@@ -134,3 +134,42 @@ export function alertFor(label: string, prev: Aircraft | null | undefined, cur: 
   }
   return null;
 }
+
+// --- Aircraft photo (Planespotters.net) ------------------------------------
+// Free public API, one photo per airframe, looked up by transponder hex (the
+// current aircraft) and then by tail number. Their terms: show the photographer
+// credit next to the image, link it to the photo's page on planespotters.net
+// (plain link, no nofollow), and load the image from their URL, never a copy.
+export interface AircraftPhoto { src: string; width: number; height: number; link: string; photographer: string }
+
+const photoCache = new Map<string, Promise<AircraftPhoto | null>>();
+
+export function lookupPhoto(hex: string | null, reg: string | null): Promise<AircraftPhoto | null> {
+  const key = `${(hex || '').toLowerCase()}|${(reg || '').toUpperCase()}`;
+  const cached = photoCache.get(key);
+  if (cached) return cached;
+  const job = (async () => {
+    const paths = [
+      hex ? `hex/${encodeURIComponent(hex.toLowerCase())}` : null,
+      reg ? `reg/${encodeURIComponent(reg.toUpperCase())}` : null,
+    ].filter(Boolean) as string[];
+    let failed = false;
+    for (const path of paths) {
+      try {
+        const res = await fetch(`https://api.planespotters.net/pub/photos/${path}`);
+        if (!res.ok) { failed = true; continue; }
+        const data = await res.json();
+        const p = Array.isArray(data?.photos) ? data.photos[0] : null;
+        const img = p?.thumbnail;
+        if (img?.src && p.link) {
+          return { src: img.src, width: img.size?.width || 200, height: img.size?.height || 133, link: p.link, photographer: p.photographer || 'unknown' };
+        }
+      } catch { failed = true; }
+    }
+    // Remember "no photo", but let a network failure try again later.
+    if (failed) photoCache.delete(key);
+    return null;
+  })();
+  photoCache.set(key, job);
+  return job;
+}
