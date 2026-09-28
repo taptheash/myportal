@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Monitor, Rows3, MapPinned, Pause, Play } from 'lucide-react';
 import {
   Aircraft, Tracked, RouteInfo, FlightArea, getAreas, getActiveArea, inArea, fetchAircraft,
-  lookupRoute, cachedRoute, typeName, compass, emergency,
+  lookupRoute, cachedRoute, typeName, compass, emergency, groupOf, logoCode, areaTypes, GROUPS,
 } from '../../lib/flights';
+import AirlineLogo from './AirlineLogo';
 import AreaEditor from './AreaEditor';
 import TrackedFlights from './TrackedFlights';
 import { isFollowed, TrackedFlight } from '../../lib/flightTrack';
@@ -46,11 +47,18 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
   const tracked: TrackedFlight[] = Array.isArray(config.tracked) ? config.tracked : [];
   const trackedKey = tracked.map((t) => t.value).join(',');
   const areaKey = `${area.lat},${area.lon},${area.radiusMi},${area.minFt},${area.maxFt}`;
+  const typesKey = areaTypes(area).join(',');
   // Only aircraft in the air, plus any you're following even if parked.
   const flights: Tracked[] = useMemo(
     () => inArea(raw, area, (a) => isFollowed(a, tracked)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [raw, areaKey, trackedKey]
+    [raw, areaKey, typesKey, trackedKey]
+  );
+  // Everything in the area regardless of type, for the editor's type counts and map.
+  const everything: Tracked[] = useMemo(
+    () => inArea(raw, { ...area, types: undefined }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [raw, areaKey]
   );
 
   // Poll the feed while this tab is visible.
@@ -142,13 +150,18 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
       </div>
 
       {editing && (
-        <AreaEditor areas={areas} activeId={area.id} flights={flights} onSave={saveAreas} />
+        <AreaEditor areas={areas} activeId={area.id} flights={everything} onSave={saveAreas} />
       )}
 
       {/* The LED wall */}
       <div className="led-panel rounded-xl border border-zinc-800 overflow-hidden select-none">
         <div className="led-text flex items-center justify-between px-4 py-2 text-lg border-b border-white/5">
-          <span className="led-amber">{area.name.toUpperCase()} · {area.radiusMi} MI</span>
+          <span className="led-amber">
+            {area.name.toUpperCase()} · {area.radiusMi} MI
+            {areaTypes(area).length < GROUPS.length && (
+              <span className="led-dim"> · {areaTypes(area).length === 0 ? 'FOLLOWED ONLY' : GROUPS.filter((g) => areaTypes(area).includes(g.id)).map((g) => g.label.split(' ')[0].toUpperCase()).join('+')}</span>
+            )}
+          </span>
           <span className="led-green">{String(flights.length).padStart(2, '0')} AIRCRAFT</span>
           <span className="led-dim">{status === 'error' ? <span className="led-red led-blink">FEED DOWN</span> : clock}</span>
         </div>
@@ -195,8 +208,13 @@ function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPi
   const rt = routeText(route);
   const emerg = emergency(f.squawk);
   return (
-    <div className="led-text led-in px-5 py-5 flex flex-col gap-1.5">
+    <div className="led-text led-in px-5 py-5 flex gap-5 items-start">
+      <div className="hidden sm:block pt-1">
+        <AirlineLogo code={logoCode(f)} size={112} military={f.military} heli={groupOf(f) === 'heli'} title={route?.airline || undefined} />
+      </div>
+      <div className="flex flex-col gap-1.5 min-w-0 flex-1">
       <div className="flex items-baseline gap-3 flex-wrap">
+        <span className="sm:hidden self-center"><AirlineLogo code={logoCode(f)} size={40} military={f.military} heli={groupOf(f) === 'heli'} /></span>
         <span className={`text-5xl leading-none ${emerg ? 'led-red led-blink' : 'led-amber'}`}>{label(f)}</span>
         {route?.airline && <span className="led-dim text-2xl">{route.airline.toUpperCase()}</span>}
         {f.military && <span className="led-red text-xl">MILITARY</span>}
@@ -229,6 +247,7 @@ function FeaturedFlight({ f, route, count, position, paused, onTogglePause, onPi
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -240,7 +259,7 @@ function Board({ flights, routes }: { flights: Tracked[]; routes: Record<string,
       <table className="w-full text-xl">
         <thead>
           <tr className="led-dim text-left text-lg">
-            <th className={cell}>FLIGHT</th><th className={cell}>ROUTE</th><th className={cell}>TYPE</th>
+            <th className="pl-3 py-1 w-8"></th><th className={cell}>FLIGHT</th><th className={cell}>ROUTE</th><th className={cell}>TYPE</th>
             <th className={`${cell} text-right`}>ALT</th><th className={`${cell} text-right`}>SPD</th>
             <th className={`${cell} text-right`}>HDG</th><th className={`${cell} text-right`}>DIST</th>
           </tr>
@@ -251,6 +270,7 @@ function Board({ flights, routes }: { flights: Tracked[]; routes: Record<string,
             const emerg = emergency(f.squawk);
             return (
               <tr key={f.hex} className="border-t border-white/5">
+                <td className="pl-3 py-1 w-8"><AirlineLogo code={logoCode(f)} size={26} military={f.military} heli={groupOf(f) === 'heli'} /></td>
                 <td className={`${cell} ${emerg ? 'led-red led-blink' : f.military ? 'led-red' : 'led-amber'}`}>{label(f)}</td>
                 <td className={`${cell} led-cyan`}>{rt ? rt.short : '—'}</td>
                 <td className={`${cell} led-dim`}>{f.type || '—'}</td>

@@ -14,6 +14,7 @@ export interface Aircraft {
   lon: number;
   squawk: string | null;
   military: boolean;
+  category?: string | null; // ADS-B emitter category: A1 light … A5 heavy, A7 helicopter
 }
 
 export interface FlightArea {
@@ -24,6 +25,7 @@ export interface FlightArea {
   radiusMi: number;
   minFt: number;
   maxFt: number;
+  types?: AircraftGroup[]; // which kinds of aircraft to show; missing = all
 }
 
 export interface RouteInfo {
@@ -70,16 +72,62 @@ export function compass(deg: number | null): string {
 
 export type Tracked = Aircraft & { distMi: number; bearing: number };
 
+// ---- Aircraft groups (for the per-area type filter) ----
+
+export type AircraftGroup = 'airline' | 'cargo' | 'ga' | 'military' | 'heli';
+
+export const GROUPS: { id: AircraftGroup; label: string; hint: string }[] = [
+  { id: 'airline', label: 'Airline', hint: 'Scheduled passenger flights, including regionals' },
+  { id: 'cargo', label: 'Cargo', hint: 'FedEx, UPS, Amazon, DHL and other freight carriers' },
+  { id: 'ga', label: 'Private / GA', hint: 'Small planes, business jets, charters, and anything unidentified' },
+  { id: 'military', label: 'Military', hint: 'Aircraft flagged as military in the ADS-B database' },
+  { id: 'heli', label: 'Helicopters', hint: 'Medical, police, news and other rotorcraft' },
+];
+export const ALL_GROUPS: AircraftGroup[] = GROUPS.map((g) => g.id);
+
+const CARGO = new Set(['FDX', 'UPS', 'GTI', 'ABX', 'ATN', 'CKS', 'PAC', 'CLX', 'BOX', 'GEC', 'CAO', 'AJT', 'NCR', 'KFS', 'SRR', 'WGN', 'DHK', 'BCS', 'ABW', 'NCA', 'TAY', 'MPH', 'GSS', 'AMF', 'CFS', 'MTN', 'FRG']);
+// Fractional-ownership and charter operators fly airline-style callsigns
+// (EJA123) but are business jets, so they count as Private / GA.
+const BIZJET_OPS = new Set(['EJA', 'LXJ', 'XOJ', 'JTL', 'WUP', 'EJM', 'TWY', 'VJA', 'FWK', 'GAJ', 'JAS', 'SIO', 'PJC', 'CNS', 'LNX', 'KOW', 'MMD', 'EDG', 'JRE']);
+const HELI_TYPES = new Set(['EC35', 'EC45', 'EC30', 'EC55', 'EC20', 'EC25', 'EC75', 'AS50', 'AS55', 'AS65', 'AS32', 'A109', 'A119', 'A139', 'A169', 'A189', 'B06', 'B06T', 'B407', 'B412', 'B429', 'B505', 'B212', 'B222', 'B230', 'B430', 'R22', 'R44', 'R66', 'S76', 'S92', 'S70', 'H60', 'H47', 'H53', 'H64', 'UH1', 'MD52', 'MD60', 'EXPL', 'BK17', 'H160', 'H500', 'V22']);
+
+// The 3-letter ICAO airline code from an airline-style callsign ("DAL1234" → "DAL").
+export function airlineCode(callsign: string | null): string | null {
+  const m = /^([A-Z]{3})\d/.exec((callsign || '').toUpperCase());
+  return m ? m[1] : null;
+}
+
+export function groupOf(a: Aircraft): AircraftGroup {
+  if (a.military) return 'military';
+  if (a.category === 'A7' || (a.type && HELI_TYPES.has(a.type.toUpperCase()))) return 'heli';
+  const code = airlineCode(a.callsign);
+  if (code && CARGO.has(code)) return 'cargo';
+  if (code && !BIZJET_OPS.has(code) && !/^N\d/.test(a.callsign || '')) return 'airline';
+  return 'ga';
+}
+
+// Only airline and cargo flights have a logo worth fetching.
+export function logoCode(a: Aircraft): string | null {
+  const g = groupOf(a);
+  return g === 'airline' || g === 'cargo' ? airlineCode(a.callsign) : null;
+}
+
+export function areaTypes(area: FlightArea): AircraftGroup[] {
+  return Array.isArray(area.types) ? area.types : ALL_GROUPS;
+}
+
 // Parked or taxiing: reported on the ground, or barely moving near the surface.
 export function isOnGround(a: Aircraft): boolean {
   return a.onGround || (a.alt !== null && a.alt < 100 && (a.gs ?? 0) < 60);
 }
 
-// Airborne aircraft inside the area, nearest first. Aircraft on the ground
-// are left out unless `keep` says it's one you're following.
+// Airborne aircraft inside the area, nearest first, limited to the area's
+// aircraft types. Aircraft on the ground or of a hidden type are left out
+// unless `keep` says it's one you're following.
 export function inArea(list: Aircraft[], area: FlightArea, keep?: (a: Aircraft) => boolean): Tracked[] {
+  const types = new Set(areaTypes(area));
   return list
-    .filter((a) => !isOnGround(a) || (keep ? keep(a) : false))
+    .filter((a) => (keep && keep(a)) || (!isOnGround(a) && types.has(groupOf(a))))
     .map((a) => ({ ...a, distMi: milesBetween(area.lat, area.lon, a.lat, a.lon), bearing: bearingTo(area.lat, area.lon, a.lat, a.lon) }))
     .filter((a) => a.distMi <= area.radiusMi)
     .filter((a) => a.alt === null || (a.alt >= area.minFt && a.alt <= area.maxFt))

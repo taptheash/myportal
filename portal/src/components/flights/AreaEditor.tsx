@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Circle, CircleMarker, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Plus, Trash2, Check, Crosshair } from 'lucide-react';
-import { FlightArea, Tracked } from '../../lib/flights';
+import { FlightArea, Tracked, GROUPS, AircraftGroup, areaTypes, groupOf } from '../../lib/flights';
 
 // Map editor for Flights areas: click the map to move the center, drag the
 // slider for the radius, set a floor/ceiling altitude, and save named areas.
@@ -58,6 +58,13 @@ export default function AreaEditor({ areas, activeId, flights, onSave }: {
       { timeout: 15000, maximumAge: 300000 }
     );
   };
+  const types = areaTypes(draft);
+  const toggleType = (g: AircraftGroup) => {
+    const next = types.includes(g) ? types.filter((x) => x !== g) : [...types, g];
+    set({ types: GROUPS.map((x) => x.id).filter((id) => next.includes(id)) });
+  };
+  const counts: Record<string, number> = {};
+  flights.forEach((f) => { const g = groupOf(f); counts[g] = (counts[g] || 0) + 1; });
   const dirty = JSON.stringify(draft) !== JSON.stringify(areas.find((a) => a.id === draft.id));
   const input = 'px-2 py-1 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400';
 
@@ -80,6 +87,22 @@ export default function AreaEditor({ areas, activeId, flights, onSave }: {
           Highest (ft)
           <input type="number" min={0} step={1000} value={draft.maxFt} onChange={(e) => set({ maxFt: Math.max(0, Number(e.target.value) || 0) })} className={`${input} w-24`} />
         </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Show:</span>
+        {GROUPS.map((g) => {
+          const on = types.includes(g.id);
+          return (
+            <button key={g.id} onClick={() => toggleType(g.id)} title={g.hint} aria-pressed={on}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors duration-150 ${on
+                ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-500'
+                : 'bg-transparent border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+              {g.label}{counts[g.id] ? ` · ${counts[g.id]}` : ''}
+            </button>
+          );
+        })}
+        {types.length === 0 && <span className="text-[11px] text-amber-600 dark:text-amber-400 ml-1">Nothing selected: only flights you follow will show.</span>}
       </div>
 
       <div className="rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ height: 320 }}>

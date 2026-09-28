@@ -133,3 +133,22 @@ test('flight alerts fire on descent, landing and arriving overhead — not on th
   expect(alertFor('DL1', at(44, 20000, 0), at(43.31, 20000, 0), home)).toMatch(/over Home/);
   expect(alertFor('DL1', null, at(40, 12000, 2000), home)).toMatch(/airborne/);
 });
+
+test('aircraft groups and the per-area type filter (followed flights always show)', () => {
+  const { inArea, groupOf, logoCode } = require('./lib/flights');
+  const base = { reg: null, type: null, vs: 0, track: 0, squawk: null, military: false, lat: 43.31, lon: -71.61, alt: 20000, gs: 300, onGround: false, category: null };
+  const dal = { ...base, hex: 'a', callsign: 'DAL12' };
+  const fdx = { ...base, hex: 'b', callsign: 'FDX901' };
+  const eja = { ...base, hex: 'c', callsign: 'EJA455' };
+  const cessna = { ...base, hex: 'd', callsign: 'N172SP' };
+  const mil = { ...base, hex: 'e', callsign: 'RCH123', military: true };
+  const heli = { ...base, hex: 'f', callsign: 'LN12', category: 'A7' };
+  expect([dal, fdx, eja, cessna, mil, heli].map(groupOf)).toEqual(['airline', 'cargo', 'ga', 'ga', 'military', 'heli']);
+  expect(logoCode(dal)).toBe('DAL');
+  expect(logoCode(eja)).toBeNull();
+  const area = { id: 'h', name: 'Home', lat: 43.3, lon: -71.6, radiusMi: 20, minFt: 0, maxFt: 60000, types: ['airline', 'cargo'] };
+  const list = [dal, fdx, eja, cessna, mil, heli];
+  expect(inArea(list, area).map((a: any) => a.hex).sort()).toEqual(['a', 'b']);
+  expect(inArea(list, { ...area, types: undefined }).length).toBe(6);
+  expect(inArea(list, area, (a: any) => a.hex === 'e').map((a: any) => a.hex).sort()).toEqual(['a', 'b', 'e']);
+});

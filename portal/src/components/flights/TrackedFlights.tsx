@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, X, Bell, BellOff, Map as MapIcon } from 'lucide-react';
-import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency } from '../../lib/flights';
+import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf } from '../../lib/flights';
+import AirlineLogo from './AirlineLogo';
 import {
   TrackedFlight, MAX_TRACKED, parseFlightQuery, fetchTracked, addTrailPoint, getTrail, clearTrail,
   phaseOf, PHASE_LABEL, progressOf, alertFor, TrailPoint,
@@ -155,6 +156,8 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
             return (
               <div key={t.id} className="led-panel led-text rounded-xl border border-zinc-800 px-3 py-2 flex flex-col gap-0.5">
                 <div className="flex items-center gap-2">
+                  <AirlineLogo code={a ? logoCode(a) : t.kind === 'callsign' ? airlineCode(t.value) : null} size={30}
+                    military={a?.military} heli={a ? groupOf(a) === 'heli' : false} title={r?.airline || undefined} />
                   <span className={`text-2xl ${emerg ? 'led-red led-blink' : 'led-amber'}`}>{t.query}</span>
                   {t.value !== t.query.replace(/\s+/g, '') && <span className="led-dim text-lg">{t.value}</span>}
                   {r?.airline && <span className="led-dim text-lg truncate">{r.airline.toUpperCase()}</span>}
