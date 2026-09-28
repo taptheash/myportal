@@ -340,7 +340,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
       )}
 
       {mapFlight && (
-        <div className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ height: 340 }}>
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ maxWidth: 680 }}>
           <button onClick={() => setRefit((n) => n + 1)} title="Zoom out to show the whole flight"
             className="absolute top-2 right-2 z-[1000] text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800">
             Fit flight
