@@ -96,7 +96,7 @@ export function phaseOf(a: Aircraft | null): Phase {
 }
 
 export const PHASE_LABEL: Record<Phase, string> = {
-  'not-airborne': 'NOT AIRBORNE YET',
+  'not-airborne': 'NO SIGNAL',
   ground: 'ON THE GROUND',
   climbing: 'CLIMBING',
   cruising: 'CRUISING',

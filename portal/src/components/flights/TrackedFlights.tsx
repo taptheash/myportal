@@ -260,7 +260,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
                   </div>
                 )}
                 {!a && l && !l.error && (
-                  <div className="led-dim text-base">No transponder signal right now — it will appear once airborne and in receiver range.</div>
+                  <div className="led-dim text-base">Not airborne yet, or out of receiver range (over the ocean, for example). It will reappear once a receiver picks it up.</div>
                 )}
                 {l?.error && <div className="led-red text-base">{l.error}</div>}
               </div>
