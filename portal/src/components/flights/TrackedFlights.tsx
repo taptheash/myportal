@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { aircraftSvg, shapeFor } from '../../lib/aircraftIcon';
 import 'leaflet/dist/leaflet.css';
 import { Search, X, Bell, BellOff, Map as MapIcon } from 'lucide-react';
 import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf } from '../../lib/flights';
@@ -103,7 +104,9 @@ function project(lat: number, lon: number, trackDeg: number, gsKt: number, secon
 
 function MovingPlane({ a, label }: { a: Aircraft; label: string }) {
   const map = useMap();
-  const layer = useRef<L.CircleMarker | null>(null);
+  const layer = useRef<L.Marker | null>(null);
+  const setIconRef = useRef<() => void>(() => {});
+  const shapeKey = useRef('');
   const fix = useRef<{ a: Aircraft; t: number } | null>(null);
   const shown = useRef<[number, number] | null>(null);
   const ease = useRef<{ from: [number, number]; t: number } | null>(null);
@@ -111,9 +114,15 @@ function MovingPlane({ a, label }: { a: Aircraft; label: string }) {
   const lastPan = useRef(0);
 
   useEffect(() => {
-    const m = L.circleMarker([a.lat, a.lon], { radius: 7, color: a.military ? '#ef4444' : '#f59e0b', fillColor: a.military ? '#ff3b30' : '#ffb000', fillOpacity: 1 })
+    const icon = () => {
+      const f = fix.current?.a || a;
+      const { html, size } = aircraftSvg(shapeFor(f.type, f.category, groupOf(f) === 'heli', f.military), f.track, f.military);
+      return L.divIcon({ html, className: 'aircraft-icon', iconSize: [size, size], iconAnchor: [size / 2, size / 2], tooltipAnchor: [0, -size / 2] });
+    };
+    const m = L.marker([a.lat, a.lon], { icon: icon(), keyboard: false, interactive: false })
       .bindTooltip(label, { permanent: true, direction: 'top' })
       .addTo(map);
+    setIconRef.current = () => m.setIcon(icon());
     layer.current = m;
     shown.current = [a.lat, a.lon];
     let raf = 0;
@@ -158,6 +167,12 @@ function MovingPlane({ a, label }: { a: Aircraft; label: string }) {
   useEffect(() => {
     if (shown.current && fix.current) ease.current = { from: shown.current, t: Date.now() };
     fix.current = { a, t: Date.now() };
+    // Turn the icon to the new heading (the SVG eases the rotation over 1s);
+    // rebuild it only if the aircraft type became known.
+    const sk = `${a.type}|${a.category}|${a.military}`;
+    const svg = layer.current?.getElement()?.querySelector('svg') as SVGElement | null;
+    if (sk !== shapeKey.current || !svg) { shapeKey.current = sk; setIconRef.current(); }
+    else svg.style.transform = `rotate(${a.track ?? 0}deg)`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
