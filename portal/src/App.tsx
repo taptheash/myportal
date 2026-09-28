@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
   Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList, Plane,
-  Gamepad2, Spade,
+  Gamepad2, Spade, Club, Bug, LayoutGrid, Bomb, Grid3x3,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -40,7 +40,13 @@ import MyNews from './components/widgets/MyNews';
 import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
-import Klondike from './components/games/Klondike';
+// Games load only when you open their tab, so they don't slow the portal down.
+const Klondike = lazy(() => import('./components/games/Klondike'));
+const FreeCell = lazy(() => import('./components/games/FreeCell'));
+const Spider = lazy(() => import('./components/games/Spider'));
+const Mahjong = lazy(() => import('./components/games/Mahjong'));
+const Minesweeper = lazy(() => import('./components/games/Minesweeper'));
+const Sudoku = lazy(() => import('./components/games/Sudoku'));
 
 const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
 const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
@@ -81,7 +87,12 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   reddit:     { type: 'reddit',     label: 'Reddit',      icon: Flame,        component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
   flights:    { type: 'flights',    label: 'Flights',     icon: Plane,        component: FlightWall,   color: '#FFB000', activeText: 'black' },
-  solitaire:  { type: 'solitaire',  label: 'Solitaire',   icon: Spade,        component: Klondike,     color: '#009E73', activeText: 'black' },
+  solitaire:  { type: 'solitaire',  label: 'Solitaire',   icon: Spade,        component: Klondike as React.ComponentType<any>,    color: '#009E73', activeText: 'black' },
+  freecell:   { type: 'freecell',   label: 'FreeCell',    icon: Club,         component: FreeCell as React.ComponentType<any>,    color: '#56B4E9', activeText: 'black' },
+  spider:     { type: 'spider',     label: 'Spider',      icon: Bug,          component: Spider as React.ComponentType<any>,      color: '#CC79A7', activeText: 'black' },
+  mahjong:    { type: 'mahjong',    label: 'Mahjong',     icon: LayoutGrid,   component: Mahjong as React.ComponentType<any>,     color: '#E69F00', activeText: 'black' },
+  minesweeper: { type: 'minesweeper', label: 'Minesweeper', icon: Bomb,      component: Minesweeper as React.ComponentType<any>, color: '#D55E00', activeText: 'black' },
+  sudoku:     { type: 'sudoku',     label: 'Sudoku',      icon: Grid3x3,      component: Sudoku as React.ComponentType<any>,      color: '#0072B2', activeText: 'white' },
   mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
   saved:      { type: 'saved',      label: 'Saved',       icon: Bookmark,     component: SavedArticles, color: '#009E73', activeText: 'black' },
   brief:      { type: 'brief',      label: 'Daily Brief', icon: Sunrise,      component: DailyBrief,   color: '#E69F00', activeText: 'black' },
@@ -105,9 +116,8 @@ const STOCK_TYPES = ['watchlist', 'marketOverview'];
 // widget instance gets created/found like every other type.
 const REDDIT_TYPES = ['reddit'];
 const FLIGHT_TYPES = ['flights'];
-// Games: one tab per game. More (Mahjong, FreeCell, Spider, Minesweeper,
-// Sudoku) get added here as they're built.
-const GAME_TYPES = ['solitaire'];
+// Games: one tab per game.
+const GAME_TYPES = ['solitaire', 'freecell', 'spider', 'mahjong', 'minesweeper', 'sudoku'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES, ...GAME_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
@@ -874,13 +884,15 @@ export default function App() {
                   onSelect={setActiveGame}
                   onReorder={setGamesOrder}
                 >
-                  <GameComponent
-                    key={activeGame}
-                    id={activeGameWidget.id}
-                    config={activeGameWidget.config}
-                    onUpdateConfig={(config: any) => updateWidgetConfig(activeGame, config)}
-                    isEditing={false}
-                  />
+                  <Suspense fallback={<div className="py-16 text-center text-sm text-zinc-400">Loading…</div>}>
+                    <GameComponent
+                      key={activeGame}
+                      id={activeGameWidget.id}
+                      config={activeGameWidget.config}
+                      onUpdateConfig={(config: any) => updateWidgetConfig(activeGame, config)}
+                      isEditing={false}
+                    />
+                  </Suspense>
                 </TabContainer>
               )}
 

@@ -3,8 +3,11 @@
 // move isn't allowed) and never changes the one it was given, which is what
 // makes Undo a simple list of earlier states.
 
-export type Suit = 'S' | 'H' | 'D' | 'C';
-export interface Card { id: string; suit: Suit; rank: number; up: boolean } // rank 1 (A) .. 13 (K)
+import { PlayingCard, SUITS, rng, newSeed, isRed } from './cardDeck';
+
+export type { Suit } from './cardDeck';
+export { SUITS, isRed, RANK_LABEL, SUIT_SYMBOL } from './cardDeck';
+export type Card = PlayingCard;
 
 export interface KlondikeState {
   stock: Card[];          // face down, last card is the top
@@ -24,24 +27,7 @@ export type From =
   | { pile: 'tableau'; i: number; index: number }; // index = first card of the stack
 export type To = { pile: 'foundation'; i: number } | { pile: 'tableau'; i: number };
 
-export const SUITS: Suit[] = ['S', 'H', 'D', 'C'];
-export const isRed = (s: Suit) => s === 'H' || s === 'D';
-export const RANK_LABEL = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-export const SUIT_SYMBOL: Record<Suit, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
-
-// Small seeded random generator, so a deal can be replayed and tested.
-function rng(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function newDeal(drawCount: 1 | 3, seed = Math.floor(Math.random() * 2 ** 31)): KlondikeState {
+export function newDeal(drawCount: 1 | 3, seed = newSeed()): KlondikeState {
   const deck: Card[] = [];
   for (const suit of SUITS) for (let rank = 1; rank <= 13; rank++) deck.push({ id: `${suit}${rank}`, suit, rank, up: false });
   const rand = rng(seed);
