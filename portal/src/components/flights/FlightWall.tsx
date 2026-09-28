@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Monitor, Rows3, MapPinned, Pause, Play } from 'lucide-react';
 import {
-  Tracked, RouteInfo, FlightArea, getAreas, getActiveArea, inArea, fetchAircraft,
+  Aircraft, Tracked, RouteInfo, FlightArea, getAreas, getActiveArea, inArea, fetchAircraft,
   lookupRoute, cachedRoute, typeName, compass, emergency,
 } from '../../lib/flights';
 import AreaEditor from './AreaEditor';
+import TrackedFlights from './TrackedFlights';
+import { isFollowed, TrackedFlight } from '../../lib/flightTrack';
 
 interface Props {
   config: Record<string, any>;
@@ -31,7 +33,9 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
   const areas = getAreas(config);
   const area = getActiveArea(config);
   const mode: 'panel' | 'board' = config.mode === 'board' ? 'board' : 'panel';
-  const [flights, setFlights] = useState<Tracked[]>([]);
+  // Raw feed for the area; the displayed list is derived below so it updates
+  // the moment you follow or unfollow a flight, not just on the next poll.
+  const [raw, setRaw] = useState<Aircraft[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
@@ -39,7 +43,15 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [editing, setEditing] = useState(false);
+  const tracked: TrackedFlight[] = Array.isArray(config.tracked) ? config.tracked : [];
+  const trackedKey = tracked.map((t) => t.value).join(',');
   const areaKey = `${area.lat},${area.lon},${area.radiusMi},${area.minFt},${area.maxFt}`;
+  // Only aircraft in the air, plus any you're following even if parked.
+  const flights: Tracked[] = useMemo(
+    () => inArea(raw, area, (a) => isFollowed(a, tracked)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [raw, areaKey, trackedKey]
+  );
 
   // Poll the feed while this tab is visible.
   useEffect(() => {
@@ -50,7 +62,7 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
         try {
           const list = await fetchAircraft(area);
           if (cancelled) return;
-          setFlights(inArea(list, area));
+          setRaw(list);
           setStatus('ok');
           setError('');
           setUpdatedAt(Date.now());
@@ -151,7 +163,7 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
         ) : flights.length === 0 ? (
           <div className="led-text px-4 py-12 text-center">
             <div className="led-amber text-3xl">CLEAR SKIES</div>
-            <div className="led-dim text-lg mt-1">NO AIRCRAFT WITHIN {area.radiusMi} MI RIGHT NOW</div>
+            <div className="led-dim text-lg mt-1">NO AIRCRAFT IN THE AIR WITHIN {area.radiusMi} MI RIGHT NOW</div>
           </div>
         ) : mode === 'panel' && featured ? (
           <FeaturedFlight key={featured.hex + (index % flights.length)} f={featured} route={featured.callsign ? routes[featured.callsign] : undefined}
@@ -160,6 +172,13 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
         ) : (
           <Board flights={flights} routes={routes} />
         )}
+      </div>
+      <div className="mt-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+        <TrackedFlights
+          tracked={tracked}
+          onChange={(next) => onUpdateConfig({ ...config, tracked: next })}
+          homeArea={areas[0]}
+        />
       </div>
       <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
         Live ADS-B from community feeds (adsb.lol, airplanes.live, adsb.fi), updated every 15 seconds while this page is open.

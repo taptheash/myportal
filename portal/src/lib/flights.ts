@@ -29,8 +29,8 @@ export interface FlightArea {
 export interface RouteInfo {
   found: boolean;
   airline?: string | null;
-  origin?: { iata: string | null; icao: string | null; city: string | null } | null;
-  destination?: { iata: string | null; icao: string | null; city: string | null } | null;
+  origin?: { iata: string | null; icao: string | null; city: string | null; lat?: number | null; lon?: number | null } | null;
+  destination?: { iata: string | null; icao: string | null; city: string | null; lat?: number | null; lon?: number | null } | null;
 }
 
 export const DEFAULT_AREAS: FlightArea[] = [
@@ -70,9 +70,16 @@ export function compass(deg: number | null): string {
 
 export type Tracked = Aircraft & { distMi: number; bearing: number };
 
-// Aircraft inside the area, nearest first.
-export function inArea(list: Aircraft[], area: FlightArea): Tracked[] {
+// Parked or taxiing: reported on the ground, or barely moving near the surface.
+export function isOnGround(a: Aircraft): boolean {
+  return a.onGround || (a.alt !== null && a.alt < 100 && (a.gs ?? 0) < 60);
+}
+
+// Airborne aircraft inside the area, nearest first. Aircraft on the ground
+// are left out unless `keep` says it's one you're following.
+export function inArea(list: Aircraft[], area: FlightArea, keep?: (a: Aircraft) => boolean): Tracked[] {
   return list
+    .filter((a) => !isOnGround(a) || (keep ? keep(a) : false))
     .map((a) => ({ ...a, distMi: milesBetween(area.lat, area.lon, a.lat, a.lon), bearing: bearingTo(area.lat, area.lon, a.lat, a.lon) }))
     .filter((a) => a.distMi <= area.radiusMi)
     .filter((a) => a.alt === null || (a.alt >= area.minFt && a.alt <= area.maxFt))

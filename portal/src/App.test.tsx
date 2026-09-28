@@ -88,3 +88,48 @@ test('Home layout auto-switch: weekend, work hours, evenings, and a manual pick 
   // auto off: the pick sticks
   expect(resolveActive({ ...state, auto: false }, { id: 'weekend', date: '2020-01-01' }, monWork)).toBe('weekend');
 });
+
+test('flight tracking: ticket flight numbers become ADS-B callsigns; tail numbers stay registrations', () => {
+  const { parseFlightQuery, phaseOf, progressOf } = require('./lib/flightTrack');
+  expect(parseFlightQuery('DL1234')).toEqual({ kind: 'callsign', value: 'DAL1234' });
+  expect(parseFlightQuery('b6 512')).toEqual({ kind: 'callsign', value: 'JBU512' });
+  expect(parseFlightQuery('AAL100')).toEqual({ kind: 'callsign', value: 'AAL100' });
+  expect(parseFlightQuery('N123DL')).toEqual({ kind: 'reg', value: 'N123DL' });
+  expect(parseFlightQuery('C-FABC')).toEqual({ kind: 'reg', value: 'C-FABC' });
+  expect(parseFlightQuery('!!')).toBeNull();
+  expect(phaseOf(null)).toBe('not-airborne');
+  expect(phaseOf({ onGround: false, alt: 30000, vs: -1500, gs: 420 })).toBe('descending');
+  const p = progressOf(
+    { lat: 38, lon: -80, gs: 450, alt: 35000, vs: 0, onGround: false },
+    { found: true, origin: { lat: 42.36, lon: -71.01 }, destination: { lat: 33.64, lon: -84.43 } }
+  );
+  expect(p.pct).toBeGreaterThan(30);
+  expect(p.pct).toBeLessThan(70);
+  expect(p.eta).not.toBeNull();
+});
+
+test('area views skip aircraft on the ground unless you follow them', () => {
+  const { inArea } = require('./lib/flights');
+  const { isFollowed } = require('./lib/flightTrack');
+  const area = { id: 'h', name: 'Home', lat: 43.3, lon: -71.6, radiusMi: 20, minFt: 0, maxFt: 60000 };
+  const base = { reg: null, type: null, vs: 0, track: 0, squawk: null, military: false, lat: 43.31, lon: -71.61 };
+  const list = [
+    { ...base, hex: '1', callsign: 'DAL1', alt: 30000, gs: 450, onGround: false },
+    { ...base, hex: '2', callsign: 'JBU9', alt: 0, gs: 5, onGround: true },
+    { ...base, hex: '3', callsign: 'N1AB', alt: 50, gs: 10, onGround: false },
+  ];
+  expect(inArea(list, area).map((a: any) => a.hex)).toEqual(['1']);
+  const tracked = [{ id: 't', query: 'B6 9', kind: 'callsign', value: 'JBU9', alerts: false, addedAt: 0 }];
+  expect(inArea(list, area, (a: any) => isFollowed(a, tracked)).map((a: any) => a.hex).sort()).toEqual(['1', '2']);
+});
+
+test('flight alerts fire on descent, landing and arriving overhead — not on the first reading', () => {
+  const { alertFor } = require('./lib/flightTrack');
+  const home = { id: 'h', name: 'Home', lat: 43.3, lon: -71.6, radiusMi: 15, minFt: 0, maxFt: 60000 };
+  const at = (lat: number, alt: number, vs: number, onGround = false) => ({ lat, lon: -71.6, alt, vs, gs: onGround ? 10 : 400, onGround });
+  expect(alertFor('DL1', undefined, at(40, 35000, 0), home)).toBeNull();
+  expect(alertFor('DL1', at(40, 35000, 0), at(40.5, 33000, -1500), home)).toMatch(/descent/);
+  expect(alertFor('DL1', at(40, 3000, -800), at(40, 0, 0, true), home)).toMatch(/landed/);
+  expect(alertFor('DL1', at(44, 20000, 0), at(43.31, 20000, 0), home)).toMatch(/over Home/);
+  expect(alertFor('DL1', null, at(40, 12000, 2000), home)).toMatch(/airborne/);
+});

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getWidgetConfig } from '../../lib/portalStorage';
 import { getActiveArea, fetchAircraft, inArea, Tracked, lookupRoute, cachedRoute, RouteInfo, emergency } from '../../lib/flights';
+import { isFollowed } from '../../lib/flightTrack';
 
 // Home's mini FlightWall: how many aircraft are in your active Flights area
 // and the nearest few, on the same black LED panel.
@@ -16,7 +17,8 @@ export default function FlightsHighlight() {
     const run = async () => {
       if (document.visibilityState === 'visible') {
         try {
-          const list = inArea(await fetchAircraft(area), area);
+          const tracked = getWidgetConfig('flights').tracked || [];
+          const list = inArea(await fetchAircraft(area), area, (a) => isFollowed(a, tracked));
           if (cancelled) return;
           setFlights(list);
           setFailed(false);

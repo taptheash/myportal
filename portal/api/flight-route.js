@@ -20,6 +20,8 @@ module.exports = async (req, res) => {
       icao: p.icao_code || null,
       city: p.municipality || null,
       name: p.name || null,
+      lat: typeof p.latitude === 'number' ? p.latitude : null,
+      lon: typeof p.longitude === 'number' ? p.longitude : null,
     } : null);
     return res.status(200).json({
       callsign: cs,
