@@ -32,7 +32,7 @@ function tipHtml(f: Tracked, route: RouteInfo | undefined, tracked: boolean): st
     + `<div class="t2">${esc(alt)}${vs} · ${esc(spd)}</div>`
     + `<div class="t3">${esc(typeName(f.type) || 'Unknown type')}${f.reg && f.reg !== name ? ` · ${esc(f.reg)}` : ''}</div>`
     + (emerg ? `<div class="t4">SQUAWK ${esc(f.squawk || '')} · ${emerg}</div>` : '')
-    + `<div class="t5">${tracked ? 'Tracking · click to show its card' : 'Click to track'}</div>`
+    + `<div class="t5">${tracked ? 'Tracking · click to open its tab' : 'Click to track'}</div>`
     + `</div>`;
 }
 

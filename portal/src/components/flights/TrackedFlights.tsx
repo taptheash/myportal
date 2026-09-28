@@ -2,16 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import MovingPlane from './MapAircraft';
 import 'leaflet/dist/leaflet.css';
-import { Search, X, Bell, BellOff, Map as MapIcon } from 'lucide-react';
+import { Search, X, Bell, BellOff } from 'lucide-react';
 import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf } from '../../lib/flights';
 import AirlineLogo from './AirlineLogo';
 import {
-  TrackedFlight, MAX_TRACKED, parseFlightQuery, fetchTracked, addTrailPoint, getTrail, clearTrail,
+  TrackedFlight, MAX_TRACKED, fetchTracked, addTrailPoint, getTrail,
   phaseOf, PHASE_LABEL, progressOf, alertFor, TrailPoint,
 } from '../../lib/flightTrack';
 
 // Watch list of specific flights, anywhere: flight number or tail number in,
-// live LED status card out, with a map of the trail flown so far.
+// live LED status card out, with a map of the trail flown so far. Each tracked
+// flight is a tab on the Flights page (FlightWall); this shows the open one.
 
 const POLL_MS = 15000;
 
@@ -19,8 +20,10 @@ interface Props {
   tracked: TrackedFlight[];
   onChange: (next: TrackedFlight[]) => void;
   homeArea: FlightArea;
-  // The flight's own tab: one flight, map always open, no search box or remove.
-  standalone?: boolean;
+  // The flight tab that's open on the Flights page (null = an area is showing).
+  // Every tracked flight keeps polling, so alerts work from any tab.
+  selectedId: string | null;
+  onRemove: (id: string) => void;
 }
 
 interface Live { a: Aircraft | null; at: number; error?: string }
@@ -88,14 +91,11 @@ function FitTo({ flightId, points, pos, refit }: {
   return null;
 }
 
-export default function TrackedFlights({ tracked, onChange, homeArea, standalone = false }: Props) {
-  const [input, setInput] = useState('');
-  const [inputError, setInputError] = useState('');
+export default function TrackedFlights({ tracked, onChange, homeArea, selectedId, onRemove }: Props) {
   const [live, setLive] = useState<Record<string, Live>>({});
   const [routes, setRoutes] = useState<Record<string, RouteInfo>>({});
   const [refit, setRefit] = useState(0);
   const [trails, setTrails] = useState<Record<string, TrailPoint[]>>({});
-  const [mapId, setMapId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
   const prevRef = useRef<Record<string, Aircraft | null | undefined>>({});
   const trackedKey = tracked.map((t) => `${t.id}:${t.alerts}`).join(',');
@@ -146,26 +146,6 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedKey]);
 
-  // A flight typed in the box opens in its own browser tab (see TrackPage),
-  // titled with the flight number. It isn't added to this list: clicking a
-  // plane on the wall, board or map is what adds one here.
-  const add = () => {
-    const parsed = parseFlightQuery(input);
-    if (!parsed) { setInputError('Enter a flight number like DL1234 or B6 512, or a tail number like N123DL'); return; }
-    const query = input.trim().toUpperCase().replace(/\s+/g, ' ');
-    const tab = window.open(`/?track=${encodeURIComponent(query)}`, '_blank');
-    if (!tab) { setInputError('Your browser blocked the new tab. Allow pop-ups for this site and try again.'); return; }
-    setInput('');
-    setInputError('');
-  };
-
-  const remove = (id: string) => {
-    clearTrail(id);
-    delete prevRef.current[id];
-    if (mapId === id) setMapId(null);
-    onChange(tracked.filter((t) => t.id !== id));
-  };
-
   const toggleAlerts = async (t: TrackedFlight) => {
     if (!t.alerts && 'Notification' in window && Notification.permission === 'default') {
       try { await Notification.requestPermission(); } catch { /* ignore */ }
@@ -173,42 +153,16 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
     onChange(tracked.map((x) => (x.id === t.id ? { ...x, alerts: !x.alerts } : x)));
   };
 
-  const mapFlight = standalone ? tracked[0] : tracked.find((t) => t.id === mapId);
+  const shown = tracked.find((t) => t.id === selectedId);
+  const mapFlight = shown;
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   return (
-    <div className="flex flex-col gap-3">
-      {!standalone && <>
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 mr-1">Track a flight</h3>
-        <div className="flex items-center gap-1.5 flex-1 min-w-[260px] max-w-md">
-          <div className="relative flex-1">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              value={input}
-              onChange={(e) => { setInput(e.target.value); setInputError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && add()}
-              placeholder="Flight number (DL1234) or tail number (N123DL)"
-              className="w-full pl-7 pr-2 py-1.5 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-            />
-          </div>
-          <button onClick={add} className="px-3 py-1.5 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150">Track</button>
-        </div>
-        <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{tracked.length}/{MAX_TRACKED}</span>
-      </div>
-      {inputError && <p className="-mt-2 text-xs text-red-500">{inputError}</p>}
-      </>}
-
-      {tracked.length === 0 ? (
-        !standalone && (
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            A flight you type here opens in its own tab. Flight numbers from your ticket work (DL1234 is sent to the feeds as DAL1234), and so do tail numbers.
-            Click a plane on the wall, board or map to keep it in this list instead.
-          </p>
-        )
-      ) : (
-        <div className={`grid grid-cols-1 gap-2 ${standalone ? '' : 'lg:grid-cols-2'}`}>
-          {tracked.map((t) => {
+    <>
+      {shown && (
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-2">
+          {[shown].map((t) => {
             const l = live[t.id];
             const a = l?.a ?? null;
             const r = routes[t.id];
@@ -225,11 +179,10 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
                   {t.value !== t.query.replace(/\s+/g, '') && <span className="led-dim text-lg">{t.value}</span>}
                   {r?.airline && <span className="led-dim text-lg truncate">{r.airline.toUpperCase()}</span>}
                   <span className="ml-auto flex items-center gap-1.5">
-                    {!standalone && <button onClick={() => setMapId(mapId === t.id ? null : t.id)} title="Show on map" className={`p-1 rounded ${mapId === t.id ? 'led-cyan' : 'led-dim'} hover:text-white`}><MapIcon size={14} /></button>}
                     <button onClick={() => toggleAlerts(t)} title={t.alerts ? 'Alerts on: airborne, descent, landing, overhead' : 'Turn on alerts (while this page is open)'} className={`p-1 rounded ${t.alerts ? 'led-amber' : 'led-dim'} hover:text-white`}>
                       {t.alerts ? <Bell size={14} /> : <BellOff size={14} />}
                     </button>
-                    {!standalone && <button onClick={() => remove(t.id)} title="Stop tracking" className="p-1 rounded led-dim hover:text-red-400"><X size={14} /></button>}
+                    <button onClick={() => onRemove(t.id)} title="Stop tracking and close this tab" className="p-1 rounded led-dim hover:text-red-400"><X size={14} /></button>
                   </span>
                 </div>
                 <div className="flex items-baseline gap-3 flex-wrap text-xl">
@@ -267,10 +220,9 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
             );
           })}
         </div>
-      )}
 
       {mapFlight && (
-        <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ maxWidth: standalone ? 'min(900px, calc(100vh - 170px))' : 680 }}>
+        <div className="relative w-full rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ height: 640 }}>
           <button onClick={() => setRefit((n) => n + 1)} title="Zoom out to show the whole flight"
             className="absolute top-2 right-2 z-[1000] text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800">
             Fit flight
@@ -307,6 +259,8 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
           Alerts (airborne, descent, landing, and "now over {homeArea.name}") work while the portal is open in a tab. ETA is a rough estimate from current speed and distance, not the airline's arrival time.
         </p>
       )}
+      </div>
+      )}
 
       {toasts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-[150] flex flex-col gap-2">
@@ -316,6 +270,47 @@ export default function TrackedFlights({ tracked, onChange, homeArea, standalone
             </div>
           ))}
         </div>
+      )}
+    </>
+  );
+}
+
+// "Track a flight" box, under the area view. Adding a flight (or naming one
+// you already track) opens its tab; onAdd returns an error message or null.
+export function TrackBox({ count, onAdd }: { count: number; onAdd: (query: string) => string | null }) {
+  const [input, setInput] = useState('');
+  const [inputError, setInputError] = useState('');
+  const add = () => {
+    const err = onAdd(input);
+    if (err) { setInputError(err); return; }
+    setInput('');
+    setInputError('');
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 mr-1">Track a flight</h3>
+        <div className="flex items-center gap-1.5 flex-1 min-w-[260px] max-w-md">
+          <div className="relative flex-1">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              value={input}
+              onChange={(e) => { setInput(e.target.value); setInputError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && add()}
+              placeholder="Flight number (DL1234) or tail number (N123DL)"
+              className="w-full pl-7 pr-2 py-1.5 text-sm rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            />
+          </div>
+          <button onClick={add} className="px-3 py-1.5 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150">Track</button>
+        </div>
+        <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{count}/{MAX_TRACKED}</span>
+      </div>
+      {inputError && <p className="text-xs text-red-500">{inputError}</p>}
+      {count === 0 && (
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          Each flight you track gets its own tab next to your areas. Flight numbers from your ticket work (DL1234 is sent to the feeds as DAL1234), and so do tail numbers.
+          You can also click a plane on the wall, board or map.
+        </p>
       )}
     </div>
   );
