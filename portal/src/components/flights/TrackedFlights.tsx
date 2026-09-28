@@ -19,6 +19,8 @@ interface Props {
   tracked: TrackedFlight[];
   onChange: (next: TrackedFlight[]) => void;
   homeArea: FlightArea;
+  // The flight's own tab: one flight, map always open, no search box or remove.
+  standalone?: boolean;
 }
 
 interface Live { a: Aircraft | null; at: number; error?: string }
@@ -86,7 +88,7 @@ function FitTo({ flightId, points, pos, refit }: {
   return null;
 }
 
-export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
+export default function TrackedFlights({ tracked, onChange, homeArea, standalone = false }: Props) {
   const [input, setInput] = useState('');
   const [inputError, setInputError] = useState('');
   const [live, setLive] = useState<Record<string, Live>>({});
@@ -144,13 +146,15 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedKey]);
 
+  // A flight typed in the box opens in its own browser tab (see TrackPage),
+  // titled with the flight number. It isn't added to this list: clicking a
+  // plane on the wall, board or map is what adds one here.
   const add = () => {
     const parsed = parseFlightQuery(input);
     if (!parsed) { setInputError('Enter a flight number like DL1234 or B6 512, or a tail number like N123DL'); return; }
-    if (tracked.length >= MAX_TRACKED) { setInputError(`You can track up to ${MAX_TRACKED} flights — remove one first`); return; }
-    if (tracked.some((t) => t.value === parsed.value)) { setInputError('Already tracking that flight'); return; }
-    const t: TrackedFlight = { id: `trk-${Date.now()}`, query: input.trim().toUpperCase(), ...parsed, alerts: false, addedAt: Date.now() };
-    onChange([...tracked, t]);
+    const query = input.trim().toUpperCase().replace(/\s+/g, ' ');
+    const tab = window.open(`/?track=${encodeURIComponent(query)}`, '_blank');
+    if (!tab) { setInputError('Your browser blocked the new tab. Allow pop-ups for this site and try again.'); return; }
     setInput('');
     setInputError('');
   };
@@ -169,11 +173,12 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
     onChange(tracked.map((x) => (x.id === t.id ? { ...x, alerts: !x.alerts } : x)));
   };
 
-  const mapFlight = tracked.find((t) => t.id === mapId);
+  const mapFlight = standalone ? tracked[0] : tracked.find((t) => t.id === mapId);
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   return (
     <div className="flex flex-col gap-3">
+      {!standalone && <>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 mr-1">Track a flight</h3>
         <div className="flex items-center gap-1.5 flex-1 min-w-[260px] max-w-md">
@@ -192,13 +197,17 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
         <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{tracked.length}/{MAX_TRACKED}</span>
       </div>
       {inputError && <p className="-mt-2 text-xs text-red-500">{inputError}</p>}
+      </>}
 
       {tracked.length === 0 ? (
-        <p className="text-xs text-zinc-400 dark:text-zinc-500">
-          Nothing tracked yet. Flight numbers from your ticket work (DL1234 is sent to the feeds as DAL1234), and so do tail numbers.
-        </p>
+        !standalone && (
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">
+            A flight you type here opens in its own tab. Flight numbers from your ticket work (DL1234 is sent to the feeds as DAL1234), and so do tail numbers.
+            Click a plane on the wall, board or map to keep it in this list instead.
+          </p>
+        )
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        <div className={`grid grid-cols-1 gap-2 ${standalone ? '' : 'lg:grid-cols-2'}`}>
           {tracked.map((t) => {
             const l = live[t.id];
             const a = l?.a ?? null;
@@ -216,11 +225,11 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
                   {t.value !== t.query.replace(/\s+/g, '') && <span className="led-dim text-lg">{t.value}</span>}
                   {r?.airline && <span className="led-dim text-lg truncate">{r.airline.toUpperCase()}</span>}
                   <span className="ml-auto flex items-center gap-1.5">
-                    <button onClick={() => setMapId(mapId === t.id ? null : t.id)} title="Show on map" className={`p-1 rounded ${mapId === t.id ? 'led-cyan' : 'led-dim'} hover:text-white`}><MapIcon size={14} /></button>
+                    {!standalone && <button onClick={() => setMapId(mapId === t.id ? null : t.id)} title="Show on map" className={`p-1 rounded ${mapId === t.id ? 'led-cyan' : 'led-dim'} hover:text-white`}><MapIcon size={14} /></button>}
                     <button onClick={() => toggleAlerts(t)} title={t.alerts ? 'Alerts on: airborne, descent, landing, overhead' : 'Turn on alerts (while this page is open)'} className={`p-1 rounded ${t.alerts ? 'led-amber' : 'led-dim'} hover:text-white`}>
                       {t.alerts ? <Bell size={14} /> : <BellOff size={14} />}
                     </button>
-                    <button onClick={() => remove(t.id)} title="Stop tracking" className="p-1 rounded led-dim hover:text-red-400"><X size={14} /></button>
+                    {!standalone && <button onClick={() => remove(t.id)} title="Stop tracking" className="p-1 rounded led-dim hover:text-red-400"><X size={14} /></button>}
                   </span>
                 </div>
                 <div className="flex items-baseline gap-3 flex-wrap text-xl">
@@ -261,7 +270,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea }: Props) {
       )}
 
       {mapFlight && (
-        <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ maxWidth: 680 }}>
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ maxWidth: standalone ? 'min(900px, calc(100vh - 170px))' : 680 }}>
           <button onClick={() => setRefit((n) => n + 1)} title="Zoom out to show the whole flight"
             className="absolute top-2 right-2 z-[1000] text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800">
             Fit flight

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import TrackPage from './components/flights/TrackPage';
 import reportWebVitals from './reportWebVitals';
 import { cleanUpOldCaches } from './lib/storageCleanup';
 
@@ -10,9 +11,12 @@ cleanUpOldCaches();
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+// /?track=DL1234 is a single flight in its own tab (see TrackPage).
+const trackQuery = new URLSearchParams(window.location.search).get('track');
+
 root.render(
   <React.StrictMode>
-    <App />
+    {trackQuery ? <TrackPage query={trackQuery} /> : <App />}
   </React.StrictMode>
 );
 
