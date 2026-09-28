@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Monitor, Rows3, MapPinned, Pause, Play } from 'lucide-react';
+import { Monitor, Rows3, MapPinned, Pause, Play, Map as MapIcon } from 'lucide-react';
 import {
   Aircraft, Tracked, RouteInfo, FlightArea, getAreas, getActiveArea, inArea, fetchAircraft,
   lookupRoute, cachedRoute, typeName, compass, emergency, groupOf, logoCode, areaTypes, GROUPS,
 } from '../../lib/flights';
 import AirlineLogo from './AirlineLogo';
 import AreaEditor from './AreaEditor';
+import AreaMap from './AreaMap';
 import TrackedFlights from './TrackedFlights';
 import { isFollowed, TrackedFlight, MAX_TRACKED } from '../../lib/flightTrack';
 
@@ -33,7 +34,7 @@ function routeText(r: RouteInfo | undefined): { short: string; long: string } | 
 export default function FlightWall({ config, onUpdateConfig }: Props) {
   const areas = getAreas(config);
   const area = getActiveArea(config);
-  const mode: 'panel' | 'board' = config.mode === 'board' ? 'board' : 'panel';
+  const mode: 'panel' | 'board' | 'map' = config.mode === 'board' || config.mode === 'map' ? config.mode : 'panel';
   // Raw feed for the area; the displayed list is derived below so it updates
   // the moment you follow or unfollow a flight, not just on the next poll.
   const [raw, setRaw] = useState<Aircraft[]>([]);
@@ -173,6 +174,10 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
             className={`${btn} ${mode === 'board' ? 'bg-white dark:bg-zinc-950 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>
             <Rows3 size={13} /> Board
           </button>
+          <button onClick={() => onUpdateConfig({ ...config, mode: 'map' })} title="Map: every flight in the area, moving live"
+            className={`${btn} ${mode === 'map' ? 'bg-white dark:bg-zinc-950 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>
+            <MapIcon size={13} /> Map
+          </button>
         </div>
       </div>
 
@@ -193,7 +198,9 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
           <span className="led-dim">{status === 'error' ? <span className="led-red led-blink">FEED DOWN</span> : clock}</span>
         </div>
 
-        {status === 'loading' && flights.length === 0 ? (
+        {mode === 'map' ? (
+          <AreaMap area={area} flights={flights} routes={routes} isTracked={isTracked} onTrack={trackFlight} />
+        ) : status === 'loading' && flights.length === 0 ? (
           <div className="led-text led-amber text-3xl px-4 py-12 text-center led-blink">SCANNING…</div>
         ) : status === 'error' && flights.length === 0 ? (
           <div className="led-text px-4 py-10 text-center">

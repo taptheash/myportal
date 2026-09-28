@@ -99,3 +99,14 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 /* Map aircraft silhouettes (Leaflet divIcon): no default white box */
 .aircraft-icon { background: none; border: none; }
 .aircraft-icon svg { display: block; overflow: visible; }
+
+/* Hover card for aircraft on the area map (Leaflet tooltip), LED style */
+.leaflet-tooltip.aircraft-tip { background: #0a0a0a; color: #ffb000; border: 1px solid #27272a; border-radius: 8px; padding: 6px 9px; box-shadow: 0 6px 18px rgba(0,0,0,.35); font-family: 'VT323', ui-monospace, monospace; line-height: 1.1; white-space: nowrap; }
+.leaflet-tooltip.aircraft-tip::before { border-top-color: #27272a; }
+.aircraft-tip .t1 { font-size: 20px; color: #ffb000; }
+.aircraft-tip .t1 .rt { color: #22d3ee; margin-left: 4px; }
+.aircraft-tip .t2 { font-size: 18px; color: #39ff14; }
+.aircraft-tip .t3 { font-size: 15px; color: #a1a1aa; }
+.aircraft-tip .t4 { font-size: 15px; color: #ff3b30; }
+.aircraft-tip .t5 { font-size: 13px; color: #71717a; margin-top: 2px; }
+.aircraft-icon { cursor: pointer; }

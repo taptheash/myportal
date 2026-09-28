@@ -105,12 +105,12 @@ export function shapeFor(type: string | null, category: string | null | undefine
 }
 
 // An SVG string for a Leaflet divIcon. `scale` enlarges it on close zooms.
-export function aircraftSvg(shape: Shape, heading: number | null, military: boolean): { html: string; size: number } {
+export function aircraftSvg(shape: Shape, heading: number | null, military: boolean, highlight = false): { html: string; size: number } {
   const { d, size } = SHAPES[shape];
-  const fill = military ? '#ff3b30' : '#ffb000';
+  const fill = highlight ? '#22d3ee' : military ? '#ff3b30' : '#ffb000';
   const html =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="-32 -32 64 64" ` +
     `style="transform:rotate(${heading ?? 0}deg);transition:transform 1s linear;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))">` +
-    `<path d="${d}" fill="${fill}" stroke="#3f2a00" stroke-width="1.6" stroke-linejoin="round" fill-rule="nonzero"/></svg>`;
+    `<path d="${d}" fill="${fill}" stroke="${highlight ? '#083344' : '#3f2a00'}" stroke-width="1.6" stroke-linejoin="round" fill-rule="nonzero"/></svg>`;
   return { html, size };
 }
