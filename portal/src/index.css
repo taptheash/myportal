@@ -72,3 +72,26 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 .folder-content-enter {
   animation: folder-expand 160ms ease-out;
 }
+
+/* Flights (FlightWall) — black LED-matrix look. The dot grid is a repeating
+   radial gradient; text gets a soft glow in its own color. */
+.led-panel {
+  background-color: #050505;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1.3px);
+  background-size: 4px 4px;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+}
+.led-text {
+  font-family: 'VT323', ui-monospace, 'Courier New', monospace;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 6px currentColor, 0 0 1px currentColor;
+}
+.led-amber { color: #ffb000; }
+.led-green { color: #39ff14; }
+.led-cyan { color: #22d3ee; }
+.led-red { color: #ff3b30; }
+.led-dim { color: #8a8a8a; }
+@keyframes led-blink { 50% { opacity: 0.25; } }
+.led-blink { animation: led-blink 1s steps(1) infinite; }
+@keyframes led-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.led-in { animation: led-in 300ms ease-out; }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
-  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList,
+  Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList, Plane,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -38,6 +38,7 @@ import MarketOverview from './components/widgets/MarketOverview';
 import MyNews from './components/widgets/MyNews';
 import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
+import FlightWall from './components/flights/FlightWall';
 
 const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
 const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
@@ -77,6 +78,7 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   feeds:      { type: 'feeds',      label: 'Feeds',       icon: Rss,          component: CustomFeeds,  color: '#56B4E9', activeText: 'black' },
   reddit:     { type: 'reddit',     label: 'Reddit',      icon: Flame,        component: RedditPopular, color: '#F0E442', activeText: 'black' },
   business:   { type: 'business',   label: 'Business',    icon: Globe,        component: BusinessNews, color: '#E69F00', activeText: 'black' },
+  flights:    { type: 'flights',    label: 'Flights',     icon: Plane,        component: FlightWall,   color: '#FFB000', activeText: 'black' },
   mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
   saved:      { type: 'saved',      label: 'Saved',       icon: Bookmark,     component: SavedArticles, color: '#009E73', activeText: 'black' },
   brief:      { type: 'brief',      label: 'Daily Brief', icon: Sunrise,      component: DailyBrief,   color: '#E69F00', activeText: 'black' },
@@ -99,7 +101,8 @@ const STOCK_TYPES = ['watchlist', 'marketOverview'];
 // News/Sports/Stocks do, but it still needs to be in ALL_TYPES so its
 // widget instance gets created/found like every other type.
 const REDDIT_TYPES = ['reddit'];
-const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES];
+const FLIGHT_TYPES = ['flights'];
+const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
   return ALL_TYPES.map((type) => ({
@@ -123,6 +126,7 @@ const SECTIONS = [
   { id: 'reddit', label: 'Reddit', icon: Flame },
   { id: 'sports', label: 'Sports', icon: Trophy },
   { id: 'stocks', label: 'Stocks', icon: TrendingUp },
+  { id: 'flights', label: 'Flights', icon: Plane },
 ];
 
 export default function App() {
@@ -201,7 +205,7 @@ export default function App() {
   // G R Reddit, G S Sports, G M Markets (Stocks). Ignored while typing in a
   // field, and when Ctrl/Alt/Cmd is held, so it never steals a keystroke.
   useEffect(() => {
-    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks' };
+    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks', f: 'flights' };
     let armedUntil = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const disarm = () => { armedUntil = 0; setGoArmed(false); };
@@ -639,6 +643,7 @@ export default function App() {
     reddit: 'Hot posts from the subreddits you follow',
     sports: 'Live scores and schedules for the teams you follow',
     stocks: 'Watchlist and market snapshot at a glance',
+    flights: 'Live aircraft over the areas you pick, FlightWall style',
   };
   const linksEntries = activeTool === 'links' ? (activeToolWidget.config?.links as any[] | undefined) : undefined;
   const toolsMeta = (() => {
@@ -841,6 +846,13 @@ export default function App() {
                 </TabContainer>
               )}
 
+              {activeSection === 'flights' && (
+                <FlightWall
+                  config={widgets.find((w) => w.type === 'flights')!.config}
+                  onUpdateConfig={(config: any) => updateWidgetConfig('flights', config)}
+                />
+              )}
+
               {activeSection === 'stocks' && (
                 <TabContainer
                   tabs={stocksTabs}
@@ -864,7 +876,7 @@ export default function App() {
         {goArmed && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-3 py-2 rounded-xl bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 text-xs shadow-lg backdrop-blur-sm flex items-center gap-3">
             <span className="font-semibold">Go to…</span>
-            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets']].map(([k, label]) => (
+            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets'], ['F', 'Flights']].map(([k, label]) => (
               <span key={k} className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 rounded bg-white/15 dark:bg-zinc-900/15 font-mono text-[11px]">{k}</kbd>
                 {label}

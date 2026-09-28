@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search, Link2, StickyNote, ListChecks, Newspaper, Trophy,
-  TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText, Flame,
+  TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText, Flame, Plane,
 } from 'lucide-react';
 import { getWidgetConfig } from '../lib/portalStorage';
 import { flattenLinks, normalizeEntries } from './widgets/QuickLinks';
@@ -87,6 +87,7 @@ export default function CommandPalette({
       { id: 'act-sports', group: 'Action', icon: Trophy, label: 'Go to Sports', sublabel: 'G then S', onSelect: () => onNavigate('sports') },
       { id: 'act-stocks', group: 'Action', icon: TrendingUp, label: 'Go to Stocks', sublabel: 'G then M', onSelect: () => onNavigate('stocks') },
       { id: 'act-reddit', group: 'Action', icon: Flame, label: 'Go to Reddit', sublabel: 'G then R', onSelect: () => onNavigate('reddit') },
+      { id: 'act-flights', group: 'Action', icon: Plane, label: 'Go to Flights', sublabel: 'G then F', onSelect: () => onNavigate('flights') },
       {
         id: 'act-addlink', group: 'Action', icon: Plus, label: 'Add a Quick Link',
         onSelect: () => { if (onAddLink) onAddLink(); else onNavigate('tools'); },

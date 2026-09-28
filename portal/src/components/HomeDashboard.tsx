@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sun, CalendarClock, Star, Clock, StickyNote, Calendar as CalendarIcon,
-  Newspaper, Trophy, TrendingUp, Settings2, GripVertical, Eye, EyeOff, Plus, Trash2, Clock3,
+  Newspaper, Trophy, TrendingUp, Settings2, GripVertical, Eye, EyeOff, Plus, Trash2, Clock3, Plane,
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { HomeLayout, LayoutsState, ActiveChoice, MAX_LAYOUTS, initialLayouts, resolveActive, localDay } from '../lib/homeLayouts';
@@ -19,6 +19,7 @@ import OnThisDayHighlight from './home/OnThisDayHighlight';
 import NewsHighlight from './home/NewsHighlight';
 import SportsHighlight from './home/SportsHighlight';
 import StocksHighlight from './home/StocksHighlight';
+import FlightsHighlight from './home/FlightsHighlight';
 
 // Home is a fixed set of small, restrained modules — NOT a general widget
 // grid. Doug's spec explicitly asked for a small curated set (weather,
@@ -45,6 +46,7 @@ const MODULE_DEFS: Record<string, ModuleDef> = {
   news: { id: 'news', label: 'Top Stories', icon: Newspaper, span: 'half' },
   sports: { id: 'sports', label: 'Sports', icon: Trophy, span: 'half' },
   stocks: { id: 'stocks', label: 'Markets', icon: TrendingUp, span: 'half' },
+  flights: { id: 'flights', label: 'Flights Overhead', icon: Plane, span: 'half' },
 };
 
 const DEFAULT_MODULE_ORDER = [
@@ -60,6 +62,7 @@ const MODULE_TARGET_SECTION: Record<string, string> = {
   news: 'news',
   sports: 'sports',
   stocks: 'stocks',
+  flights: 'flights',
 };
 
 function ModuleCard({
@@ -197,6 +200,8 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
         return <SportsHighlight />;
       case 'stocks':
         return <StocksHighlight />;
+      case 'flights':
+        return <FlightsHighlight />;
       default:
         return null;
     }
