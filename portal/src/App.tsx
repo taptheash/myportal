@@ -3,10 +3,11 @@ import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
   Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList, Plane,
-  Gamepad2, Spade, Club, Bug, LayoutGrid, Bomb, Grid3x3, Crown, SpellCheck, TreePine,
+  Gamepad2, Spade, Club, Bug, LayoutGrid, Bomb, Grid3x3, Crown, SpellCheck, TreePine, MoreHorizontal, Smartphone,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useViewMode } from './hooks/useViewMode';
 
 // Cloud sync is optional and lives in SyncButton + lib/cloudSync.ts: the
 // portal never waits on sign-in, and without Firebase config it simply
@@ -152,8 +153,16 @@ const SECTIONS = [
   { id: 'games', label: 'Games', icon: Gamepad2 },
 ];
 
+// Phone layout: four sections in the bottom bar, the rest under "More".
+// Flights and Games are desktop-only.
+const MOBILE_PRIMARY = ['home', 'tools', 'news', 'sports'];
+const MOBILE_MORE = ['reddit', 'stocks'];
+const MOBILE_SECTIONS = [...MOBILE_PRIMARY, ...MOBILE_MORE];
+
 export default function App() {
   const { mode, resolvedTheme, setMode } = useTheme();
+  const { isMobile, autoIsPhone, toggle: toggleView } = useViewMode();
+  const [moreOpen, setMoreOpen] = useState(false);
   const [storedWidgets, setWidgets] = useLocalStorage<WidgetInstance[]>('pw6', makeDefaultWidgets());
   const [storedActiveTool, setActiveTool] = useLocalStorage<string>('pw6-active-tool', 'weather');
   const [activeNews, setActiveNews] = useLocalStorage<string>('pw6-active-news', 'mynews');
@@ -170,6 +179,7 @@ export default function App() {
   const [weatherInput, setWeatherInput] = useState('');
   const resolvedWeatherName = useResolvedName();
   const [currentTime, setCurrentTime] = useState<string>('');
+  const [currentTimeShort, setCurrentTimeShort] = useState<string>('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   // True for a moment after pressing G, while waiting for the section key.
   const [goArmed, setGoArmed] = useState(false);
@@ -305,6 +315,8 @@ export default function App() {
       const year = now.getFullYear();
       const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
       setCurrentTime(`${dayOfWeek} ${month} ${day} ${year} ${time}`);
+      const shortDate = now.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      setCurrentTimeShort(`${shortDate} · ${time.slice(0, 5)}`);
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
@@ -410,7 +422,11 @@ export default function App() {
   const activeSports = SPORTS_TYPES.includes(storedActiveSports) ? storedActiveSports : SPORTS_TYPES[0];
   const activeStocks = STOCK_TYPES.includes(storedActiveStocks) ? storedActiveStocks : STOCK_TYPES[0];
   const activeGame = GAME_TYPES.includes(storedActiveGame) ? storedActiveGame : GAME_TYPES[0];
-  const activeSection = SECTIONS.some((s) => s.id === storedActiveSection) ? storedActiveSection : 'home';
+  const knownSection = SECTIONS.some((s) => s.id === storedActiveSection) ? storedActiveSection : 'home';
+  // On the phone, a section that isn't offered there (Flights, Games — e.g.
+  // G-key jump or the command palette) falls back to Home without touching
+  // the stored choice.
+  const activeSection = isMobile && !MOBILE_SECTIONS.includes(knownSection) ? 'home' : knownSection;
 
   const activeToolWidget = widgets.find((w) => w.type === activeTool)!;
   const activeNewsWidget = widgets.find((w) => w.type === safeActiveNews)!;
@@ -664,6 +680,30 @@ export default function App() {
   const StocksComponent = WIDGET_DEFINITIONS[activeStocks].component;
   const GameComponent = WIDGET_DEFINITIONS[activeGame].component;
 
+  const themeToggle = (
+    <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 gap-0.5">
+      {(['light', 'system', 'dark'] as ThemeMode[]).map((m) => {
+        const Icon = m === 'light' ? Sun : m === 'dark' ? Moon : Monitor;
+        const isActive = mode === m;
+        return (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            title={m.charAt(0).toUpperCase() + m.slice(1)}
+            aria-pressed={isActive}
+            className={`p-1.5 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+              isActive
+                ? 'bg-white dark:bg-zinc-950 shadow-sm text-indigo-600 dark:text-indigo-400'
+                : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
+            }`}
+          >
+            <Icon size={15} />
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const activeSectionMeta = SECTIONS.find((s) => s.id === activeSection)!;
   const sectionSubtitle: Record<string, string> = {
     home: 'Everything that matters today, at a glance',
@@ -686,12 +726,54 @@ export default function App() {
         <div
           onClick={() => setHiddenPageOpen(true)}
           aria-hidden="true"
-          className="fixed bottom-0 left-0 w-3 h-3 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 z-[9999]"
+          className="fixed left-0 w-3 h-3 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 z-[9999]"
+          // On the phone it sits just above the bottom tab bar instead of on top of it.
+          style={{ bottom: isMobile ? 'calc(56px + env(safe-area-inset-bottom))' : 0 }}
         >
           <span className="block w-px h-px bg-zinc-400 dark:bg-zinc-500" />
         </div>
 
+        {/* A phone showing the desktop layout gets a way back, as a strip
+            above everything: the desktop header is too crowded at phone
+            width, and a fixed-position button can land off-screen once the
+            browser zooms out to fit the wide layout. */}
+        {!isMobile && autoIsPhone && (
+          <button
+            onClick={toggleView}
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-[14px] font-medium text-white bg-indigo-600"
+          >
+            <Smartphone size={15} /> Switch to mobile view
+          </button>
+        )}
+
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
+          {isMobile ? (
+          <div className="px-3 pt-2.5 pb-2 flex flex-col gap-2">
+            <div className="flex justify-between items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" aria-hidden="true" />
+                <h1 className="text-[14px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums tracking-tight truncate">
+                  {currentTimeShort || 'Loading…'}
+                </h1>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <SyncButton />
+                <button
+                  onClick={() => setPaletteOpen(true)}
+                  aria-label="Search"
+                  className="p-1.5 rounded-lg text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
+                >
+                  <SearchIcon size={15} />
+                </button>
+                {themeToggle}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <OnThisDayPill />
+              <NationalDayPill />
+            </div>
+          </div>
+          ) : (
           <div className="px-6 py-3.5 flex justify-between items-center gap-4">
             <div className="flex items-center gap-2.5 flex-shrink-0">
               <div className="w-2 h-2 rounded-full bg-indigo-500" aria-hidden="true" />
@@ -717,33 +799,18 @@ export default function App() {
                 <kbd className="hidden lg:inline text-[10px] font-medium bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">Ctrl K</kbd>
               </button>
 
-              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 gap-0.5">
-                {(['light', 'system', 'dark'] as ThemeMode[]).map((m) => {
-                  const Icon = m === 'light' ? Sun : m === 'dark' ? Moon : Monitor;
-                  const isActive = mode === m;
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => setMode(m)}
-                      title={m.charAt(0).toUpperCase() + m.slice(1)}
-                      aria-pressed={isActive}
-                      className={`p-1.5 rounded-md transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-                        isActive
-                          ? 'bg-white dark:bg-zinc-950 shadow-sm text-indigo-600 dark:text-indigo-400'
-                          : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-                      }`}
-                    >
-                      <Icon size={15} />
-                    </button>
-                  );
-                })}
-              </div>
+              {themeToggle}
             </div>
           </div>
+          )}
         </header>
 
-        <main className="px-6 py-6 max-w-[1440px] mx-auto">
-          <div className="flex flex-row gap-6 items-start w-full">
+        <main
+          className={isMobile ? 'px-3 pt-3' : 'px-6 py-6 max-w-[1440px] mx-auto'}
+          style={isMobile ? { paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' } : undefined}
+        >
+          <div className={isMobile ? 'w-full' : 'flex flex-row gap-6 items-start w-full'}>
+            {!isMobile && (
             <nav className="w-44 flex-shrink-0 flex flex-col gap-0.5">
               {SECTIONS.map((section) => {
                 const isActive = activeSection === section.id;
@@ -770,16 +837,19 @@ export default function App() {
                 );
               })}
             </nav>
+            )}
 
             <div className="flex-1 min-w-0">
-              <div className="mb-4 px-1 flex items-baseline justify-between gap-4 flex-wrap">
+              <div className={`${isMobile ? 'mb-2' : 'mb-4'} px-1 flex items-baseline justify-between gap-4 flex-wrap`}>
                 <div>
-                  <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
+                  <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold tracking-tight text-zinc-900 dark:text-white`}>
                     {activeSectionMeta.label}
                   </h2>
+                  {!isMobile && (
                   <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                     {sectionSubtitle[activeSection]}
                   </p>
+                  )}
                 </div>
               </div>
 
@@ -900,6 +970,77 @@ export default function App() {
             </div>
           </div>
         </main>
+
+        {isMobile && (
+          <>
+            {moreOpen && (
+              <div className="fixed inset-0 z-[90]" onClick={() => setMoreOpen(false)}>
+                <div className="absolute inset-0 bg-black/30" />
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute left-0 right-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 rounded-t-2xl p-2 shadow-lg"
+                  style={{ bottom: 'calc(56px + env(safe-area-inset-bottom))' }}
+                >
+                  {MOBILE_MORE.map((id) => {
+                    const section = SECTIONS.find((s) => s.id === id)!;
+                    const Icon = section.icon;
+                    const isActive = activeSection === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => { setActiveSection(id); setMoreOpen(false); window.scrollTo(0, 0); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-left ${
+                          isActive ? 'bg-zinc-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400' : 'text-zinc-700 dark:text-zinc-200'
+                        }`}
+                      >
+                        <Icon size={18} /> {section.label}
+                      </button>
+                    );
+                  })}
+                  <div className="my-1 border-t border-zinc-200 dark:border-zinc-800" />
+                  <button
+                    onClick={() => { setMoreOpen(false); toggleView(); }}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[15px] font-medium text-left text-zinc-500 dark:text-zinc-400"
+                  >
+                    <Monitor size={18} /> Desktop view
+                  </button>
+                </div>
+              </div>
+            )}
+            <nav
+              className="fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-zinc-200 dark:border-zinc-800"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+              <div className="h-14 grid grid-cols-5">
+                {[...MOBILE_PRIMARY, 'more'].map((id) => {
+                  const isMore = id === 'more';
+                  const section = SECTIONS.find((s) => s.id === id);
+                  const Icon = isMore ? MoreHorizontal : section!.icon;
+                  const label = isMore ? 'More' : section!.label;
+                  const isActive = isMore ? moreOpen || MOBILE_MORE.includes(activeSection) : !moreOpen && activeSection === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        if (isMore) { setMoreOpen(!moreOpen); return; }
+                        setMoreOpen(false);
+                        setActiveSection(id);
+                        window.scrollTo(0, 0);
+                      }}
+                      aria-current={isActive}
+                      className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                        isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 dark:text-zinc-400'
+                      }`}
+                    >
+                      <Icon size={20} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </>
+        )}
 
         {goArmed && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-3 py-2 rounded-xl bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 text-xs shadow-lg backdrop-blur-sm flex items-center gap-3">

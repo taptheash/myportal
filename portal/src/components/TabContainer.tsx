@@ -189,7 +189,7 @@ export default function TabContainer({
                   aria-hidden="true"
                 />
                 <Icon size={14} className="flex-shrink-0" />
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             </React.Fragment>
           );
