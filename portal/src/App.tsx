@@ -675,22 +675,6 @@ export default function App() {
     flights: 'Live aircraft over the areas you pick, FlightWall style',
     games: 'Something to pass the time',
   };
-  const linksEntries = activeTool === 'links' ? (activeToolWidget.config?.links as any[] | undefined) : undefined;
-  const toolsMeta = (() => {
-    if (activeSection !== 'tools' || !linksEntries) return null;
-    let linkTotal = 0;
-    let folderTotal = 0;
-    for (const entry of linksEntries) {
-      if (entry?.type === 'folder') {
-        folderTotal += 1;
-        linkTotal += (entry.links || []).length;
-      } else {
-        linkTotal += 1;
-      }
-    }
-    return `${linkTotal} link${linkTotal === 1 ? '' : 's'}${folderTotal ? ` · ${folderTotal} folder${folderTotal === 1 ? '' : 's'}` : ''}`;
-  })();
-
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -797,11 +781,6 @@ export default function App() {
                     {sectionSubtitle[activeSection]}
                   </p>
                 </div>
-                {toolsMeta && (
-                  <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 flex-shrink-0">
-                    {toolsMeta}
-                  </span>
-                )}
               </div>
 
               {activeSection === 'home' && (
