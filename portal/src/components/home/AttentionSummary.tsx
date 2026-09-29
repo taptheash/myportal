@@ -1,5 +1,6 @@
-import React from 'react';
-import { CheckCircle2, AlertTriangle, CalendarClock } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, AlertTriangle, CalendarClock, ChevronDown, ChevronRight } from 'lucide-react';
+import { CalendarEvent, eventTime } from './TodayAgenda';
 
 // A calm one-line-per-fact summary — explicitly NOT a notification center.
 // No dismiss buttons, no badges, no red dots. Just "here's what's on your
@@ -12,8 +13,9 @@ export interface AttentionCounts {
   eventsToday: number;
 }
 
-export default function AttentionSummary({ counts }: { counts: AttentionCounts }) {
+export default function AttentionSummary({ counts, events = [] }: { counts: AttentionCounts; events?: CalendarEvent[] }) {
   const { tasksDueToday, tasksOverdue, eventsToday } = counts;
+  const [showEvents, setShowEvents] = useState(false);
   const hasAnything = tasksDueToday > 0 || tasksOverdue > 0 || eventsToday > 0;
 
   if (!hasAnything) {
@@ -40,9 +42,32 @@ export default function AttentionSummary({ counts }: { counts: AttentionCounts }
         </div>
       )}
       {eventsToday > 0 && (
-        <div className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400">
-          <CalendarClock size={15} className="flex-shrink-0" />
-          {eventsToday} event{eventsToday === 1 ? '' : 's'} today
+        <div>
+          {/* Click to see what the events are. */}
+          <button onClick={() => setShowEvents(!showEvents)} aria-expanded={showEvents}
+            className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+            <CalendarClock size={15} className="flex-shrink-0" />
+            {eventsToday} event{eventsToday === 1 ? '' : 's'} today
+            {showEvents ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+          {showEvents && (
+            <div className="mt-1.5 ml-6 flex flex-col gap-1">
+              {events.map((e) => {
+                const row = (
+                  <>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums w-16 flex-shrink-0">{eventTime(e)}</span>
+                    <span className="text-sm text-zinc-800 dark:text-zinc-100 truncate">{e.summary || '(No title)'}</span>
+                  </>
+                );
+                return e.htmlLink ? (
+                  <a key={e.id} href={e.htmlLink} target="_blank" rel="noopener noreferrer" title="Open in Google Calendar"
+                    className="flex items-center gap-2 rounded-md px-1.5 py-0.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">{row}</a>
+                ) : (
+                  <div key={e.id} className="flex items-center gap-2 px-1.5 py-0.5">{row}</div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

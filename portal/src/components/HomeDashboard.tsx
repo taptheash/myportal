@@ -11,7 +11,7 @@ import { getRecentLinks, RecentLink } from '../lib/recentLinks';
 import { getAttentionSummary } from '../lib/attention';
 import AttentionSummary from './home/AttentionSummary';
 import CompactWeather from './home/CompactWeather';
-import TodayAgenda from './home/TodayAgenda';
+import TodayAgenda, { CalendarEvent } from './home/TodayAgenda';
 import FavoritesList from './home/FavoritesList';
 import RecentList from './home/RecentList';
 import Scratchpad from './widgets/Scratchpad';
@@ -138,6 +138,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
   const [favoriteLinks, setFavoriteLinks] = useState<ReturnType<typeof getFavoriteLinks>>([]);
   const [recentLinks, setRecentLinks] = useState<RecentLink[]>([]);
   const [attentionCounts, setAttentionCounts] = useState(() => ({ ...getAttentionSummary(), eventsToday: 0 }));
+  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
 
   // Home is read-heavy against localStorage state owned by other tabs
   // (Quick Links' favorites, Tasks' due dates, recent-link log). Since those
@@ -181,11 +182,11 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
   const renderModule = (id: string) => {
     switch (id) {
       case 'attention':
-        return <AttentionSummary counts={attentionCounts} />;
+        return <AttentionSummary counts={attentionCounts} events={todayEvents} />;
       case 'weather':
         return <CompactWeather />;
       case 'agenda':
-        return <TodayAgenda onCount={(n) => setAttentionCounts((prev) => ({ ...prev, eventsToday: n }))} />;
+        return <TodayAgenda onEvents={(evs) => { setTodayEvents(evs); setAttentionCounts((prev) => ({ ...prev, eventsToday: evs.length })); }} />;
       case 'favorites':
         return <FavoritesList links={favoriteLinks} />;
       case 'recent':

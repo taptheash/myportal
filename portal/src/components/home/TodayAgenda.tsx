@@ -5,10 +5,10 @@ import { calendarFetch, CalendarLockedError } from '../../lib/calendarApi';
 
 // Home's compact "today only" calendar view — same /api/calendar/events
 // endpoint the full Calendar tab uses, filtered down to just today's events.
-// Reports its count upward via onCount so the Attention module can fold
-// "events today" into its summary without a second fetch.
+// Hands today's events upward via onEvents so the Today summary can show
+// "N events today" (and list them when clicked) without a second fetch.
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string;
   summary: string;
   htmlLink?: string;
@@ -16,7 +16,13 @@ interface CalendarEvent {
   end?: { dateTime?: string; date?: string };
 }
 
-export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void }) {
+// "All day" or the start time, e.g. "2:30 PM".
+export function eventTime(e: CalendarEvent): string {
+  const start = parseGCalTime(e.start);
+  return isAllDay(e.start) ? 'All day' : start ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+}
+
+export default function TodayAgenda({ onEvents }: { onEvents?: (events: CalendarEvent[]) => void }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +47,7 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
           return start <= endOfDay && end > now;
         });
         setEvents(todays);
-        onCount?.(todays.length);
+        onEvents?.(todays);
         setError(null);
       } catch (err) {
         setError(err instanceof CalendarLockedError ? 'locked' : err instanceof Error ? err.message : 'Unable to load calendar');
@@ -76,12 +82,7 @@ export default function TodayAgenda({ onCount }: { onCount?: (n: number) => void
   return (
     <div className="flex flex-col gap-1">
       {events.map((e) => {
-        const start = parseGCalTime(e.start);
-        const time = isAllDay(e.start)
-          ? 'All day'
-          : start
-          ? start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-          : '';
+        const time = eventTime(e);
         const Row = (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors duration-150">
             <ChevronRight size={12} className="text-zinc-300 dark:text-zinc-600 flex-shrink-0" />

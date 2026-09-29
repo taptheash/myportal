@@ -102,9 +102,16 @@ export default function CompactWeather() {
   }
 
   const { Icon, color } = weatherIcon(data.main);
+  // WeatherBug's pages are addressed by city-state-ZIP, which we don't have
+  // for every location, so Boscawen gets its own page and anywhere else goes
+  // to WeatherBug's home page (it finds your location itself).
+  const weatherBug = /boscawen/i.test(data.locationName)
+    ? 'https://www.weatherbug.com/weather-forecast/now/boscawen-nh-03303'
+    : 'https://www.weatherbug.com/';
 
   return (
-    <div className="flex items-center justify-between gap-3">
+    <a href={weatherBug} target="_blank" rel="noopener noreferrer" title="Open WeatherBug"
+      className="flex items-center justify-between gap-3 -m-1.5 p-1.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors duration-150">
       <div className="flex items-center gap-2.5">
         <Icon size={26} className={`${color} flex-shrink-0`} />
         <div className="leading-tight">
@@ -116,6 +123,6 @@ export default function CompactWeather() {
         <div>H {data.high}°</div>
         <div>L {data.low}°</div>
       </div>
-    </div>
+    </a>
   );
 }
