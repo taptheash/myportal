@@ -3,7 +3,7 @@ import {
   Sun, Moon, Monitor, Plus, Minus, Crosshair, Rss, Wrench, Newspaper, TrendingUp, BarChart3, Flame,
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
   Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList, Plane,
-  Gamepad2, Spade, Club, Bug, LayoutGrid, Bomb, Grid3x3,
+  Gamepad2, Spade, Club, Bug, LayoutGrid, Bomb, Grid3x3, Crown, SpellCheck, TreePine,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -47,6 +47,9 @@ const Spider = lazy(() => import('./components/games/Spider'));
 const Mahjong = lazy(() => import('./components/games/Mahjong'));
 const Minesweeper = lazy(() => import('./components/games/Minesweeper'));
 const Sudoku = lazy(() => import('./components/games/Sudoku'));
+const Chess = lazy(() => import('./components/games/Chess'));
+const DailyWord = lazy(() => import('./components/games/DailyWord'));
+const MooseRun = lazy(() => import('./components/games/MooseRun'));
 
 const PatsSchedule = makeTeamSchedule('football', 'nfl', 'ne', 'Pats', '#0072B2');
 const SoxSchedule = makeTeamSchedule('baseball', 'mlb', 'bos', 'Sox', '#D55E00');
@@ -93,6 +96,9 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   mahjong:    { type: 'mahjong',    label: 'Mahjong',     icon: LayoutGrid,   component: Mahjong as React.ComponentType<any>,     color: '#E69F00', activeText: 'black' },
   minesweeper: { type: 'minesweeper', label: 'Minesweeper', icon: Bomb,      component: Minesweeper as React.ComponentType<any>, color: '#D55E00', activeText: 'black' },
   sudoku:     { type: 'sudoku',     label: 'Sudoku',      icon: Grid3x3,      component: Sudoku as React.ComponentType<any>,      color: '#0072B2', activeText: 'white' },
+  chess:      { type: 'chess',      label: 'Chess',       icon: Crown,        component: Chess as React.ComponentType<any>,       color: '#009E73', activeText: 'black' },
+  dailyword:  { type: 'dailyword',  label: 'Daily Word',  icon: SpellCheck,   component: DailyWord as React.ComponentType<any>,   color: '#F0E442', activeText: 'black' },
+  mooserun:   { type: 'mooserun',   label: 'Moose Run',   icon: TreePine,     component: MooseRun as React.ComponentType<any>,    color: '#56B4E9', activeText: 'black' },
   mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
   saved:      { type: 'saved',      label: 'Saved',       icon: Bookmark,     component: SavedArticles, color: '#009E73', activeText: 'black' },
   brief:      { type: 'brief',      label: 'Daily Brief', icon: Sunrise,      component: DailyBrief,   color: '#E69F00', activeText: 'black' },
@@ -117,7 +123,7 @@ const STOCK_TYPES = ['watchlist', 'marketOverview'];
 const REDDIT_TYPES = ['reddit'];
 const FLIGHT_TYPES = ['flights'];
 // Games: one tab per game.
-const GAME_TYPES = ['solitaire', 'freecell', 'spider', 'mahjong', 'minesweeper', 'sudoku'];
+const GAME_TYPES = ['solitaire', 'freecell', 'spider', 'mahjong', 'minesweeper', 'sudoku', 'chess', 'dailyword', 'mooserun'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES, ...GAME_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
