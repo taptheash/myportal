@@ -84,6 +84,56 @@ export function clearTrail(id: string) {
   } catch { /* not fatal */ }
 }
 
+// --- Full path from takeoff (OpenSky, via /api/flight-history) ----------
+// The live feeds only say where a plane is now; this is where it has been
+// on its current flight. Shared by the tracked-flight tabs and the area map.
+export type HistoryPoint = [number, number, number, number | null, boolean]; // [unix s, lat, lon, alt ft, on ground]
+export interface FlightHistory { start: number; end: number; points: HistoryPoint[] }
+
+const HISTORY_MAX_AGE = 2 * 60 * 1000;
+const historyCache = new Map<string, { at: number; job: Promise<FlightHistory | null> }>();
+
+export function fetchHistory(hex: string): Promise<FlightHistory | null> {
+  const key = hex.toLowerCase();
+  const hit = historyCache.get(key);
+  if (hit && Date.now() - hit.at < HISTORY_MAX_AGE) return hit.job;
+  const job = (async () => {
+    try {
+      const res = await fetch(`/api/flight-history?hex=${encodeURIComponent(key)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.found || !Array.isArray(data.points)) return null;
+      return { start: data.start, end: data.end, points: data.points } as FlightHistory;
+    } catch {
+      historyCache.delete(key); // try again next time instead of remembering the failure
+      return null;
+    }
+  })();
+  historyCache.set(key, { at: Date.now(), job });
+  return job;
+}
+
+// One line for the map: OpenSky's path from takeoff, then anything this
+// browser has seen since (the feeds are often a little ahead of OpenSky),
+// then the plane's current position so the line meets the icon. Without a
+// usable history it falls back to just the locally collected trail.
+export function pathFor(
+  history: FlightHistory | null | undefined,
+  trail: TrailPoint[],
+  pos: { lat: number; lon: number } | null,
+): Array<[number, number]> {
+  // A track that ended hours ago is the plane's previous flight, not this one.
+  const fresh = history && Date.now() / 1000 - history.end < 3 * 3600 ? history : null;
+  const out: Array<[number, number]> = fresh ? fresh.points.map((p) => [p[1], p[2]] as [number, number]) : [];
+  const after = fresh ? fresh.end * 1000 : 0;
+  for (const p of trail) if (p.t > after) out.push([p.lat, p.lon]);
+  if (pos) {
+    const last = out[out.length - 1];
+    if (!last || last[0] !== pos.lat || last[1] !== pos.lon) out.push([pos.lat, pos.lon]);
+  }
+  return out;
+}
+
 // --- Status, progress, ETA ----------------------------------------------
 export type Phase = 'not-airborne' | 'ground' | 'climbing' | 'cruising' | 'descending';
 

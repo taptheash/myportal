@@ -7,7 +7,7 @@ import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, co
 import AirlineLogo from './AirlineLogo';
 import {
   TrackedFlight, MAX_TRACKED, fetchTracked, addTrailPoint, getTrail, lookupPhoto, AircraftPhoto,
-  phaseOf, PHASE_LABEL, progressOf, alertFor, TrailPoint,
+  phaseOf, PHASE_LABEL, progressOf, alertFor, TrailPoint, fetchHistory, pathFor, FlightHistory,
 } from '../../lib/flightTrack';
 
 // Watch list of specific flights, anywhere: flight number or tail number in,
@@ -157,6 +157,21 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
   const shown = tracked.find((t) => t.id === selectedId);
   const mapFlight = shown;
 
+  // Full path since takeoff for the flight on the map. Fetched when its tab
+  // opens (once the aircraft's transponder hex is known) and refreshed every
+  // few minutes; only the open flight, to stay well inside OpenSky's limits.
+  const [histories, setHistories] = useState<Record<string, FlightHistory | null>>({});
+  const mapHex = mapFlight ? live[mapFlight.id]?.a?.hex ?? null : null;
+  useEffect(() => {
+    if (!mapFlight || !mapHex) return;
+    let cancelled = false;
+    const id = mapFlight.id;
+    const load = () => fetchHistory(mapHex).then((h) => { if (!cancelled) setHistories((m) => ({ ...m, [id]: h })); });
+    load();
+    const timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 3 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [mapFlight?.id, mapHex]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Photo of the open flight's aircraft: by its transponder hex once it's
   // been heard, else by tail number when that's what you're tracking.
   const shownAc = shown ? live[shown.id]?.a ?? null : null;
@@ -256,8 +271,8 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
             Fit flight
           </button>
           {(() => {
-            const trail = (trails[mapFlight.id] || []).map((p) => [p.lat, p.lon] as [number, number]);
             const a = live[mapFlight.id]?.a;
+            const trail = pathFor(histories[mapFlight.id], trails[mapFlight.id] || [], a ?? null);
             const r = routes[mapFlight.id];
             const o = r?.origin?.lat != null && r.origin.lon != null ? ([r.origin.lat, r.origin.lon] as [number, number]) : null;
             const d = r?.destination?.lat != null && r.destination.lon != null ? ([r.destination.lat, r.destination.lon] as [number, number]) : null;
