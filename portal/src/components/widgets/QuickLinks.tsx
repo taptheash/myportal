@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp, Star, MoreHorizontal, ExternalLink, Copy, FolderInput, Trash2, Link2 } from 'lucide-react';
-import { recordLinkClick } from '../../lib/recentLinks';
+import { X, Globe, Check, Pencil, GripVertical, Folder, FolderOpen, ChevronDown, ChevronRight, FolderPlus, ChevronsDown, ChevronsUp, Star, MoreHorizontal, ExternalLink, Copy, FolderInput, Trash2, Link2, LayoutGrid, List as ListIcon, Grid3x3 } from 'lucide-react';
+import { recordLinkClick, getFrequentLinks } from '../../lib/recentLinks';
 import { normalizeUrl } from '../../lib/url';
 
 interface QuickLinksProps {
@@ -16,6 +16,9 @@ interface QuickLinksProps {
   // since that would defeat the point). Clicks also skip recordLinkClick so
   // these links never show up in Home's Recent list.
   privateMode?: boolean;
+  // 'grid' (desktop redesign): a card grid with an All / Frequent / Folders
+  // sidebar. Falls back to the original list when config.view === 'list'.
+  layout?: 'list' | 'grid';
 }
 
 interface LinkItem {
@@ -186,7 +189,7 @@ function commitMove(
   return next;
 }
 
-export default function QuickLinks({ config, onUpdateConfig, privateMode }: QuickLinksProps) {
+export default function QuickLinks({ config, onUpdateConfig, privateMode, layout = 'list' }: QuickLinksProps) {
   const [entries, setEntries] = useState<Entry[]>(() => normalizeEntries(config.links));
   const [showInlineAdd, setShowInlineAdd] = useState(config.showAdd || false);
   const [showAddFolder, setShowAddFolder] = useState(false);
@@ -210,6 +213,11 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
   const [insertTarget, setInsertTarget] = useState<{ containerId: string; index: number } | null>(null);
   const [dropFolderId, setDropFolderId] = useState<string | null>(null);
 
+  // Grid view only: which folder is open (null = all links), and a counter
+  // bumped on every link open so the Frequent list re-reads its counts.
+  const [folderView, setFolderView] = useState<string | null>(null);
+  const [, setClickTick] = useState(0);
+
   useEffect(() => {
     if (config.showAdd) setShowInlineAdd(true);
   }, [config.showAdd]);
@@ -217,6 +225,9 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
   const [menu, setMenu] = useState<MenuState>(null);
   const [toast, setToast] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const showGrid = layout === 'grid' && !privateMode && config.view !== 'list';
+  const setView = (view: 'grid' | 'list') => onUpdateConfig({ ...config, links: entries, view });
 
   // Close the menu on outside click, Escape, scroll or resize.
   useEffect(() => {
@@ -268,12 +279,17 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
       label: newLabel.trim(),
       url: normalizeUrl(newUrl),
     };
-    save([...entries, link]);
+    // In the grid, a link added while a folder is open goes into that folder.
+    const intoFolder = showGrid && folderView && entries.some((e) => e.type === 'folder' && e.id === folderView) ? folderView : null;
+    const updated: Entry[] = intoFolder
+      ? entries.map((e) => (e.type === 'folder' && e.id === intoFolder ? { ...e, links: [...e.links, link] } : e))
+      : [...entries, link];
+    setEntries(updated);
     setNewLabel('');
     setNewUrl('');
     setShowInlineAdd(false);
     setError(null);
-    onUpdateConfig({ ...config, links: [...entries, link], showAdd: false });
+    onUpdateConfig({ ...config, links: updated, showAdd: false });
   };
 
   const handleAddFolder = () => {
@@ -664,9 +680,8 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
     </div>
   );
 
-  return (
-    <div className="flex flex-col gap-2" onDrop={(e) => { e.preventDefault(); commit(); }} onDragOver={(e) => e.preventDefault()}>
-
+  const addForms = (
+    <>
       {showInlineAdd && (
         <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
           {error && <p className="text-xs text-red-500">{error}</p>}
@@ -694,6 +709,297 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
         </div>
       )}
 
+    </>
+  );
+
+  const renderRenameForm = () => (
+              <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                <input type="text" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveFolderRename()} autoFocus
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                <div className="flex gap-2">
+                  <button onClick={saveFolderRename} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Save</button>
+                  <button onClick={() => setRenamingFolderId(null)} className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
+                </div>
+              </div>
+  );
+
+  // ---- Grid view (desktop redesign) ---------------------------------------
+  // Same data, same handlers and same ⋯ menu as the list; only the layout
+  // differs: a sidebar (All links / Frequent / Folders) beside a card grid.
+  const renderGrid = () => {
+    const allLinks = flattenLinks(entries);
+    const byId = new Map(allLinks.map((l) => [l.id, l]));
+    const frequent = getFrequentLinks(40)
+      .filter((r) => byId.has(r.id))
+      .slice(0, 5)
+      .map((r) => ({ link: byId.get(r.id)!, count: r.count || 1 }));
+    const openFolder = folderView ? folders.find((f) => f.id === folderView) ?? null : null;
+    const containerId = openFolder ? openFolder.id : 'root';
+    const items: Entry[] = openFolder ? openFolder.links : entries;
+    const dragged: Entry | null = dragSource
+      ? dragSource.containerId === 'root'
+        ? entries[dragSource.index] ?? null
+        : folders.find((f) => f.id === dragSource.containerId)?.links[dragSource.index] ?? null
+      : null;
+
+    const noteOpen = (link: LinkItem) => {
+      recordLinkClick({ id: link.id, label: link.label, url: link.url });
+      setClickTick((n) => n + 1);
+    };
+
+    // Cards sit side by side, so "before / after" is the left / right half.
+    // A folder card's middle half means "drop into this folder".
+    const onCardDragOver = (index: number, entry: Entry) => (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!dragSource) return;
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const rel = (e.clientX - rect.left) / rect.width;
+      if (entry.type === 'folder' && rel > 0.25 && rel < 0.75) {
+        setInsertTarget(null);
+        setDropFolderId(dragged?.type === 'link' && dragSource.containerId !== entry.id ? entry.id : null);
+        return;
+      }
+      setDropFolderId(null);
+      const target = rel < 0.5 ? index : index + 1;
+      const isNoOp = dragSource.containerId === containerId && (target === dragSource.index || target === dragSource.index + 1);
+      setInsertTarget(isNoOp ? null : { containerId, index: target });
+    };
+
+    const insertBefore = (i: number) => insertTarget?.containerId === containerId && insertTarget.index === i;
+    const insertAfterLast = (i: number) => i === items.length - 1 && insertBefore(items.length);
+
+    const sideRow = (opts: {
+      key: string; active?: boolean; icon: React.ReactNode; label: string; count?: number;
+      onClick: () => void; onDragOver?: (e: React.DragEvent) => void; dropping?: boolean; onContextMenu?: (e: React.MouseEvent) => void;
+    }) => (
+      <button
+        key={opts.key}
+        onClick={opts.onClick}
+        onDragOver={opts.onDragOver}
+        onContextMenu={opts.onContextMenu}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[13px] transition-colors duration-150 ${
+          opts.dropping ? 'ring-2 ring-indigo-400 bg-indigo-50 dark:bg-indigo-950/40'
+            : opts.active ? 'bg-white/90 dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white font-medium'
+            : 'text-zinc-700 dark:text-zinc-300 hover:bg-white/60 dark:hover:bg-zinc-800/60'
+        }`}
+      >
+        <span className="w-4 flex items-center justify-center flex-shrink-0">{opts.icon}</span>
+        <span className="flex-1 truncate">{opts.label}</span>
+        {opts.count !== undefined && <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{opts.count}</span>}
+      </button>
+    );
+
+    const heading = (left: string, right?: string) => (
+      <div className="flex items-center justify-between px-2.5 mb-1">
+        <span className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{left}</span>
+        {right && <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{right}</span>}
+      </div>
+    );
+
+    const linkCard = (link: LinkItem, index: number) => editingId === link.id ? (
+      <div key={link.id} className="col-span-full">{renderEditForm(containerId)}</div>
+    ) : (
+      <div
+        key={link.id}
+        draggable
+        onDragStart={handleDragStart(containerId, index)}
+        onDragEnd={handleDragEnd}
+        onDragOver={onCardDragOver(index, link)}
+        onContextMenu={(e) => openMenuAt(e, { kind: 'link', x: 0, y: 0, link, containerId })}
+        className={`group/card surface-card relative flex items-center gap-2 pl-3 pr-1.5 py-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/80 cursor-grab active:cursor-grabbing ${
+          dragSource?.containerId === containerId && dragSource.index === index ? 'opacity-40' : ''
+        } ${insertBefore(index) ? 'border-l-4 !border-l-indigo-500' : ''} ${insertAfterLast(index) ? 'border-r-4 !border-r-indigo-500' : ''}`}
+      >
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          draggable={false}
+          onClick={() => noteOpen(link)}
+          className="flex-1 min-w-0 flex items-center gap-3"
+        >
+          <span className="flex-shrink-0 w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+            <SiteIcon url={link.url} label={link.label} />
+          </span>
+          <span className="flex flex-col min-w-0 leading-tight">
+            <span className="text-[14px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{link.label}</span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">{getHostname(link.url)}</span>
+          </span>
+        </a>
+        <button
+          onClick={() => toggleFavorite(containerId, link.id)}
+          title={link.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
+          className={`p-1.5 rounded-lg flex-shrink-0 ${link.favorite ? 'text-amber-500' : 'text-zinc-300 dark:text-zinc-600 opacity-0 group-hover/card:opacity-100 hover:text-amber-500'}`}
+        >
+          <Star size={14} fill={link.favorite ? 'currentColor' : 'none'} />
+        </button>
+        <button
+          onClick={(e) => openMenuAt(e, { kind: 'link', x: 0, y: 0, link, containerId })}
+          title="Edit, move, copy or delete"
+          className="p-1.5 rounded-lg flex-shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        >
+          <MoreHorizontal size={15} className="rotate-90" />
+        </button>
+      </div>
+    );
+
+    const folderCard = (f: FolderItem, index: number) => (
+      <div
+        key={f.id}
+        draggable
+        onDragStart={handleDragStart('root', index)}
+        onDragEnd={handleDragEnd}
+        onDragOver={onCardDragOver(index, f)}
+        onContextMenu={(e) => openMenuAt(e, { kind: 'folder', x: 0, y: 0, folder: f })}
+        className={`group/card surface-card relative flex items-center gap-2 pl-3 pr-1.5 py-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/80 cursor-pointer ${
+          dropFolderId === f.id ? 'ring-2 ring-indigo-400' : ''
+        } ${dragSource?.containerId === 'root' && dragSource.index === index ? 'opacity-40' : ''} ${
+          insertBefore(index) ? 'border-l-4 !border-l-indigo-500' : ''} ${insertAfterLast(index) ? 'border-r-4 !border-r-indigo-500' : ''}`}
+        onClick={() => setFolderView(f.id)}
+        title={`Open ${f.label}`}
+      >
+        <span className={`flex-shrink-0 w-9 h-9 rounded-lg ${folderColor(f).chip} flex items-center justify-center`}>
+          <Folder size={18} className={folderColor(f).icon} />
+        </span>
+        <span className="flex-1 min-w-0 flex flex-col leading-tight">
+          <span className="text-[14px] font-medium text-zinc-800 dark:text-zinc-100 truncate">{f.label}</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{f.links.length} {f.links.length === 1 ? 'link' : 'links'}</span>
+        </span>
+        <button
+          onClick={(e) => openMenuAt(e, { kind: 'folder', x: 0, y: 0, folder: f })}
+          title="Folder color, rename, delete"
+          className="p-1.5 rounded-lg flex-shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        >
+          <MoreHorizontal size={15} className="rotate-90" />
+        </button>
+      </div>
+    );
+
+    return (
+      <div className="flex gap-6" onDrop={(e) => { e.preventDefault(); commit(); }} onDragOver={(e) => e.preventDefault()}>
+        <aside className="w-52 flex-shrink-0 flex flex-col gap-5">
+          <div>
+            {heading('Quick Links', 'Links')}
+            {sideRow({
+              key: 'all', active: !openFolder, icon: <Grid3x3 size={14} className="text-zinc-400" />, label: 'All links', count: allLinks.length,
+              onClick: () => setFolderView(null),
+              // Dropping here moves a link out of its folder to the top level.
+              onDragOver: (e) => { e.preventDefault(); if (dragSource && dragSource.containerId !== 'root') { setDropFolderId(null); setInsertTarget({ containerId: 'root', index: entries.length }); } },
+              dropping: !!dragSource && dragSource.containerId !== 'root' && insertTarget?.containerId === 'root' && insertTarget.index === entries.length,
+            })}
+          </div>
+
+          {frequent.length > 0 && (
+            <div>
+              {heading('Frequent')}
+              {frequent.map(({ link, count }) => (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => noteOpen(link)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] text-zinc-700 dark:text-zinc-300 hover:bg-white/60 dark:hover:bg-zinc-800/60"
+                >
+                  <span className="w-4 flex items-center justify-center flex-shrink-0 [&_img]:w-4 [&_img]:h-4 [&_svg]:w-4 [&_svg]:h-4">
+                    <SiteIcon url={link.url} label={link.label} />
+                  </span>
+                  <span className="flex-1 truncate">{link.label}</span>
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{count}</span>
+                </a>
+              ))}
+            </div>
+          )}
+
+          <div>
+            {heading('Folders', folders.length ? 'links' : undefined)}
+            {folders.map((f) => sideRow({
+              key: f.id,
+              active: openFolder?.id === f.id,
+              icon: <Folder size={14} className={folderColor(f).icon} />,
+              label: f.label,
+              count: f.links.length,
+              onClick: () => setFolderView(f.id),
+              onContextMenu: (e) => openMenuAt(e, { kind: 'folder', x: 0, y: 0, folder: f }),
+              onDragOver: (e) => {
+                e.preventDefault();
+                if (!dragSource) return;
+                setInsertTarget(null);
+                setDropFolderId(dragged?.type === 'link' && dragSource.containerId !== f.id ? f.id : null);
+              },
+              dropping: dropFolderId === f.id,
+            }))}
+            <button
+              onClick={() => setShowAddFolder(true)}
+              className="mt-1 w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+            >
+              <FolderPlus size={14} /> New folder
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 px-2.5 text-[11px] text-zinc-400 dark:text-zinc-500">
+            View:
+            <button onClick={() => setView('grid')} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"><LayoutGrid size={11} /> Grid</button>
+            <button onClick={() => setView('list')} className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:text-zinc-700 dark:hover:text-zinc-200"><ListIcon size={11} /> List</button>
+          </div>
+        </aside>
+
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
+          <div className="flex items-center gap-2 min-h-[28px]">
+            <button
+              onClick={() => setFolderView(null)}
+              className={`text-[15px] font-semibold ${openFolder ? 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200' : 'text-zinc-800 dark:text-zinc-100'}`}
+            >
+              All links
+            </button>
+            {openFolder && (
+              <>
+                <ChevronRight size={14} className="text-zinc-400" />
+                <span className="flex items-center gap-1.5 text-[15px] font-semibold text-zinc-800 dark:text-zinc-100">
+                  <Folder size={15} className={folderColor(openFolder).icon} /> {openFolder.label}
+                </span>
+                <button
+                  onClick={(e) => openMenuAt(e, { kind: 'folder', x: 0, y: 0, folder: openFolder })}
+                  title="Folder color, rename, delete"
+                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800"
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {addForms}
+          {renamingFolderId && renderRenameForm()}
+
+          {items.length === 0 ? (
+            <div className="py-10 text-center text-sm text-zinc-400 dark:text-zinc-500">
+              {openFolder ? 'This folder is empty. Drag links onto it in the sidebar, or add one with + Add link.' : 'No links yet. Add one with + Add link.'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5">
+              {items.map((e, i) => (e.type === 'folder' ? folderCard(e, i) : linkCard(e, i)))}
+            </div>
+          )}
+        </div>
+
+        {menu && renderMenu(menu)}
+        {toast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs shadow-lg">
+            {toast}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (showGrid) return renderGrid();
+
+  return (
+    <div className="flex flex-col gap-2" onDrop={(e) => { e.preventDefault(); commit(); }} onDragOver={(e) => e.preventDefault()}>
+
+      {addForms}
+
       <div className="flex items-center gap-4">
         <button
           onClick={() => setShowAddFolder(true)}
@@ -701,6 +1007,15 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
         >
           <FolderPlus size={13} /> New folder
         </button>
+
+        {layout === 'grid' && !privateMode && (
+          <button
+            onClick={() => setView('grid')}
+            className="self-start flex items-center gap-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 px-1 py-0.5 transition-colors duration-150"
+          >
+            <LayoutGrid size={13} /> Grid view
+          </button>
+        )}
 
         {folders.length > 0 && (
           <button
@@ -724,14 +1039,7 @@ export default function QuickLinks({ config, onUpdateConfig, privateMode }: Quic
             {entry.type === 'link' ? (
               editingId === entry.id ? renderEditForm('root') : renderLinkRow(entry, 'root', index, entries.length)
             ) : renamingFolderId === entry.id ? (
-              <div className="flex flex-col gap-1.5 p-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                <input type="text" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveFolderRename()} autoFocus
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
-                <div className="flex gap-2">
-                  <button onClick={saveFolderRename} className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><Check size={14} /> Save</button>
-                  <button onClick={() => setRenamingFolderId(null)} className="flex-1 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center gap-1"><X size={14} /> Cancel</button>
-                </div>
-              </div>
+              renderRenameForm()
             ) : (
               <div
                 className={`flex flex-col gap-1 group/folder ${dragSource?.containerId === 'root' && dragSource.index === index ? 'opacity-40' : ''}`}

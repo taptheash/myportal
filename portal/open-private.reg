@@ -1,0 +1,13 @@
+Windows Registry Editor Version 5.00
+ 
+[HKEY_CURRENT_USER\Software\Classes\openpriv]
+@="URL:OpenPriv Protocol"
+"URL Protocol"=""
+ 
+[HKEY_CURRENT_USER\Software\Classes\openpriv\shell]
+ 
+[HKEY_CURRENT_USER\Software\Classes\openpriv\shell\open]
+ 
+[HKEY_CURRENT_USER\Software\Classes\openpriv\shell\open\command]
+@="\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -WindowStyle Hidden -ExecutionPolicy Bypass -File \"C:\\Users\\dwcha\\Claude\\Scripts\\open-private.ps1\" \"%1\""
+ 

@@ -17,6 +17,7 @@ import { OnThisDayPill, NationalDayPill } from './components/TodayFacts';
 import HomeDashboard from './components/HomeDashboard';
 import CommandPalette from './components/CommandPalette';
 import SyncButton from './components/SyncButton';
+import RightRail from './components/RightRail';
 import { useResolvedName, requestRelocate } from './lib/weatherLocal';
 import Weather from './components/widgets/Weather';
 import Calendar from './components/widgets/Calendar';
@@ -705,6 +706,8 @@ export default function App() {
   );
 
   const activeSectionMeta = SECTIONS.find((s) => s.id === activeSection)!;
+  // Desktop: the page title sits on the tab row (see TabContainer).
+  const tabTitle = isMobile ? undefined : activeSectionMeta.label;
   const sectionSubtitle: Record<string, string> = {
     home: 'Everything that matters today, at a glance',
     tools: 'Your shortcuts, utilities and frequently used services',
@@ -717,7 +720,7 @@ export default function App() {
   };
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+      <div className={`min-h-screen app-bg text-zinc-900 dark:text-zinc-100 ${isMobile ? '' : 'pl-[84px]'}`}>
         {/* Hidden entry point to the private links page: a small box in the
             bottom-left corner, filled with the page background color, with
             a single 1px dot in its center in a slightly different color so
@@ -726,7 +729,7 @@ export default function App() {
         <div
           onClick={() => setHiddenPageOpen(true)}
           aria-hidden="true"
-          className="fixed left-0 w-3 h-3 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 z-[9999]"
+          className="fixed left-0 w-3 h-3 flex items-center justify-center bg-transparent z-[9999]"
           // On the phone it sits just above the bottom tab bar instead of on top of it.
           style={{ bottom: isMobile ? 'calc(56px + env(safe-area-inset-bottom))' : 0 }}
         >
@@ -746,7 +749,35 @@ export default function App() {
           </button>
         )}
 
-        <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80">
+        {!isMobile && (
+          <nav className="fixed left-0 top-0 bottom-0 z-[60] w-[84px] flex flex-col items-center gap-1 py-4 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md border-r border-white/80 dark:border-zinc-800">
+            <div className="mb-3 w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-[13px] font-bold tracking-tight shadow-sm" aria-hidden="true">MP</div>
+            {SECTIONS.map((section) => {
+              const isActive = activeSection === section.id;
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  aria-current={isActive}
+                  title={section.label}
+                  className={`w-[68px] flex flex-col items-center gap-1 py-2 rounded-xl text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                    isActive
+                      ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/70 hover:text-zinc-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Icon size={20} strokeWidth={1.75} />
+                  {section.label}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        <header className={isMobile
+          ? 'sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-200/80 dark:border-zinc-800/80'
+          : 'sticky top-0 z-50 bg-[#eceef3]/80 dark:bg-[#0f0f14]/80 backdrop-blur-md'}>
           {isMobile ? (
           <div className="px-3 pt-2.5 pb-2 flex flex-col gap-2">
             <div className="flex justify-between items-center gap-2">
@@ -774,75 +805,42 @@ export default function App() {
             </div>
           </div>
           ) : (
-          <div className="px-6 py-3.5 flex justify-between items-center gap-4">
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="w-2 h-2 rounded-full bg-indigo-500" aria-hidden="true" />
-              <h1 className="text-[15px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums tracking-tight">
-                {currentTime || 'Loading…'}
-              </h1>
+          <div className="px-6 py-3 flex items-center justify-end gap-3">
+            <div className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300 tabular-nums whitespace-nowrap">
+              {currentTime || 'Loading…'}
             </div>
-
-            <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
-              <OnThisDayPill />
-              <NationalDayPill />
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <SyncButton />
-              <button
-                onClick={() => setPaletteOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                title="Search everything (Ctrl+K)"
-              >
-                <SearchIcon size={14} />
-                <span className="hidden lg:inline">Search…</span>
-                <kbd className="hidden lg:inline text-[10px] font-medium bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">Ctrl K</kbd>
-              </button>
-
-              {themeToggle}
-            </div>
+            <span className="w-px h-6 bg-zinc-300/70 dark:bg-zinc-700" aria-hidden="true" />
+            <OnThisDayPill />
+            <span className="w-px h-6 bg-zinc-300/70 dark:bg-zinc-700" aria-hidden="true" />
+            <NationalDayPill />
+            <span className="w-px h-6 bg-zinc-300/70 dark:bg-zinc-700" aria-hidden="true" />
+            <SyncButton />
+            {/* The search box lives at the top of the right column; below
+                that width the column is hidden, so search shows here. */}
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="xl:hidden flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] text-zinc-400 dark:text-zinc-500 bg-white/70 dark:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
+              title="Search everything (Ctrl+K)"
+            >
+              <SearchIcon size={14} /> Search…
+            </button>
+            {themeToggle}
           </div>
           )}
         </header>
 
         <main
-          className={isMobile ? 'px-3 pt-3' : 'px-6 py-6 max-w-[1440px] mx-auto'}
+          className={isMobile ? 'px-3 pt-3' : 'px-6 pt-2 pb-8 max-w-[1760px]'}
           style={isMobile ? { paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' } : undefined}
         >
           <div className={isMobile ? 'w-full' : 'flex flex-row gap-6 items-start w-full'}>
-            {!isMobile && (
-            <nav className="w-44 flex-shrink-0 flex flex-col gap-0.5">
-              {SECTIONS.map((section) => {
-                const isActive = activeSection === section.id;
-                const Icon = section.icon;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    aria-current={isActive}
-                    className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-                      isActive
-                        ? 'font-medium bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200/80 dark:ring-zinc-800'
-                        : 'font-medium text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100/80 dark:hover:bg-zinc-900/60 hover:text-zinc-700 dark:hover:text-zinc-300'
-                    }`}
-                  >
-                    <Icon
-                      size={15}
-                      className={`flex-shrink-0 transition-colors ${
-                        isActive ? 'text-indigo-500' : 'text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500'
-                      }`}
-                    />
-                    {section.label}
-                  </button>
-                );
-              })}
-            </nav>
-            )}
+
 
             <div className="flex-1 min-w-0">
+              {(isMobile || activeSection === 'home' || activeSection === 'flights') && (
               <div className={`${isMobile ? 'mb-2' : 'mb-4'} px-1 flex items-baseline justify-between gap-4 flex-wrap`}>
                 <div>
-                  <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold tracking-tight text-zinc-900 dark:text-white`}>
+                  <h2 className={`${isMobile ? 'text-lg' : 'text-[28px]'} font-semibold tracking-tight text-zinc-900 dark:text-white`}>
                     {activeSectionMeta.label}
                   </h2>
                   {!isMobile && (
@@ -852,6 +850,7 @@ export default function App() {
                   )}
                 </div>
               </div>
+              )}
 
               {activeSection === 'home' && (
                 <HomeDashboard onNavigate={setActiveSection} />
@@ -859,6 +858,8 @@ export default function App() {
 
               {activeSection === 'tools' && (
                 <TabContainer
+                  title={tabTitle}
+                  pills={!isMobile}
                   tabs={toolTabs}
                   activeType={activeTool}
                   onSelect={setActiveTool}
@@ -870,12 +871,15 @@ export default function App() {
                     config={activeToolWidget.config}
                     onUpdateConfig={(config: any) => updateWidgetConfig(activeTool, config)}
                     isEditing={false}
+                    layout={isMobile ? 'list' : 'grid'}
                   />
                 </TabContainer>
               )}
 
               {activeSection === 'news' && (
                 <TabContainer
+                  title={tabTitle}
+                  pills={!isMobile}
                   tabs={newsTabs}
                   activeType={safeActiveNews}
                   onSelect={setActiveNews}
@@ -893,6 +897,8 @@ export default function App() {
 
               {activeSection === 'reddit' && (
                 <TabContainer
+                  title={tabTitle}
+                  pills={!isMobile}
                   tabs={[toTabDef('reddit')]}
                   activeType="reddit"
                   onSelect={() => {}}
@@ -910,6 +916,8 @@ export default function App() {
 
               {activeSection === 'sports' && (
                 <TabContainer
+                  title={tabTitle}
+                  pills={!isMobile}
                   tabs={sportsTabs}
                   activeType={activeSports}
                   onSelect={setActiveSports}
@@ -934,6 +942,8 @@ export default function App() {
 
               {activeSection === 'games' && (
                 <TabContainer
+                  title={tabTitle}
+                  pills={!isMobile}
                   tabs={gamesTabs}
                   activeType={activeGame}
                   onSelect={setActiveGame}
@@ -953,6 +963,8 @@ export default function App() {
 
               {activeSection === 'stocks' && (
                 <TabContainer
+                  title={tabTitle}
+                  pills={!isMobile}
                   tabs={stocksTabs}
                   activeType={activeStocks}
                   onSelect={setActiveStocks}
@@ -968,6 +980,16 @@ export default function App() {
                 </TabContainer>
               )}
             </div>
+
+            {!isMobile && (
+              <div className="hidden xl:block sticky top-[64px] self-start max-h-[calc(100vh-80px)] overflow-y-auto no-scrollbar pb-2">
+                <RightRail
+                  onSearch={() => setPaletteOpen(true)}
+                  onOpenWeather={() => { setActiveSection('tools'); setActiveTool('weather'); }}
+                  onOpenCalendar={() => { setActiveSection('tools'); setActiveTool('calendar'); }}
+                />
+              </div>
+            )}
           </div>
         </main>
 

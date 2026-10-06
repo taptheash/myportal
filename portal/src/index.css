@@ -49,6 +49,36 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
   --surface-shadow-hover: 0 8px 20px -4px rgba(0, 0, 0, 0.45), 0 2px 8px -2px rgba(0, 0, 0, 0.3);
 }
 
+/* ---- Lavender glass look (Oct 2026 redesign) ----------------------------
+   Light grey page, frosted white panels, lavender accent (the accent itself
+   lives in tailwind.config.js as the `indigo` scale). */
+:root {
+  --app-bg: #eceef3;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-shadow: 0 1px 2px rgba(30, 27, 75, 0.05), 0 8px 24px -12px rgba(30, 27, 75, 0.12);
+}
+.dark {
+  --app-bg: #0f0f14;
+  --glass-bg: rgba(28, 27, 36, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+}
+.app-bg {
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(circle at 85% 10%, rgba(128, 112, 199, 0.10), transparent 40%),
+    radial-gradient(circle at 10% 90%, rgba(128, 112, 199, 0.06), transparent 45%);
+  background-attachment: fixed;
+}
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
 .surface-card {
   border: 1px solid var(--surface-border);
   box-shadow: var(--surface-shadow);

@@ -17,7 +17,14 @@ interface TabContainerProps {
   onReorder: (newOrderTypes: string[]) => void;
   controls?: React.ReactNode;
   children: React.ReactNode;
+  // Desktop redesign: the page title sits on the same row as the tabs, and
+  // tabs render as pastel pills tinted with each tab's own color.
+  title?: string;
+  pills?: boolean;
 }
+
+// '#E69F00' + '33' -> '#E69F0033' (hex with alpha)
+const tint = (hex: string, alpha: string) => (/^#[0-9a-f]{6}$/i.test(hex) ? hex + alpha : hex);
 
 export default function TabContainer({
   sectionLabel,
@@ -27,6 +34,8 @@ export default function TabContainer({
   onReorder,
   controls,
   children,
+  title,
+  pills = false,
 }: TabContainerProps) {
   // Drag-to-reorder state. Horizontal-only, constrained to this row — dragging
   // never crosses into the other container, and the insertion point is always
@@ -125,12 +134,16 @@ export default function TabContainer({
 
   return (
     <section className="flex-1 min-w-0 flex flex-col">
-      <div className="relative mb-2">
+      <div className={title ? 'flex items-center gap-5 mb-4' : ''}>
+      {title && (
+        <h2 className="text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white flex-shrink-0">{title}</h2>
+      )}
+      <div className={`relative ${title ? 'flex-1 min-w-0' : 'mb-2'}`}>
       {canLeft && (
         <button
           onClick={() => scrollBy(-1)}
           aria-label="Scroll tabs left"
-          className="absolute left-0 top-0 bottom-0 z-10 flex items-center pl-0.5 pr-3 bg-gradient-to-r from-zinc-50 via-zinc-50/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="absolute left-0 top-0 bottom-0 z-10 flex items-center pl-0.5 pr-3 bg-gradient-to-r from-[#eceef3] via-[#eceef3]/90 to-transparent dark:from-[#0f0f14] dark:via-[#0f0f14]/90 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
         >
           <ChevronLeft size={16} />
         </button>
@@ -139,14 +152,14 @@ export default function TabContainer({
         <button
           onClick={() => scrollBy(1)}
           aria-label="Scroll tabs right"
-          className="absolute right-0 top-0 bottom-0 z-10 flex items-center pr-0.5 pl-3 bg-gradient-to-l from-zinc-50 via-zinc-50/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="absolute right-0 top-0 bottom-0 z-10 flex items-center pr-0.5 pl-3 bg-gradient-to-l from-[#eceef3] via-[#eceef3]/90 to-transparent dark:from-[#0f0f14] dark:via-[#0f0f14]/90 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
         >
           <ChevronRight size={16} />
         </button>
       )}
       <div
         ref={rowRef}
-        className="flex flex-nowrap gap-0.5 overflow-x-auto no-scrollbar scroll-smooth"
+        className={`flex flex-nowrap ${pills ? 'gap-2 py-1 px-0.5' : 'gap-0.5'} overflow-x-auto no-scrollbar scroll-smooth`}
         role="tablist"
         aria-label={sectionLabel}
         onDrop={handleDrop}
@@ -175,7 +188,15 @@ export default function TabContainer({
                 // Active state is signaled by THREE independent cues, not color alone:
                 // weight, a background surface + shadow, and the category dot. That way
                 // the active tab is still identifiable if color can't be perceived at all.
-                className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[13px] whitespace-nowrap transition-all duration-150 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-zinc-950 ${
+                style={pills ? {
+                  backgroundColor: tint(tab.color, isActive ? '40' : '1f'),
+                  borderColor: tint(tab.color, isActive ? 'cc' : '55'),
+                } : undefined}
+                className={pills
+                  ? `flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[13px] whitespace-nowrap transition-all duration-150 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                    isDragging ? 'opacity-40' : ''
+                  } ${isActive ? 'font-semibold text-zinc-900 dark:text-white shadow-sm' : 'font-medium text-zinc-600 dark:text-zinc-300 hover:brightness-95 dark:hover:brightness-125'}`
+                  : `flex-shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[13px] whitespace-nowrap transition-all duration-150 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-zinc-950 ${
                   isDragging ? 'opacity-40' : ''
                 } ${
                   isActive
@@ -183,11 +204,13 @@ export default function TabContainer({
                     : 'font-medium text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100/70 dark:hover:bg-zinc-900/50 hover:text-zinc-700 dark:hover:text-zinc-300'
                 }`}
               >
+                {!pills && (
                 <span
                   className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: tab.color, opacity: isActive ? 1 : 0.55 }}
                   aria-hidden="true"
                 />
+                )}
                 <Icon size={14} className="flex-shrink-0" />
                 <span>{tab.label}</span>
               </button>
@@ -199,13 +222,14 @@ export default function TabContainer({
         )}
       </div>
       </div>
+      </div>
 
       <div
         role="tabpanel"
-        className="panel-fade-in surface-card bg-white dark:bg-zinc-900 rounded-2xl relative z-0 overflow-hidden flex-1 flex flex-col"
+        className="panel-fade-in glass-card rounded-2xl relative z-0 overflow-hidden flex-1 flex flex-col"
       >
         {controls && (
-          <div className="px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/30 flex items-center justify-end gap-2">
+          <div className="px-4 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800 bg-white/40 dark:bg-zinc-950/30 flex items-center justify-end gap-2">
             {controls}
           </div>
         )}

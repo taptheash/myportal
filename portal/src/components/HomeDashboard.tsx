@@ -78,7 +78,7 @@ function ModuleCard({
   const Header = onNavigate ? 'button' : 'div';
   return (
     <div
-      className={`surface-card bg-white dark:bg-zinc-900 rounded-2xl p-4 flex flex-col gap-2.5 ${
+      className={`glass-card rounded-2xl p-4 flex flex-col gap-2.5 ${
         def.span === 'full' ? 'col-span-full' : ''
       }`}
     >
@@ -251,7 +251,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
       </div>
 
       {customizing && (
-        <div className="surface-card bg-white dark:bg-zinc-900 rounded-2xl p-3 mb-4">
+        <div className="glass-card rounded-2xl p-3 mb-4">
           <div className="flex flex-wrap items-center gap-2 mb-3 px-1 pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <label className="text-xs text-zinc-500 dark:text-zinc-400">Layout name</label>
             <input
@@ -329,7 +329,7 @@ export default function HomeDashboard({ onNavigate }: { onNavigate: (section: st
       )}
 
       {visibleOrder.length === 0 ? (
-        <div className="surface-card bg-white dark:bg-zinc-900 rounded-2xl p-8 text-center">
+        <div className="glass-card rounded-2xl p-8 text-center">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             All modules are hidden. Click Customize to bring some back.
           </p>
