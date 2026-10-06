@@ -751,7 +751,9 @@ export default function App() {
 
         {!isMobile && (
           <nav className="fixed left-0 top-0 bottom-0 z-[60] w-[84px] flex flex-col items-center gap-1 py-4 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md border-r border-white/80 dark:border-zinc-800">
-            <div className="mb-3 w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-[13px] font-bold tracking-tight shadow-sm" aria-hidden="true">MP</div>
+            <button onClick={() => setActiveSection('home')} title="Home" className="mb-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
+              <img src="/taptheash-logo.png" alt="Taptheash" width={72} height={72} className="w-[72px] h-auto select-none" draggable={false} />
+            </button>
             {SECTIONS.map((section) => {
               const isActive = activeSection === section.id;
               const Icon = section.icon;
