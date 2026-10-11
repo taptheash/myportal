@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search, Link2, StickyNote, ListChecks, Newspaper, Trophy,
-  TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText, Flame, Plane, Gamepad2,
+  TrendingUp, Home as HomeIcon, Wrench, Loader2, Plus, FileText, Flame, Plane, Gamepad2, Globe, ExternalLink,
 } from 'lucide-react';
 import { getWidgetConfig } from '../lib/portalStorage';
 import { flattenLinks, normalizeEntries } from './widgets/QuickLinks';
@@ -17,7 +17,7 @@ import { recordLinkClick } from '../lib/recentLinks';
 
 interface Result {
   id: string;
-  group: 'Action' | 'Quick Links' | 'Notes' | 'Tasks' | 'Calendar' | 'News' | 'Sports' | 'Stocks';
+  group: 'Web' | 'Action' | 'Quick Links' | 'Notes' | 'Tasks' | 'Calendar' | 'News' | 'Sports' | 'Stocks';
   icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
   sublabel?: string;
@@ -29,6 +29,16 @@ const NEWS_SOURCES: NewsSource[] = [
   { name: 'BBC News', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
   { name: 'NPR', url: 'https://feeds.npr.org/1002/rss.xml' },
 ];
+
+// Something typed that looks like a web address ("espn.com", "https://x.y/z")
+// rather than words to search for.
+function asUrl(q: string): string | null {
+  const t = q.trim();
+  if (!t || /\s/.test(t)) return null;
+  if (/^https?:\/\//i.test(t)) return t;
+  if (/^(localhost|[a-z0-9-]+(\.[a-z0-9-]+)+)(:\d+)?(\/.*)?$/i.test(t)) return `https://${t}`;
+  return null;
+}
 
 function getHostname(url: string): string {
   try {
@@ -101,6 +111,21 @@ export default function CommandPalette({
       return actions;
     }
 
+    // Web search comes first, so typing and pressing Enter searches the web
+    // like a browser's address bar. Arrow down to pick a portal result.
+    const raw = query.trim();
+    const site = asUrl(raw);
+    if (site) {
+      results.push({
+        id: 'web-go', group: 'Web', icon: ExternalLink, label: `Go to ${getHostname(site)}`, sublabel: site,
+        onSelect: () => window.open(site, '_blank', 'noopener,noreferrer'),
+      });
+    }
+    results.push({
+      id: 'web-search', group: 'Web', icon: Globe, label: `Search Google for "${raw}"`,
+      onSelect: () => window.open(`https://www.google.com/search?q=${encodeURIComponent(raw)}`, '_blank', 'noopener,noreferrer'),
+    });
+
     for (const a of actions) {
       if (a.label.toLowerCase().includes(q)) results.push(a);
     }
@@ -164,7 +189,7 @@ export default function CommandPalette({
       }
     }
 
-    return results.slice(0, 25);
+    return results.slice(0, 27);
   }, [query, onNavigate, onAddLink]);
 
   // Live results — News (cached RSS pool), Sports (ESPN team search), Stocks
@@ -276,7 +301,7 @@ export default function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search links, notes, tasks, news, sports, stocks…"
+            placeholder="Search the web, or your links, notes, tasks, news, stocks…"
             aria-label="Search"
             className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none"
           />

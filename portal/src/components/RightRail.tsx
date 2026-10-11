@@ -226,7 +226,7 @@ export default function RightRail({ onSearch, onOpenWeather, onOpenCalendar }: {
         title="Search everything (Ctrl+K)"
       >
         <SearchIcon size={15} />
-        <span className="flex-1">Search…</span>
+        <span className="flex-1">Search the web or your portal…</span>
         <kbd className="text-[10px] font-medium bg-white/80 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">Ctrl K</kbd>
       </button>
       <RailWeather onOpen={onOpenWeather} />
