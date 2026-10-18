@@ -39,7 +39,7 @@ export default function SportsHighlight() {
       const results = await Promise.all(
         teams.slice(0, 4).map(async (t): Promise<TeamLine> => {
           try {
-            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/teams/${t.team}`);
+            const res = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${t.sport}/${t.league}/teams/${t.team}`)}`);
             if (!res.ok) throw new Error('failed');
             const data = await res.json();
             const nextEvent = data?.team?.nextEvent?.[0];

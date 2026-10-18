@@ -112,7 +112,7 @@ export function makeTeamSchedule(
           // when its games matter most.
           const fetchSeasonType = async (season: number, seasontype: 2 | 3) => {
             const res = await fetch(
-              `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${team}/schedule?season=${season}&seasontype=${seasontype}&limit=100`
+              `/api/espn?path=${encodeURIComponent(`sports/${sport}/${league}/teams/${team}/schedule`)}&season=${season}&seasontype=${seasontype}&limit=100`
             );
             if (!res.ok) return [];
             const data = await res.json();

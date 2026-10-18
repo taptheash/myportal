@@ -107,7 +107,7 @@ function GamesToday() {
     let cancelled = false;
     Promise.all(teams.map(async (t): Promise<GameLine | null> => {
       try {
-        const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/teams/${t.team}`);
+        const res = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${t.sport}/${t.league}/teams/${t.team}`)}`);
         if (!res.ok) return null;
         const ev = (await res.json())?.team?.nextEvent?.[0];
         if (!ev?.date || todayKey(new Date(ev.date)) !== today) return null;

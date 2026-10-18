@@ -128,7 +128,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
 
     const fetchTeam = async (t: TeamEntry) => {
       try {
-        const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/teams/${t.team}`);
+        const res = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${t.sport}/${t.league}/teams/${t.team}`)}`);
         if (!res.ok) throw new Error('fetch failed');
         const data = await res.json();
         const team = data?.team;
@@ -153,7 +153,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         // from there specifically while a game is in progress.
         if (state === 'in') {
           try {
-            const sbRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/scoreboard`);
+            const sbRes = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${t.sport}/${t.league}/scoreboard`)}`);
             if (sbRes.ok) {
               const sbData = await sbRes.json();
               const liveEvent = (sbData?.events || []).find((e: any) =>
@@ -178,7 +178,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         // started) game when the current one has already finished.
         if (state === 'post') {
           try {
-            const schedRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/teams/${t.team}/schedule`);
+            const schedRes = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${t.sport}/${t.league}/teams/${t.team}/schedule`)}`);
             if (schedRes.ok) {
               const schedData = await schedRes.json();
               const events = schedData?.events || [];
@@ -220,7 +220,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
 
     const refreshLiveTeam = async (t: TeamEntry) => {
       try {
-        const sbRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}/scoreboard`);
+        const sbRes = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${t.sport}/${t.league}/scoreboard`)}`);
         if (!sbRes.ok) return;
         const sbData = await sbRes.json();
         const liveEvent = (sbData?.events || []).find((e: any) =>
@@ -255,7 +255,7 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
     setLoadingLeagueTeams(true);
     setLeagueTeamsError(null);
     try {
-      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${lg.sport}/${lg.league}/teams`);
+      const res = await fetch(`/api/espn?path=${encodeURIComponent(`sports/${lg.sport}/${lg.league}/teams`)}`);
       if (!res.ok) throw new Error('failed');
       const data = await res.json();
       const rawList = data?.sports?.[0]?.leagues?.[0]?.teams ?? [];

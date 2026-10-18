@@ -31,7 +31,7 @@ function getScore(competitor: any): string {
 // future weeks. Passing an explicit week/dates range would let this drift
 // into showing schedules beyond the upcoming week, which is deliberately
 // avoided.
-const SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+const SCOREBOARD_URL = '/api/espn?path=sports%2Ffootball%2Fnfl%2Fscoreboard';
 
 export default function NflSchedule(_props: NflScheduleProps) {
   const [games, setGames] = useState<WeekGame[]>([]);
