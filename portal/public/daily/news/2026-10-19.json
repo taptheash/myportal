@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-19",
+  "forDate": "2026-10-20",
+  "sample": true,
+  "masthead": "The Tomorrow Times",
+  "items": [
+    {
+      "section": "Sample",
+      "headline": "This Is Where Tomorrow's Lead Story Goes",
+      "dek": "Each morning the daily task reads that day's real headlines and writes the next day's front page.",
+      "body": "The lead item runs larger, with a headline, a one-line deck and a short article. Below it, four or five smaller items fill out the page. Every item lists the real stories it was extrapolated from, with links, so you can always see what it came from."
+    },
+    {
+      "section": "Sample",
+      "headline": "Smaller Stories Run In Two Columns",
+      "dek": "Placeholder text only.",
+      "body": "None of this sample page is a forecast of anything."
+    },
+    {
+      "section": "Sample",
+      "headline": "Archive Arrows Page Back Through Past Editions",
+      "body": "Use the arrows above the masthead to read earlier days."
+    }
+  ]
+}

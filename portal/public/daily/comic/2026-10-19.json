@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-19",
+  "sample": true,
+  "title": "Mars Is Sideways",
+  "directorNote": "Premise: June's cardboard box is a rocket again. Biscuit supplies the facts, June supplies the confidence. Ending on a bad idea that works anyway.",
+  "panels": [
+    {
+      "svg": "<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'><rect width='320' height='220' fill='#cfe9ff'/><rect y='160' width='320' height='60' fill='#8ccf7e'/><circle cx='270' cy='40' r='22' fill='#ffe27a'/><rect x='150' y='110' width='90' height='70' fill='#c99a62' stroke='#6b4a24' stroke-width='3'/><polygon points='150,110 195,80 240,110' fill='#d9ac75' stroke='#6b4a24' stroke-width='3'/><circle cx='195' cy='140' r='13' fill='#9fd3ff' stroke='#6b4a24' stroke-width='3'/><rect x='70' y='122' width='34' height='48' rx='6' fill='#e0463c'/><rect x='72' y='170' width='12' height='18' fill='#35506b'/><rect x='92' y='170' width='12' height='18' fill='#35506b'/><circle cx='87' cy='102' r='20' fill='#f6d5b8' stroke='#333' stroke-width='2'/><path d='M67 98 q4-24 22-20 q15 2 17 20 q-12-9-39 0z' fill='#6b3f1d'/><circle cx='81' cy='103' r='2.5' fill='#222'/><circle cx='94' cy='103' r='2.5' fill='#222'/><path d='M80 112 q7 6 14 0' stroke='#222' stroke-width='2' fill='none'/><path d='M104 135 L130 120' stroke='#f6d5b8' stroke-width='7' stroke-linecap='round'/></svg>",
+      "dialogue": [{ "who": "June", "text": "Mission control, we are T-minus ten to Mars." }]
+    },
+    {
+      "svg": "<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'><rect width='320' height='220' fill='#f3ead7'/><ellipse cx='150' cy='178' rx='95' ry='46' fill='#fff' stroke='#555' stroke-width='3'/><path d='M200 150 C225 120 215 90 205 70' stroke='#555' stroke-width='26' fill='none' stroke-linecap='round'/><path d='M200 150 C225 120 215 90 205 70' stroke='#fff' stroke-width='20' fill='none' stroke-linecap='round'/><circle cx='205' cy='62' r='26' fill='#fff' stroke='#555' stroke-width='3'/><polygon points='228,62 264,70 228,80' fill='#f29a1f' stroke='#a35d0a' stroke-width='2'/><circle cx='211' cy='57' r='4' fill='#222'/><line x1='202' y1='51' x2='221' y2='51' stroke='#555' stroke-width='3'/><path d='M60 150 q-14-22 6-34' stroke='#555' stroke-width='3' fill='none'/></svg>",
+      "dialogue": [{ "who": "Biscuit", "text": "Mars is 140 million miles away. This is a box in the backyard." }]
+    },
+    {
+      "svg": "<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'><rect width='320' height='220' fill='#cfe9ff'/><polygon points='0,110 320,205 320,220 0,220' fill='#8ccf7e'/><g transform='rotate(18 170 140)'><rect x='115' y='105' width='110' height='70' fill='#c99a62' stroke='#6b4a24' stroke-width='3'/></g><circle cx='150' cy='108' r='19' fill='#f6d5b8' stroke='#333' stroke-width='2'/><path d='M131 104 q4-23 21-19 q14 2 16 19 q-11-8-37 0z' fill='#6b3f1d'/><circle cx='145' cy='110' r='2.5' fill='#222'/><circle cx='157' cy='110' r='2.5' fill='#222'/><path d='M144 118 q7 8 14 0' stroke='#222' stroke-width='2' fill='none'/><circle cx='200' cy='118' r='19' fill='#fff' stroke='#555' stroke-width='3'/><polygon points='216,116 244,124 216,132' fill='#f29a1f' stroke='#a35d0a' stroke-width='2'/><circle cx='205' cy='112' r='3.5' fill='#222'/><line x1='198' y1='106' x2='212' y2='106' stroke='#555' stroke-width='3'/><path d='M20 90 L90 100 M10 120 L80 126 M30 150 L95 150' stroke='#fff' stroke-width='4' stroke-linecap='round'/></svg>",
+      "dialogue": [
+        { "who": "June", "text": "Liftoff!" },
+        { "who": "Biscuit", "text": "We are going sideways." },
+        { "who": "June", "text": "Mars is sideways from here." }
+      ]
+    }
+  ]
+}

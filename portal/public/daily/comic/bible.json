@@ -1,0 +1,29 @@
+{
+  "_about": "The Director's running notes for the comic. The daily task reads this before choosing a premise and updates it after. Characters are original; keep them consistent.",
+  "setting": "A small New England town: a backyard with a hill behind it, a creaky porch, the woods at the edge of the lot. Seasons follow the real calendar.",
+  "format": "3 panels, 320x220 SVG each. Art has no text; dialogue and captions go in the JSON. Standalone gag every day, no cliffhangers.",
+  "cast": [
+    {
+      "name": "June",
+      "who": "Eight years old. Big imagination, bigger confidence, treats every plan as already approved.",
+      "look": "Round cream-colored face, messy brown hair with a tuft on top, red shirt, navy pants."
+    },
+    {
+      "name": "Biscuit",
+      "who": "A goose. Deadpan, literal-minded, supplies inconvenient facts, secretly along for every adventure.",
+      "look": "White body, long neck, orange beak, flat unimpressed eyelid line over one eye."
+    },
+    {
+      "name": "Mr. Alder",
+      "who": "Grumpy neighbor who pretends not to enjoy June's projects and keeps showing up to help.",
+      "look": "Not yet drawn. Tall, gray cap, green jacket."
+    }
+  ],
+  "runningGags": [
+    "The cardboard box is a rocket, a submarine, a time machine, a fort. It always works a little.",
+    "Biscuit states a real fact; June reframes it in her favor."
+  ],
+  "recent": [
+    { "date": "2026-10-19", "title": "Mars Is Sideways", "gag": "Box rolls down the hill; Mars is sideways from here." }
+  ]
+}
