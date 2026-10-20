@@ -4,7 +4,6 @@ import {
   StickyNote, ListChecks, Link2, Trophy, Megaphone, Globe, Laptop, MapPin, Sparkles, Home as HomeIcon,
   Calendar as CalendarIcon, Search as SearchIcon, RefreshCw, X as XIcon, Bookmark, Sunrise, LayoutList, Plane,
   Gamepad2, Spade, Club, Bug, LayoutGrid, Bomb, Grid3x3, Crown, SpellCheck, TreePine, MoreHorizontal, Smartphone,
-  BookOpen, Brain,
 } from 'lucide-react';
 import { useTheme, ThemeMode } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -43,8 +42,6 @@ import MyNews from './components/widgets/MyNews';
 import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
-import TomorrowNews from './components/daily/TomorrowNews';
-import AiBlog from './components/daily/AiBlog';
 // Games load only when you open their tab, so they don't slow the portal down.
 const Klondike = lazy(() => import('./components/games/Klondike'));
 const FreeCell = lazy(() => import('./components/games/FreeCell'));
@@ -104,8 +101,6 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   chess:      { type: 'chess',      label: 'Chess',       icon: Crown,        component: Chess as React.ComponentType<any>,       color: '#009E73', activeText: 'black' },
   dailyword:  { type: 'dailyword',  label: 'Daily Word',  icon: SpellCheck,   component: DailyWord as React.ComponentType<any>,   color: '#F0E442', activeText: 'black' },
   mooserun:   { type: 'mooserun',   label: 'Moose Run',   icon: TreePine,     component: MooseRun as React.ComponentType<any>,    color: '#56B4E9', activeText: 'black' },
-  tomorrownews: { type: 'tomorrownews', label: 'Tomorrow News', icon: Newspaper, component: TomorrowNews, color: '#56B4E9', activeText: 'black' },
-  aiblog:     { type: 'aiblog',     label: 'AI Blog',     icon: Brain,        component: AiBlog,       color: '#CC79A7', activeText: 'black' },
   mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
   saved:      { type: 'saved',      label: 'Saved',       icon: Bookmark,     component: SavedArticles, color: '#009E73', activeText: 'black' },
   brief:      { type: 'brief',      label: 'Daily Brief', icon: Sunrise,      component: DailyBrief,   color: '#E69F00', activeText: 'black' },
@@ -131,9 +126,7 @@ const REDDIT_TYPES = ['reddit'];
 const FLIGHT_TYPES = ['flights'];
 // Games: one tab per game.
 const GAME_TYPES = ['solitaire', 'freecell', 'spider', 'mahjong', 'minesweeper', 'sudoku', 'chess', 'dailyword', 'mooserun'];
-// Daily: content a scheduled task writes each morning (see lib/dailyContent.ts).
-const DAILY_TYPES = ['tomorrownews', 'aiblog'];
-const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES, ...GAME_TYPES, ...DAILY_TYPES];
+const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES, ...GAME_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
   return ALL_TYPES.map((type) => ({
@@ -157,7 +150,6 @@ const SECTIONS = [
   { id: 'reddit', label: 'Reddit', icon: Flame },
   { id: 'sports', label: 'Sports', icon: Trophy },
   { id: 'stocks', label: 'Stocks', icon: TrendingUp },
-  { id: 'daily', label: 'Daily', icon: BookOpen },
   { id: 'flights', label: 'Flights', icon: Plane },
   { id: 'games', label: 'Games', icon: Gamepad2 },
 ];
@@ -165,7 +157,7 @@ const SECTIONS = [
 // Phone layout: four sections in the bottom bar, the rest under "More".
 // Flights and Games are desktop-only.
 const MOBILE_PRIMARY = ['home', 'tools', 'news', 'sports'];
-const MOBILE_MORE = ['reddit', 'stocks', 'daily'];
+const MOBILE_MORE = ['reddit', 'stocks'];
 const MOBILE_SECTIONS = [...MOBILE_PRIMARY, ...MOBILE_MORE];
 
 export default function App() {
@@ -178,14 +170,12 @@ export default function App() {
   const [storedActiveSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
   const [storedActiveStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
   const [storedActiveGame, setActiveGame] = useLocalStorage<string>('pw6-active-game', 'solitaire');
-  const [storedActiveDaily, setActiveDaily] = useLocalStorage<string>('pw6-active-daily', 'tomorrownews');
   const [storedActiveSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
   const [sportsOrder, setSportsOrder] = useLocalStorage<string[]>('pw6-sports-order', SPORTS_TYPES);
   const [stocksOrder, setStocksOrder] = useLocalStorage<string[]>('pw6-stocks-order', STOCK_TYPES);
   const [gamesOrder, setGamesOrder] = useLocalStorage<string[]>('pw6-games-order', GAME_TYPES);
-  const [dailyOrder, setDailyOrder] = useLocalStorage<string[]>('pw6-daily-order', DAILY_TYPES);
   // Order of the left sidebar's sections (synced with the other pw6-*-order keys),
   // plus the drag state for reordering them.
   const [sectionOrder, setSectionOrder] = useLocalStorage<string[]>('pw6-section-order', SECTIONS.map((s) => s.id));
@@ -253,10 +243,10 @@ export default function App() {
   }, [setActiveSection, setActiveTool]);
 
   // "G then a letter" jumps between sections: G H Home, G T Tools, G N News,
-  // G R Reddit, G S Sports, G M Markets (Stocks), G D Daily, G F Flights, G G Games. Ignored while typing in a
+  // G R Reddit, G S Sports, G M Markets (Stocks), G F Flights, G G Games. Ignored while typing in a
   // field, and when Ctrl/Alt/Cmd is held, so it never steals a keystroke.
   useEffect(() => {
-    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks', d: 'daily', f: 'flights', g: 'games' };
+    const GO_KEYS: Record<string, string> = { h: 'home', t: 'tools', n: 'news', r: 'reddit', s: 'sports', m: 'stocks', f: 'flights', g: 'games' };
     let armedUntil = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const disarm = () => { armedUntil = 0; setGoArmed(false); };
@@ -425,10 +415,9 @@ export default function App() {
   const sportsTabs = resolveOrder(sportsOrder, SPORTS_TYPES).map(toTabDef);
   const stocksTabs = resolveOrder(stocksOrder, STOCK_TYPES).map(toTabDef);
   const gamesTabs = resolveOrder(gamesOrder, GAME_TYPES).map(toTabDef);
-  const dailyTabs = resolveOrder(dailyOrder, DAILY_TYPES).map(toTabDef);
 
   // Left sidebar: sections in the saved order. A saved order missing a newer
-  // section (like Daily) gets it appended, same as the tab rows above.
+  // section added later gets it appended, same as the tab rows above.
   const orderedSections = resolveOrder(sectionOrder, SECTIONS.map((s) => s.id)).map(
     (id) => SECTIONS.find((s) => s.id === id)!
   );
@@ -483,7 +472,6 @@ export default function App() {
   const activeSports = SPORTS_TYPES.includes(storedActiveSports) ? storedActiveSports : SPORTS_TYPES[0];
   const activeStocks = STOCK_TYPES.includes(storedActiveStocks) ? storedActiveStocks : STOCK_TYPES[0];
   const activeGame = GAME_TYPES.includes(storedActiveGame) ? storedActiveGame : GAME_TYPES[0];
-  const activeDaily = DAILY_TYPES.includes(storedActiveDaily) ? storedActiveDaily : DAILY_TYPES[0];
   const knownSection = SECTIONS.some((s) => s.id === storedActiveSection) ? storedActiveSection : 'home';
   // On the phone, a section that isn't offered there (Flights, Games — e.g.
   // G-key jump or the command palette) falls back to Home without touching
@@ -495,7 +483,6 @@ export default function App() {
   const activeSportsWidget = widgets.find((w) => w.type === activeSports)!;
   const activeStocksWidget = widgets.find((w) => w.type === activeStocks)!;
   const activeGameWidget = widgets.find((w) => w.type === activeGame)!;
-  const activeDailyWidget = widgets.find((w) => w.type === activeDaily)!;
   // Reddit has no sub-tabs (it's a single-widget section), so unlike the
   // others there's no "active<X>" selection state to track — just the one
   // widget instance.
@@ -742,7 +729,6 @@ export default function App() {
   const SportsComponent = WIDGET_DEFINITIONS[activeSports].component;
   const StocksComponent = WIDGET_DEFINITIONS[activeStocks].component;
   const GameComponent = WIDGET_DEFINITIONS[activeGame].component;
-  const DailyComponent = WIDGET_DEFINITIONS[activeDaily].component;
 
   const themeToggle = (
     <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 gap-0.5">
@@ -780,7 +766,6 @@ export default function App() {
     stocks: 'Watchlist and market snapshot at a glance',
     flights: 'Live aircraft over the areas you pick, FlightWall style',
     games: 'Something to pass the time',
-    daily: 'Tomorrow\'s news and an AI paper, fresh each morning',
   };
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
@@ -1047,25 +1032,6 @@ export default function App() {
                 </TabContainer>
               )}
 
-              {activeSection === 'daily' && (
-                <TabContainer
-                  title={tabTitle}
-                  pills={!isMobile}
-                  tabs={dailyTabs}
-                  activeType={activeDaily}
-                  onSelect={setActiveDaily}
-                  onReorder={setDailyOrder}
-                >
-                  <DailyComponent
-                    key={activeDaily}
-                    id={activeDailyWidget.id}
-                    config={activeDailyWidget.config}
-                    onUpdateConfig={(config: any) => updateWidgetConfig(activeDaily, config)}
-                    isEditing={false}
-                  />
-                </TabContainer>
-              )}
-
               {activeSection === 'stocks' && (
                 <TabContainer
                   title={tabTitle}
@@ -1172,7 +1138,7 @@ export default function App() {
         {goArmed && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-3 py-2 rounded-xl bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 text-xs shadow-lg backdrop-blur-sm flex items-center gap-3">
             <span className="font-semibold">Go to…</span>
-            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets'], ['D', 'Daily'], ['F', 'Flights'], ['G', 'Games']].map(([k, label]) => (
+            {[['H', 'Home'], ['T', 'Tools'], ['N', 'News'], ['R', 'Reddit'], ['S', 'Sports'], ['M', 'Markets'], ['F', 'Flights'], ['G', 'Games']].map(([k, label]) => (
               <span key={k} className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 rounded bg-white/15 dark:bg-zinc-900/15 font-mono text-[11px]">{k}</kbd>
                 {label}
