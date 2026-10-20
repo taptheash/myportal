@@ -1,12 +1,12 @@
-// Daily section content (ComicBook, Tomorrow News, AI Blog).
+// Daily section content (Tomorrow News, AI Blog).
 //
 // A scheduled task writes one JSON file per day into portal/public/daily/<kind>/
-// (e.g. public/daily/comic/2026-10-20.json) and keeps public/daily/<kind>/index.json
+// (e.g. public/daily/news/2026-10-20.json) and keeps public/daily/<kind>/index.json
 // up to date: {"dates": ["2026-10-20", "2026-10-19", ...]} newest first. Pushing
 // those files to main redeploys the site, so the portal only ever reads static
 // files. No API keys, no database, no cost.
 
-export type DailyKind = 'comic' | 'news' | 'blog';
+export type DailyKind = 'news' | 'blog';
 
 const BASE = process.env.PUBLIC_URL || '';
 
@@ -55,14 +55,4 @@ export function formatDay(key: string, long = false): string {
 // Only http(s) links are ever rendered as links.
 export function safeUrl(url: unknown): string | null {
   return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : null;
-}
-
-// Cartoonist panels are SVG text. Rendered through <img src="data:..."> so
-// the browser never runs scripts or loads anything from inside them.
-export function svgToDataUri(svg: unknown): string | null {
-  if (typeof svg !== 'string') return null;
-  const s = svg.trim();
-  if (!/^<svg[\s>]/i.test(s)) return null;
-  const withNs = /xmlns\s*=/.test(s.slice(0, 300)) ? s : s.replace(/^<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(withNs);
 }

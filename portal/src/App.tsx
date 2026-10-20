@@ -43,7 +43,6 @@ import MyNews from './components/widgets/MyNews';
 import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
-import ComicBook from './components/daily/ComicBook';
 import TomorrowNews from './components/daily/TomorrowNews';
 import AiBlog from './components/daily/AiBlog';
 // Games load only when you open their tab, so they don't slow the portal down.
@@ -105,7 +104,6 @@ const WIDGET_DEFINITIONS: Record<string, WidgetDef> = {
   chess:      { type: 'chess',      label: 'Chess',       icon: Crown,        component: Chess as React.ComponentType<any>,       color: '#009E73', activeText: 'black' },
   dailyword:  { type: 'dailyword',  label: 'Daily Word',  icon: SpellCheck,   component: DailyWord as React.ComponentType<any>,   color: '#F0E442', activeText: 'black' },
   mooserun:   { type: 'mooserun',   label: 'Moose Run',   icon: TreePine,     component: MooseRun as React.ComponentType<any>,    color: '#56B4E9', activeText: 'black' },
-  comicbook:  { type: 'comicbook',  label: 'ComicBook',   icon: BookOpen,     component: ComicBook,    color: '#E69F00', activeText: 'black' },
   tomorrownews: { type: 'tomorrownews', label: 'Tomorrow News', icon: Newspaper, component: TomorrowNews, color: '#56B4E9', activeText: 'black' },
   aiblog:     { type: 'aiblog',     label: 'AI Blog',     icon: Brain,        component: AiBlog,       color: '#CC79A7', activeText: 'black' },
   mynews:     { type: 'mynews',     label: 'My News',     icon: LayoutList,   component: MyNews,       color: '#0072B2', activeText: 'white' },
@@ -134,7 +132,7 @@ const FLIGHT_TYPES = ['flights'];
 // Games: one tab per game.
 const GAME_TYPES = ['solitaire', 'freecell', 'spider', 'mahjong', 'minesweeper', 'sudoku', 'chess', 'dailyword', 'mooserun'];
 // Daily: content a scheduled task writes each morning (see lib/dailyContent.ts).
-const DAILY_TYPES = ['comicbook', 'tomorrownews', 'aiblog'];
+const DAILY_TYPES = ['tomorrownews', 'aiblog'];
 const ALL_TYPES = [...TOOL_TYPES, ...NEWS_TYPES, ...SPORTS_TYPES, ...STOCK_TYPES, ...REDDIT_TYPES, ...FLIGHT_TYPES, ...GAME_TYPES, ...DAILY_TYPES];
 
 function makeDefaultWidgets(): WidgetInstance[] {
@@ -165,9 +163,9 @@ const SECTIONS = [
 ];
 
 // Phone layout: four sections in the bottom bar, the rest under "More".
-// Flights, Games and Daily are desktop-only.
+// Flights and Games are desktop-only.
 const MOBILE_PRIMARY = ['home', 'tools', 'news', 'sports'];
-const MOBILE_MORE = ['reddit', 'stocks'];
+const MOBILE_MORE = ['reddit', 'stocks', 'daily'];
 const MOBILE_SECTIONS = [...MOBILE_PRIMARY, ...MOBILE_MORE];
 
 export default function App() {
@@ -180,7 +178,7 @@ export default function App() {
   const [storedActiveSports, setActiveSports] = useLocalStorage<string>('pw6-active-sports', 'sports');
   const [storedActiveStocks, setActiveStocks] = useLocalStorage<string>('pw6-active-stocks', 'watchlist');
   const [storedActiveGame, setActiveGame] = useLocalStorage<string>('pw6-active-game', 'solitaire');
-  const [storedActiveDaily, setActiveDaily] = useLocalStorage<string>('pw6-active-daily', 'comicbook');
+  const [storedActiveDaily, setActiveDaily] = useLocalStorage<string>('pw6-active-daily', 'tomorrownews');
   const [storedActiveSection, setActiveSection] = useLocalStorage<string>('pw6-active-section', 'home');
   const [toolOrder, setToolOrder] = useLocalStorage<string[]>('pw6-tool-order', TOOL_TYPES);
   const [newsOrder, setNewsOrder] = useLocalStorage<string[]>('pw6-news-order', NEWS_TYPES);
@@ -733,7 +731,7 @@ export default function App() {
     stocks: 'Watchlist and market snapshot at a glance',
     flights: 'Live aircraft over the areas you pick, FlightWall style',
     games: 'Something to pass the time',
-    daily: 'A new comic, tomorrow\'s news and an AI paper, fresh each morning',
+    daily: 'Tomorrow\'s news and an AI paper, fresh each morning',
   };
   return (
     <div className={resolvedTheme === 'dark' ? 'dark' : ''}>
