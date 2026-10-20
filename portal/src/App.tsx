@@ -186,6 +186,11 @@ export default function App() {
   const [stocksOrder, setStocksOrder] = useLocalStorage<string[]>('pw6-stocks-order', STOCK_TYPES);
   const [gamesOrder, setGamesOrder] = useLocalStorage<string[]>('pw6-games-order', GAME_TYPES);
   const [dailyOrder, setDailyOrder] = useLocalStorage<string[]>('pw6-daily-order', DAILY_TYPES);
+  // Order of the left sidebar's sections (synced with the other pw6-*-order keys),
+  // plus the drag state for reordering them.
+  const [sectionOrder, setSectionOrder] = useLocalStorage<string[]>('pw6-section-order', SECTIONS.map((s) => s.id));
+  const [sectionDragIndex, setSectionDragIndex] = useState<number | null>(null);
+  const [sectionDropIndex, setSectionDropIndex] = useState<number | null>(null);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const resolvedWeatherName = useResolvedName();
@@ -421,6 +426,50 @@ export default function App() {
   const stocksTabs = resolveOrder(stocksOrder, STOCK_TYPES).map(toTabDef);
   const gamesTabs = resolveOrder(gamesOrder, GAME_TYPES).map(toTabDef);
   const dailyTabs = resolveOrder(dailyOrder, DAILY_TYPES).map(toTabDef);
+
+  // Left sidebar: sections in the saved order. A saved order missing a newer
+  // section (like Daily) gets it appended, same as the tab rows above.
+  const orderedSections = resolveOrder(sectionOrder, SECTIONS.map((s) => s.id)).map(
+    (id) => SECTIONS.find((s) => s.id === id)!
+  );
+  const commitSectionReorder = (from: number, to: number) => {
+    if (from === to) return;
+    const order = orderedSections.map((s) => s.id);
+    const [moved] = order.splice(from, 1);
+    order.splice(from < to ? to - 1 : to, 0, moved);
+    setSectionOrder(order);
+  };
+  const resetSectionDrag = () => { setSectionDragIndex(null); setSectionDropIndex(null); };
+  const handleSectionDragStart = (index: number) => (e: React.DragEvent) => {
+    setSectionDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    // Firefox requires data to be set for drag to initiate at all.
+    e.dataTransfer.setData('text/plain', orderedSections[index].id);
+  };
+  const handleSectionDragOver = (index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (sectionDragIndex === null) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const target = e.clientY < rect.top + rect.height / 2 ? index : index + 1;
+    // Dropping right where it already is is a no-op, so show no indicator.
+    setSectionDropIndex(target !== sectionDragIndex && target !== sectionDragIndex + 1 ? target : null);
+  };
+  const handleSectionDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (sectionDragIndex !== null && sectionDropIndex !== null) commitSectionReorder(sectionDragIndex, sectionDropIndex);
+    resetSectionDrag();
+  };
+  // Keyboard fallback: with a section focused, Alt+ArrowUp/Down moves it one place.
+  const handleSectionKeyDown = (index: number) => (e: React.KeyboardEvent) => {
+    if (!e.altKey) return;
+    if (e.key === 'ArrowUp' && index > 0) {
+      e.preventDefault();
+      commitSectionReorder(index, index - 1);
+    } else if (e.key === 'ArrowDown' && index < orderedSections.length - 1) {
+      e.preventDefault();
+      commitSectionReorder(index, index + 2);
+    }
+  };
 
   // Guards against activeNews still pointing at 'sports' from a browser
   // that had it selected before Sports moved out of the News section —
@@ -769,24 +818,44 @@ export default function App() {
             <button onClick={() => setActiveSection('home')} title="Home" className="mb-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
               <img src="/taptheash-logo.png" alt="Taptheash" width={72} height={72} className="w-[72px] h-auto select-none" draggable={false} />
             </button>
-            {SECTIONS.map((section) => {
+            {orderedSections.map((section, index) => {
               const isActive = activeSection === section.id;
               const Icon = section.icon;
+              const isDragging = sectionDragIndex === index;
+              const isLast = index === orderedSections.length - 1;
               return (
-                <button
+                <div
                   key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  aria-current={isActive}
-                  title={section.label}
-                  className={`w-[68px] flex flex-col items-center gap-1 py-2 rounded-xl text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
-                    isActive
-                      ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/70 hover:text-zinc-800 dark:hover:text-zinc-200'
-                  }`}
+                  className="relative"
+                  onDragOver={handleSectionDragOver(index)}
+                  onDrop={handleSectionDrop}
                 >
-                  <Icon size={20} strokeWidth={1.75} />
-                  {section.label}
-                </button>
+                  {sectionDropIndex === index && (
+                    <span className="absolute -top-1 left-1 right-1 h-0.5 rounded bg-indigo-500" aria-hidden="true" />
+                  )}
+                  <button
+                    draggable
+                    onDragStart={handleSectionDragStart(index)}
+                    onDragEnd={resetSectionDrag}
+                    onKeyDown={handleSectionKeyDown(index)}
+                    onClick={() => setActiveSection(section.id)}
+                    aria-current={isActive}
+                    title={`${section.label} — drag to reorder, or focus and use Alt+Up/Down`}
+                    className={`w-[68px] flex flex-col items-center gap-1 py-2 rounded-xl text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                      isDragging ? 'opacity-40 ' : ''
+                    }${
+                      isActive
+                        ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/70 hover:text-zinc-800 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <Icon size={20} strokeWidth={1.75} />
+                    {section.label}
+                  </button>
+                  {isLast && sectionDropIndex === orderedSections.length && (
+                    <span className="absolute -bottom-1 left-1 right-1 h-0.5 rounded bg-indigo-500" aria-hidden="true" />
+                  )}
+                </div>
               );
             })}
           </nav>
