@@ -42,6 +42,8 @@ import MyNews from './components/widgets/MyNews';
 import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
+import FlightWatcher from './components/flights/FlightWatcher';
+import { FlightWatch, WATCH_KEY } from './lib/flightWatch';
 // Games load only when you open their tab, so they don't slow the portal down.
 const Klondike = lazy(() => import('./components/games/Klondike'));
 const FreeCell = lazy(() => import('./components/games/FreeCell'));
@@ -181,6 +183,8 @@ export default function App() {
   const [sectionOrder, setSectionOrder] = useLocalStorage<string[]>('pw6-section-order', SECTIONS.map((s) => s.id));
   const [sectionDragIndex, setSectionDragIndex] = useState<number | null>(null);
   const [sectionDropIndex, setSectionDropIndex] = useState<number | null>(null);
+  // Flights you want an alert for. FlightWatcher (below) checks them on every page.
+  const [flightWatches, setFlightWatches] = useLocalStorage<FlightWatch[]>(WATCH_KEY, []);
   const [weatherEditing, setWeatherEditing] = useState(false);
   const [weatherInput, setWeatherInput] = useState('');
   const resolvedWeatherName = useResolvedName();
@@ -1008,6 +1012,8 @@ export default function App() {
                 <FlightWall
                   config={widgets.find((w) => w.type === 'flights')!.config}
                   onUpdateConfig={(config: any) => updateWidgetConfig('flights', config)}
+                  watches={flightWatches}
+                  onWatchesChange={setFlightWatches}
                 />
               )}
 
@@ -1146,6 +1152,8 @@ export default function App() {
             ))}
           </div>
         )}
+
+        <FlightWatcher watches={flightWatches} />
 
         <CommandPalette
           open={paletteOpen}

@@ -8,11 +8,16 @@ import AirlineLogo from './AirlineLogo';
 import AreaEditor from './AreaEditor';
 import AreaMap from './AreaMap';
 import TrackedFlights, { TrackBox } from './TrackedFlights';
+import WatchBox from './WatchBox';
+import { FlightWatch } from '../../lib/flightWatch';
 import { isFollowed, TrackedFlight, MAX_TRACKED, parseFlightQuery, clearTrail } from '../../lib/flightTrack';
 
 interface Props {
   config: Record<string, any>;
   onUpdateConfig: (config: Record<string, any>) => void;
+  // Flights to get an alert for (checked app-wide by FlightWatcher).
+  watches?: FlightWatch[];
+  onWatchesChange?: (next: FlightWatch[]) => void;
 }
 
 const POLL_MS = 15000;
@@ -31,7 +36,7 @@ function routeText(r: RouteInfo | undefined): { short: string; long: string } | 
   };
 }
 
-export default function FlightWall({ config, onUpdateConfig }: Props) {
+export default function FlightWall({ config, onUpdateConfig, watches, onWatchesChange }: Props) {
   const areas = getAreas(config);
   const area = getActiveArea(config);
   const mode: 'panel' | 'board' | 'map' = config.mode === 'board' || config.mode === 'map' ? config.mode : 'panel';
@@ -267,6 +272,11 @@ export default function FlightWall({ config, onUpdateConfig }: Props) {
       <div className="mt-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
         <TrackBox count={tracked.length} onAdd={trackQuery} />
       </div>
+      {watches && onWatchesChange && (
+        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+          <WatchBox watches={watches} onChange={onWatchesChange} />
+        </div>
+      )}
       <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
         Live ADS-B from community feeds (adsb.lol, airplanes.live, adsb.fi), updated every 15 seconds while this page is open.
         Routes are the flight's usual scheduled route (adsbdb.com) and are occasionally out of date.
