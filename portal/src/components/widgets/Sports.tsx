@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AlertCircle, Trash2, ArrowLeft, X, ChevronDown, ChevronRight } from 'lucide-react';
+import TeamHistory from './TeamHistory';
 
 interface SportsProps {
   id: string;
@@ -110,6 +111,11 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
   // interval on every single score update instead of ticking steadily).
   const resultsRef = useRef(results);
   resultsRef.current = results;
+
+  // Which team cards have their season-results panel open
+  const [openHistory, setOpenHistory] = useState<string[]>([]);
+  const toggleHistory = (key: string) =>
+    setOpenHistory((o) => (o.includes(key) ? o.filter((k) => k !== key) : [...o, key]));
 
   // Add-team flow state
   const [selectedLeague, setSelectedLeague] = useState<typeof LEAGUES[number] | null>(null);
@@ -445,6 +451,15 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
               <Trash2 size={13} />
             </button>
           </div>
+          <button
+            onClick={() => toggleHistory(r.key)}
+            aria-expanded={openHistory.includes(r.key)}
+            className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-150"
+          >
+            {openHistory.includes(r.key) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            Season results
+          </button>
+          {openHistory.includes(r.key) && <TeamHistory sport={r.sport} league={r.league} team={r.team} />}
         </div>
       ))}
           </div>
