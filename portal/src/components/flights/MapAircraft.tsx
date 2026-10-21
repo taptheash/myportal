@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Aircraft, groupOf } from '../../lib/flights';
-import { aircraftSvg, shapeFor } from '../../lib/aircraftIcon';
+import { aircraftSvg, shapeFor, scaleForZoom } from '../../lib/aircraftIcon';
 
 // The plane marker, animated between the 15-second updates: it glides along
 // its reported heading at its ground speed, and when a new position comes in
@@ -36,6 +36,9 @@ export default function MovingPlane({ a, label, hover, follow, highlight, onClic
   const shown = useRef<[number, number] | null>(null);
   const ease = useRef<{ from: [number, number]; t: number } | null>(null);
   const wasVisible = useRef(true);
+  // The heading the icon is currently turned to. It's kept as a running total
+  // so a turn from 350° to 10° swings 20° the short way, not 340° back.
+  const rot = useRef<number | null>(null);
   const lastPan = useRef(0);
   const followRef = useRef(!!follow);
   followRef.current = !!follow;
@@ -46,14 +49,21 @@ export default function MovingPlane({ a, label, hover, follow, highlight, onClic
   useEffect(() => {
     const icon = () => {
       const f = fix.current?.a || a;
-      const { html, size } = aircraftSvg(shapeFor(f.type, f.category, groupOf(f) === 'heli', f.military), f.track, f.military, hl.current);
+      const { html, size } = aircraftSvg(
+        shapeFor(f.type, f.category, groupOf(f) === 'heli', f.military),
+        rot.current ?? f.track, f.military, hl.current, scaleForZoom(map.getZoom())
+      );
       return L.divIcon({ html, className: 'aircraft-icon', iconSize: [size, size], iconAnchor: [size / 2, size / 2], tooltipAnchor: [0, -size / 2] });
     };
+    if (rot.current === null) rot.current = a.track ?? 0;
     const m = L.marker([a.lat, a.lon], { icon: icon(), keyboard: false, interactive: !!hover || !!onClick, riseOnHover: true })
       .bindTooltip(label, hover ? { direction: 'top', className: 'aircraft-tip', opacity: 1 } : { permanent: true, direction: 'top' })
       .addTo(map);
     m.on('click', () => click.current?.());
     setIconRef.current = () => m.setIcon(icon());
+    // Resize the icon when the zoom level changes.
+    const onZoom = () => setIconRef.current();
+    map.on('zoomend', onZoom);
     layer.current = m;
     shown.current = [a.lat, a.lon];
     let raf = 0;
@@ -89,7 +99,7 @@ export default function MovingPlane({ a, label, hover, follow, highlight, onClic
       wasVisible.current = visible;
     };
     raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); m.remove(); layer.current = null; };
+    return () => { cancelAnimationFrame(raf); map.off('zoomend', onZoom); m.remove(); layer.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
@@ -101,9 +111,12 @@ export default function MovingPlane({ a, label, hover, follow, highlight, onClic
     // Turn the icon to the new heading (the SVG eases the rotation over 1s);
     // rebuild it only if the aircraft type became known.
     const sk = `${a.type}|${a.category}|${a.military}`;
+    const cur = rot.current ?? 0;
+    const target = a.track ?? cur;
+    rot.current = cur + ((((target - cur) % 360) + 540) % 360 - 180);
     const svg = layer.current?.getElement()?.querySelector('svg') as SVGElement | null;
     if (sk !== shapeKey.current || !svg) { shapeKey.current = sk; setIconRef.current(); }
-    else svg.style.transform = `rotate(${a.track ?? 0}deg)`;
+    else svg.style.transform = `rotate(${rot.current}deg)`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 

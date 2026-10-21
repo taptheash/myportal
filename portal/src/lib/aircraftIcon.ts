@@ -1,7 +1,8 @@
 // Top-down aircraft silhouettes for the map, picked from the ICAO type code
 // (falling back to the ADS-B size category), drawn nose-up and rotated to
 // the aircraft's heading. Sizes are relative so a 777 looks bigger than a
-// Cessna.
+// Cessna. Shapes: jets (quad, wide, narrow, regional, bizjet), turboprop,
+// light single, helicopter, fighter.
 
 export type Shape = 'quad' | 'wide' | 'narrow' | 'regional' | 'bizjet' | 'turboprop' | 'light' | 'heli' | 'fighter';
 
@@ -104,13 +105,30 @@ export function shapeFor(type: string | null, category: string | null | undefine
   }
 }
 
-// An SVG string for a Leaflet divIcon. `scale` enlarges it on close zooms.
-export function aircraftSvg(shape: Shape, heading: number | null, military: boolean, highlight = false): { html: string; size: number } {
-  const { d, size } = SHAPES[shape];
-  const fill = highlight ? '#22d3ee' : military ? '#ff3b30' : '#ffb000';
+// Marker size follows the map zoom: small when zoomed out so busy areas
+// (Boston, Nashua) don't pile up, a little larger when zoomed in. 0.5 is the
+// size at zoom 10 (about half what the markers used to be); each zoom level
+// changes it by 18%, within sensible limits.
+export function scaleForZoom(zoom: number): number {
+  return Math.min(1.15, Math.max(0.32, 0.5 * Math.pow(1.18, zoom - 10)));
+}
+
+const MIN_PX = 12; // never smaller than this, so a Cessna stays visible
+
+// An SVG string for a Leaflet divIcon. `scale` comes from scaleForZoom.
+// The drawing is centred on the middle of the icon box, so rotating the box
+// turns the aircraft about its own centre, nose along `heading`.
+export function aircraftSvg(shape: Shape, heading: number | null, military: boolean, highlight = false, scale = 1): { html: string; size: number } {
+  const { d, size: base } = SHAPES[shape];
+  const size = Math.max(MIN_PX, Math.round(base * scale));
+  const fill = highlight ? '#22d3ee' : military ? '#ff5a4f' : '#ffd700';
+  const outline = highlight ? '#083344' : '#111827';
+  // vector-effect keeps the outline a constant pixel width at every size;
+  // it's thinner on small icons so it doesn't swallow the fill.
+  const sw = size < 22 ? 0.5 : size < 30 ? 0.7 : 0.9;
   const html =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="-32 -32 64 64" ` +
-    `style="transform:rotate(${heading ?? 0}deg);transition:transform 1s linear;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))">` +
-    `<path d="${d}" fill="${fill}" stroke="${highlight ? '#083344' : '#3f2a00'}" stroke-width="1.6" stroke-linejoin="round" fill-rule="nonzero"/></svg>`;
+    `style="transform:rotate(${heading ?? 0}deg);transform-origin:50% 50%;transition:transform 1s linear;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))">` +
+    `<path d="${d}" fill="${fill}" stroke="${outline}" stroke-opacity=".75" stroke-width="${sw}" vector-effect="non-scaling-stroke" stroke-linejoin="round" fill-rule="nonzero"/></svg>`;
   return { html, size };
 }
