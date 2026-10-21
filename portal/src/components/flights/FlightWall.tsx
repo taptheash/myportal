@@ -274,7 +274,7 @@ export default function FlightWall({ config, onUpdateConfig, watches, onWatchesC
       </div>
       {watches && onWatchesChange && (
         <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-          <WatchBox watches={watches} onChange={onWatchesChange} />
+          <WatchBox watches={watches} onChange={onWatchesChange} tracked={tracked} onTrack={trackQuery} />
         </div>
       )}
       <p className="text-[11px] text-zinc-400 dark:text-zinc-500">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Bell, BellOff, BellRing, X } from 'lucide-react';
+import { Bell, BellOff, BellRing, Crosshair, X } from 'lucide-react';
+import { TrackedFlight } from '../../lib/flightTrack';
 import { FlightWatch, MAX_WATCHES, WatchState, newWatch, useWatchStates } from '../../lib/flightWatch';
 
 // "Watch for a flight": get a notification when a flight number or tail number
@@ -25,11 +26,16 @@ function statusOf(w: FlightWatch, st: WatchState | undefined): { dot: string; te
   return { dot: 'bg-zinc-300 dark:bg-zinc-600', text: st.seen ? `Not on the feed · last seen ${ago(st.seen)}` : 'Not on the feed yet' };
 }
 
-export default function WatchBox({ watches, onChange }: { watches: FlightWatch[]; onChange: (next: FlightWatch[]) => void }) {
+export default function WatchBox({ watches, onChange, tracked = [], onTrack }: {
+  watches: FlightWatch[]; onChange: (next: FlightWatch[]) => void;
+  tracked?: TrackedFlight[];
+  onTrack?: (query: string) => string | null; // opens/creates the flight's tracking tab; returns an error message or null
+}) {
   const states = useWatchStates();
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [perm, setPerm] = useState<Perm>(readPerm);
+  const [trackError, setTrackError] = useState('');
 
   const askPermission = async () => {
     if (perm !== 'default') return;
@@ -65,16 +71,28 @@ export default function WatchBox({ watches, onChange }: { watches: FlightWatch[]
         <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{watches.length}/{MAX_WATCHES}</span>
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {trackError && <p className="text-xs text-red-500">{trackError}</p>}
 
       {watches.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {watches.map((w) => {
             const s = statusOf(w, states[w.id]);
+            const active = w.enabled && !!states[w.id]?.active;
+            const isTracking = tracked.some((t) => t.kind === w.kind && t.value === w.value);
             return (
               <li key={w.id} className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} aria-hidden="true" />
                 <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 tabular-nums">{w.query}</span>
                 <span className="flex-1 min-w-0 truncate text-xs text-zinc-500 dark:text-zinc-400">{s.text}</span>
+                {onTrack && (active || isTracking) && (
+                  <button
+                    onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setTrackError(onTrack(w.query) || ''); }}
+                    title={isTracking ? 'Open this flight\'s tracking tab' : 'Track this flight: live map, route and progress in its own tab'}
+                    className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition-colors duration-150"
+                  >
+                    <Crosshair size={12} /> {isTracking ? 'Open tab' : 'Track'}
+                  </button>
+                )}
                 <button
                   onClick={() => onChange(watches.map((x) => (x.id === w.id ? { ...x, enabled: !x.enabled } : x)))}
                   title={w.enabled ? 'Pause this watch' : 'Resume this watch'}
