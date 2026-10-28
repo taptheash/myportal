@@ -98,13 +98,15 @@ function cleanLink(link: string): string {
   } catch { return link; }
 }
 
-// Both services take the article address straight after their own. They are
-// plain links; the portal never loads the article itself.
-export function archiveLinks(link: string): { wayback: string; archiveToday: string } {
+// The first two take the article address straight after their own; the third
+// takes it as a query parameter. They are plain links; the portal never loads
+// the article itself.
+export function archiveLinks(link: string): { wayback: string; archiveToday: string; removePaywall: string } {
   const url = cleanLink(link);
   return {
     wayback: `https://web.archive.org/web/${url}`,
     archiveToday: `https://archive.today/newest/${url}`,
+    removePaywall: `https://www.removepaywall.com/search?url=${encodeURIComponent(url)}`,
   };
 }
 

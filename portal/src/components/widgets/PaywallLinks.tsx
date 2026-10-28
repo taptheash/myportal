@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LockOpen, History, Archive, Ban } from 'lucide-react';
+import { LockOpen, History, Archive, Link2, Ban } from 'lucide-react';
 import { usePaywallSites, siteFor, archiveLinks, removeSite } from '../../lib/paywall';
 
 // A small lock on articles from sites that are usually paywalled. Clicking it
@@ -42,7 +42,7 @@ export default function PaywallLinks({ link, size = 14 }: { link: string; size?:
   if (!site) return null;
 
   const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
-  const { wayback, archiveToday } = archiveLinks(link);
+  const { wayback, archiveToday, removePaywall } = archiveLinks(link);
   const open = (url: string) => (e: React.MouseEvent) => {
     stop(e);
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -90,6 +90,13 @@ export default function PaywallLinks({ link, size = 14 }: { link: string; size?:
             <span>
               archive.today
               <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">Newest saved copy. Often has fresh articles.</span>
+            </span>
+          </button>
+          <button role="menuitem" className={item} onClick={open(removePaywall)}>
+            <Link2 size={14} className="mt-0.5 flex-shrink-0 text-indigo-500" />
+            <span>
+              removepaywall.com
+              <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">Third-party reader. Works on some sites, not all.</span>
             </span>
           </button>
           <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" />
