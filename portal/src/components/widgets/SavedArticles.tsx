@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink, X, Bookmark } from 'lucide-react';
 import { SavedArticle, removeSavedArticle } from '../../lib/savedArticles';
+import PaywallLinks from './PaywallLinks';
 
 interface SavedProps {
   id: string;
@@ -40,6 +41,7 @@ export default function SavedArticles({ config }: SavedProps) {
               <ExternalLink size={14} className="flex-shrink-0 text-zinc-400 mt-1" />
             </div>
           </a>
+          <div className="flex items-start pt-2.5"><PaywallLinks link={a.link} /></div>
           <button
             onClick={() => removeSavedArticle(a.link)}
             title="Remove from Saved"

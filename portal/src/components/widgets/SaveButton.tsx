@@ -1,12 +1,16 @@
 import React from 'react';
 import { Bookmark } from 'lucide-react';
 import { useSavedLinks, toggleSavedArticle } from '../../lib/savedArticles';
+import PaywallLinks from './PaywallLinks';
 
-// Bookmark toggle shown on every news article. Sits inside the article's
-// link, so it stops the click from also opening the article.
+// Bookmark toggle shown on every news article, with the archive-link lock
+// (PaywallLinks) beside it when the article is from a paywalled site. Sits
+// inside the article's link, so it stops the click from also opening the article.
 export default function SaveButton({ article, size = 14 }: { article: { link: string; title: string; source?: string }; size?: number }) {
   const saved = useSavedLinks().has(article.link);
   return (
+    <>
+    <PaywallLinks link={article.link} size={size} />
     <button
       type="button"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSavedArticle(article); }}
@@ -18,5 +22,6 @@ export default function SaveButton({ article, size = 14 }: { article: { link: st
     >
       <Bookmark size={size} fill={saved ? 'currentColor' : 'none'} />
     </button>
+    </>
   );
 }

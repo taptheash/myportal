@@ -44,6 +44,7 @@ import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
 import FlightWatcher from './components/flights/FlightWatcher';
 import FlightRecorder from './components/flights/FlightRecorder';
+import PaywallSitesButton from './components/widgets/PaywallSites';
 import { FlightWatch, WATCH_KEY } from './lib/flightWatch';
 // Games load only when you open their tab, so they don't slow the portal down.
 const Klondike = lazy(() => import('./components/games/Klondike'));
@@ -674,6 +675,7 @@ export default function App() {
         >
           <RefreshCw size={14} className={newsRefreshSpin ? 'animate-spin' : ''} />
         </button>
+        <PaywallSitesButton />
       </div>
     );
   };
