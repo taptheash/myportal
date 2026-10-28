@@ -4,6 +4,7 @@ import {
   FlightWatch, fetchWatched, describeSighting, readWatchStates, writeWatchStates,
 } from '../../lib/flightWatch';
 import { navigateTo } from '../../lib/portalNav';
+import { addTrailPoint, trailKeyOf } from '../../lib/flightTrack';
 
 // Runs on every page of the portal (it's mounted once, in App) and tells you
 // when a watched flight number or tail number shows up on the live feed, with
@@ -58,6 +59,7 @@ export default function FlightWatcher({ watches }: { watches: FlightWatch[] }) {
         const now = Date.now();
         if (a) {
           misses.current[w.id] = 0;
+          addTrailPoint(trailKeyOf(w), a); // so tracking it later shows where it has been
           const summary = describeSighting(a);
           if (prev && !prev.active) alertUser(w, summary);
           states[w.id] = { active: true, since: !prev || !prev.active ? now : prev.since, seen: now, summary };

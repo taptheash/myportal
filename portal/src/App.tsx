@@ -43,6 +43,7 @@ import SavedArticles from './components/widgets/SavedArticles';
 import DailyBrief from './components/widgets/DailyBrief';
 import FlightWall from './components/flights/FlightWall';
 import FlightWatcher from './components/flights/FlightWatcher';
+import FlightRecorder from './components/flights/FlightRecorder';
 import { FlightWatch, WATCH_KEY } from './lib/flightWatch';
 // Games load only when you open their tab, so they don't slow the portal down.
 const Klondike = lazy(() => import('./components/games/Klondike'));
@@ -1154,6 +1155,7 @@ export default function App() {
         )}
 
         <FlightWatcher watches={flightWatches} />
+        <FlightRecorder tracked={widgets.find((w) => w.type === 'flights')?.config?.tracked ?? []} />
 
         <CommandPalette
           open={paletteOpen}

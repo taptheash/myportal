@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import MovingPlane from './MapAircraft';
+import { zoomLockProps, ZoomButtonsOnly, TrackLine } from './mapControls';
 import 'leaflet/dist/leaflet.css';
 import { Search, X, Bell, BellOff } from 'lucide-react';
-import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf } from '../../lib/flights';
+import { Aircraft, RouteInfo, FlightArea, lookupRoute, cachedRoute, typeName, compass, emergency, logoCode, airlineCode, groupOf, milesBetween } from '../../lib/flights';
 import AirlineLogo from './AirlineLogo';
 import {
-  TrackedFlight, MAX_TRACKED, fetchTracked, addTrailPoint, getTrail, lookupPhoto, AircraftPhoto,
+  TrackedFlight, MAX_TRACKED, fetchTracked, getTrail, trailKeyOf, TRAIL_EVENT, lookupPhoto, AircraftPhoto,
   phaseOf, PHASE_LABEL, progressOf, alertFor, TrailPoint, fetchHistory, pathFor, FlightHistory,
 } from '../../lib/flightTrack';
 
@@ -29,12 +30,29 @@ interface Props {
 interface Live { a: Aircraft | null; at: number; error?: string }
 
 const CLOSE_ZOOM = 12; // about 15 miles across: close enough to watch it move
+const RECENT_MI = 50;  // "Fit flight" frames the plane and about this much of its track
+
+// The last stretch of the track, ending at the plane.
+function recentPath(path: Array<[number, number]>): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let miles = 0;
+  for (let i = path.length - 1; i >= 0; i--) {
+    const p = path[i];
+    const prev = out[out.length - 1];
+    if (prev) miles += milesBetween(prev[0], prev[1], p[0], p[1]);
+    out.push(p);
+    if (miles >= RECENT_MI) break;
+  }
+  return out;
+}
 
 // Opens close in on the plane (or on the whole route when it isn't airborne),
 // then leaves the view alone: live updates never undo a zoom or pan you made.
-// "Fit flight" (refit bumps) zooms out to show the whole route.
-function FitTo({ flightId, points, pos, refit }: {
-  flightId: string; points: Array<[number, number]>; pos: [number, number] | null; refit: number;
+// "Fit flight" (refit bumps) frames the plane and its recent track, and
+// "Center" (centerNonce bumps) pans to the plane without changing the zoom.
+function FitTo({ flightId, points, pos, path, refit, centerNonce }: {
+  flightId: string; points: Array<[number, number]>; pos: [number, number] | null;
+  path: Array<[number, number]>; refit: number; centerNonce: number;
 }) {
   const map = useMap();
   const userMoved = useRef(false);
@@ -65,6 +83,14 @@ function FitTo({ flightId, points, pos, refit }: {
     framedPlane.current = true;
     release();
   };
+  const fitRecent = (p: [number, number]) => {
+    const seg = recentPath(path);
+    if (seg.length < 2) return closeIn(p);
+    programmatic.current = true;
+    map.fitBounds(seg, { padding: [60, 60], maxZoom: CLOSE_ZOOM + 1 });
+    framedPlane.current = true;
+    release();
+  };
 
   // New flight on the map: close in on the plane if it's flying.
   useEffect(() => {
@@ -77,9 +103,19 @@ function FitTo({ flightId, points, pos, refit }: {
 
   // Fit flight button.
   useEffect(() => {
-    if (refit) fitAll();
+    if (!refit) return;
+    if (pos) fitRecent(pos); else fitAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refit]);
+
+  // Center button: put the plane in the middle, keep the zoom.
+  useEffect(() => {
+    if (!centerNonce || !pos) return;
+    programmatic.current = true;
+    map.setView(pos, map.getZoom(), { animate: true });
+    release();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerNonce]);
 
   // Position or route arrived after the map opened, and you haven't moved it.
   useEffect(() => {
@@ -95,6 +131,7 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
   const [live, setLive] = useState<Record<string, Live>>({});
   const [routes, setRoutes] = useState<Record<string, RouteInfo>>({});
   const [refit, setRefit] = useState(0);
+  const [centerNonce, setCenterNonce] = useState(0);
   const [trails, setTrails] = useState<Record<string, TrailPoint[]>>({});
   const [photos, setPhotos] = useState<Record<string, AircraftPhoto | null>>({});
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
@@ -112,38 +149,48 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
 
   useEffect(() => {
     let cancelled = false;
+    let running = false;
     let timer: ReturnType<typeof setTimeout>;
+    // The track itself is recorded app-wide by FlightRecorder; this poll is for
+    // the live status card, route and alerts.
     const run = async () => {
-      if (document.visibilityState === 'visible' && tracked.length) {
-        await Promise.all(tracked.map(async (t) => {
-          try {
-            const a = await fetchTracked(t);
-            if (cancelled) return;
-            if (a) {
-              addTrailPoint(t.id, a);
-              const cs = a.callsign || (t.kind === 'callsign' ? t.value : null);
-              if (cs && !routes[t.id]) {
-                const hit = cachedRoute(cs);
-                if (hit) setRoutes((r) => ({ ...r, [t.id]: hit }));
-                else lookupRoute(cs).then((r) => !cancelled && setRoutes((p) => ({ ...p, [t.id]: r })));
+      if (running) return;
+      running = true;
+      try {
+        if (document.visibilityState === 'visible' && tracked.length) {
+          await Promise.all(tracked.map(async (t) => {
+            try {
+              const a = await fetchTracked(t);
+              if (cancelled) return;
+              if (a) {
+                const cs = a.callsign || (t.kind === 'callsign' ? t.value : null);
+                if (cs && !routes[t.id]) {
+                  const hit = cachedRoute(cs);
+                  if (hit) setRoutes((r) => ({ ...r, [t.id]: hit }));
+                  else lookupRoute(cs).then((r) => !cancelled && setRoutes((p) => ({ ...p, [t.id]: r })));
+                }
               }
+              if (t.alerts) {
+                const msg = alertFor(t.query, prevRef.current[t.id], a, homeArea);
+                if (msg) toast(msg);
+              }
+              prevRef.current[t.id] = a;
+              setLive((l) => ({ ...l, [t.id]: { a, at: Date.now() } }));
+            } catch (e) {
+              if (!cancelled) setLive((l) => ({ ...l, [t.id]: { a: l[t.id]?.a ?? null, at: l[t.id]?.at ?? 0, error: e instanceof Error ? e.message : 'Feed unavailable' } }));
             }
-            if (t.alerts) {
-              const msg = alertFor(t.query, prevRef.current[t.id], a, homeArea);
-              if (msg) toast(msg);
-            }
-            prevRef.current[t.id] = a;
-            setLive((l) => ({ ...l, [t.id]: { a, at: Date.now() } }));
-            setTrails((tr) => ({ ...tr, [t.id]: getTrail(t.id) }));
-          } catch (e) {
-            if (!cancelled) setLive((l) => ({ ...l, [t.id]: { a: l[t.id]?.a ?? null, at: l[t.id]?.at ?? 0, error: e instanceof Error ? e.message : 'Feed unavailable' } }));
-          }
-        }));
+          }));
+        }
+      } finally {
+        running = false;
       }
       if (!cancelled) timer = setTimeout(run, POLL_MS);
     };
     run();
-    return () => { cancelled = true; clearTimeout(timer); };
+    // Coming back to the tab: refresh right away instead of waiting out the timer.
+    const onVisible = () => { if (document.visibilityState === 'visible') { clearTimeout(timer); run(); } };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedKey]);
 
@@ -157,6 +204,24 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
   const shown = tracked.find((t) => t.id === selectedId);
   const mapFlight = shown;
 
+  // The track of the open flight. FlightRecorder (in App) keeps it up to date
+  // on every page, so this only reads it, now and whenever it grows or another
+  // device's copy arrives.
+  useEffect(() => {
+    if (!shown) return;
+    const id = shown.id;
+    const key = trailKeyOf(shown);
+    const refresh = () => setTrails((tr) => ({ ...tr, [id]: getTrail(key) }));
+    refresh();
+    window.addEventListener(TRAIL_EVENT, refresh);
+    window.addEventListener('portal-local-sync', refresh);
+    return () => {
+      window.removeEventListener(TRAIL_EVENT, refresh);
+      window.removeEventListener('portal-local-sync', refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown?.id]);
+
   // Full path since takeoff for the flight on the map. Fetched when its tab
   // opens (once the aircraft's transponder hex is known) and refreshed every
   // few minutes; only the open flight, to stay well inside OpenSky's limits.
@@ -169,7 +234,9 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
     const load = () => fetchHistory(mapHex).then((h) => { if (!cancelled) setHistories((m) => ({ ...m, [id]: h })); });
     load();
     const timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 3 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(timer); };
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); }; // back from another tab: refill the path
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [mapFlight?.id, mapHex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Photo of the open flight's aircraft: by its transponder hex once it's
@@ -266,10 +333,16 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
 
       {mapFlight && (
         <div className="relative w-full rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800" style={{ height: 640 }}>
-          <button onClick={() => setRefit((n) => n + 1)} title="Zoom out to show the whole flight"
-            className="absolute top-2 right-2 z-[1000] text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800">
-            Fit flight
-          </button>
+          <div className="absolute top-2 right-2 z-[1000] flex gap-1.5">
+            <button onClick={() => setCenterNonce((n) => n + 1)} disabled={!live[mapFlight.id]?.a} title="Center the map on the plane (keeps your zoom)"
+              className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed">
+              Center
+            </button>
+            <button onClick={() => setRefit((n) => n + 1)} title="Zoom to the plane and its recent track"
+              className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white/90 dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 shadow-sm hover:bg-white dark:hover:bg-zinc-800">
+              Fit flight
+            </button>
+          </div>
           {(() => {
             const a = live[mapFlight.id]?.a;
             const trail = pathFor(histories[mapFlight.id], trails[mapFlight.id] || [], a ?? null);
@@ -280,14 +353,15 @@ export default function TrackedFlights({ tracked, onChange, homeArea, selectedId
             const fitPts = [o, pos, d].filter(Boolean) as Array<[number, number]>;
             const center = pos || o || [homeArea.lat, homeArea.lon];
             return (
-              <MapContainer center={center} zoom={6} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+              <MapContainer center={center} zoom={6} style={{ height: '100%', width: '100%' }} {...zoomLockProps}>
                 <TileLayer
                   url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
                   attribution={isDark ? '&copy; OpenStreetMap &copy; CARTO' : '&copy; OpenStreetMap contributors'}
                 />
-                <FitTo flightId={mapFlight.id} points={fitPts.length ? fitPts : trail} pos={pos} refit={refit} />
+                <ZoomButtonsOnly />
+                <FitTo flightId={mapFlight.id} points={fitPts.length ? fitPts : trail} pos={pos} path={trail} refit={refit} centerNonce={centerNonce} />
                 {o && d && <Polyline positions={[o, d]} pathOptions={{ color: '#71717a', weight: 1, dashArray: '4 6' }} />}
-                {trail.length > 1 && <Polyline positions={trail} pathOptions={{ color: '#22d3ee', weight: 3 }} />}
+                <TrackLine positions={trail} dark={isDark} />
                 {o && <CircleMarker center={o} radius={5} pathOptions={{ color: '#a1a1aa', fillOpacity: 1 }}><Tooltip>{r?.origin?.iata || r?.origin?.icao} · {r?.origin?.city}</Tooltip></CircleMarker>}
                 {d && <CircleMarker center={d} radius={5} pathOptions={{ color: '#a1a1aa', fillOpacity: 1 }}><Tooltip>{r?.destination?.iata || r?.destination?.icao} · {r?.destination?.city}</Tooltip></CircleMarker>}
                 {a && <MovingPlane key={mapFlight.id} a={a} label={mapFlight.query} follow />}

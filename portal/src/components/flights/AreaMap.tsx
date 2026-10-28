@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Circle, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, useMap, useMapEvents } from 'react-leaflet';
 import { X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { Tracked, RouteInfo, FlightArea, typeName, emergency } from '../../lib/flights';
 import MovingPlane from './MapAircraft';
+import { zoomLockProps, ZoomButtonsOnly, TrackLine } from './mapControls';
 import { fetchHistory, pathFor, FlightHistory } from '../../lib/flightTrack';
 
 // Map view of an area: every aircraft the Wall/Board shows, as a moving
@@ -80,18 +81,17 @@ export default function AreaMap({ area, flights, routes, isTracked, onTrack }: {
 
   return (
     <div className="relative" style={{ height: 640 }}>
-      <MapContainer center={[area.lat, area.lon]} zoom={10} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+      <MapContainer center={[area.lat, area.lon]} zoom={10} style={{ height: '100%', width: '100%' }} {...zoomLockProps}>
         <TileLayer
           url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
           attribution={isDark ? '&copy; OpenStreetMap &copy; CARTO' : '&copy; OpenStreetMap contributors'}
         />
+        <ZoomButtonsOnly />
         <FitArea area={area} />
         <Circle center={[area.lat, area.lon]} radius={area.radiusMi * 1609.34}
           pathOptions={{ color: '#f59e0b', weight: 1.5, dashArray: '6 6', fillOpacity: 0.04, interactive: false }} />
         <ClearOnMapClick onClear={() => setSelectedHex(null)} />
-        {path.length > 1 && (
-          <Polyline positions={path} pathOptions={{ color: '#22d3ee', weight: 3, opacity: 0.9, interactive: false }} />
-        )}
+        <TrackLine positions={path} dark={isDark} />
         {flights.map((f) => {
           const t = isTracked(f);
           return (

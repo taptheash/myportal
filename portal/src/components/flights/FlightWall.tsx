@@ -10,7 +10,7 @@ import AreaMap from './AreaMap';
 import TrackedFlights, { TrackBox } from './TrackedFlights';
 import WatchBox from './WatchBox';
 import { FlightWatch } from '../../lib/flightWatch';
-import { isFollowed, TrackedFlight, MAX_TRACKED, parseFlightQuery, clearTrail } from '../../lib/flightTrack';
+import { isFollowed, TrackedFlight, MAX_TRACKED, parseFlightQuery, clearTrail, trailKeyOf } from '../../lib/flightTrack';
 
 interface Props {
   config: Record<string, any>;
@@ -90,7 +90,8 @@ export default function FlightWall({ config, onUpdateConfig, watches, onWatchesC
     return null;
   };
   const closeFlight = (id: string) => {
-    clearTrail(id);
+    const gone = tracked.find((t) => t.id === id);
+    if (gone) clearTrail(trailKeyOf(gone));
     if (flightTabId === id) setFlightTabId(null);
     onUpdateConfig({ ...config, tracked: tracked.filter((t) => t.id !== id) });
   };

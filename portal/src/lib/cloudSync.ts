@@ -34,6 +34,7 @@ export const SYNC_KEYS = [
   'pw6-games-order',
   'pw6-section-order',  // order of the left sidebar sections
   'pw6-flight-watch',   // flights you get an alert for (what was last seen stays per device)
+  'pw6-flight-trails',  // tracks recorded for tracked/watched flights (written every few minutes)
 ];
 // Deliberately NOT synced: pw6-active-* (which tab each device is on),
 // pw6-game-* (a game in progress stays on the device you're playing on),

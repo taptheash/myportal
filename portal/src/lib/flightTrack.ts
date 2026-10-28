@@ -44,43 +44,189 @@ export function parseFlightQuery(input: string): { kind: 'callsign' | 'reg'; val
   return null;
 }
 
-export async function fetchTracked(t: TrackedFlight): Promise<Aircraft | null> {
-  const res = await fetch(`/api/flight-track?${t.kind === 'reg' ? 'reg' : 'callsign'}=${encodeURIComponent(t.value)}`);
-  if (!res.ok) throw new Error(`Tracking feed unavailable (HTTP ${res.status})`);
-  const data = await res.json();
-  return data.found ? data.aircraft : null;
+// Looks the flight up on the live feeds. Results are shared for a few seconds,
+// so the recorder (which runs everywhere) and the Flights page (which polls
+// for its own display) don't both hit the feed for the same reading.
+const trackedCache = new Map<string, { at: number; job: Promise<Aircraft | null> }>();
+
+export function fetchTracked(t: Pick<TrackedFlight, 'kind' | 'value'>): Promise<Aircraft | null> {
+  const key = `${t.kind}:${t.value}`;
+  const hit = trackedCache.get(key);
+  if (hit && Date.now() - hit.at < 10000) return hit.job;
+  const job = (async () => {
+    const res = await fetch(`/api/flight-track?${t.kind === 'reg' ? 'reg' : 'callsign'}=${encodeURIComponent(t.value)}`);
+    if (!res.ok) throw new Error(`Tracking feed unavailable (HTTP ${res.status})`);
+    const data = await res.json();
+    return data.found ? (data.aircraft as Aircraft) : null;
+  })();
+  trackedCache.set(key, { at: Date.now(), job });
+  job.catch(() => { if (trackedCache.get(key)?.job === job) trackedCache.delete(key); });
+  return job;
 }
 
-// --- Trails (per device, last 24h, capped) ------------------------------
+// --- Trails (last 24h) ------------------------------------------------------
+// Every reading of a tracked or watched flight adds a point. They are kept in
+// two places: this device's own copy (written on every reading), and a copy
+// that syncs to your other devices (written at most every few minutes, merged
+// with whatever another device recorded). Reading a trail merges both, so the
+// track you see is everything your devices have heard since the flight began.
 export interface TrailPoint { lat: number; lon: number; alt: number | null; t: number }
+// lat, lon, altitude ft, time (ms), on the ground (1) or in the air (0)
+type StoredPoint = [number, number, number | null, number, number];
+type Store = Record<string, StoredPoint[]>;
+
 const TRAIL_KEY = 'flight-trails';
-const TRAIL_MAX = 400;
+export const SYNCED_TRAIL_KEY = 'pw6-flight-trails';
+export const TRAIL_EVENT = 'flight-trail-updated';
+const TRAIL_MAX = 1500;                  // points kept per flight (older ones are thinned out first)
 const DAY = 24 * 3600 * 1000;
+const LEG_GAP = 12 * 3600 * 1000;        // no reading for this long: the next one is a new flight
+const LANDED_MS = 5 * 60 * 1000;         // on the ground this long, then airborne again: a new flight
+const SYNC_EVERY = 3 * 60 * 1000;
+const KEY_RE = /^(callsign|reg):/;
 
-function readTrails(): Record<string, TrailPoint[]> {
-  try { return JSON.parse(localStorage.getItem(TRAIL_KEY) || '{}') || {}; } catch { return {}; }
+// Trails are stored per flight number or tail number, so a flight you only
+// watch has its track recorded too, and tracking it later picks that up.
+export function trailKeyOf(t: { kind: string; value: string }): string {
+  return `${t.kind}:${t.value}`;
 }
 
-export function getTrail(id: string): TrailPoint[] {
-  return (readTrails()[id] || []).filter((p) => Date.now() - p.t < DAY);
-}
-
-export function addTrailPoint(id: string, a: Aircraft) {
+function readStore(storageKey: string): Store {
   try {
-    const all = readTrails();
-    const pts = (all[id] || []).filter((p) => Date.now() - p.t < DAY);
+    const v = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch { return {}; }
+}
+
+function clean(pts: unknown): StoredPoint[] {
+  if (!Array.isArray(pts)) return [];
+  const cutoff = Date.now() - DAY;
+  const out: StoredPoint[] = [];
+  for (const p of pts) {
+    if (Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number' && typeof p[3] === 'number' && p[3] > cutoff) {
+      out.push([p[0], p[1], typeof p[2] === 'number' ? p[2] : null, p[3], p[4] === 1 ? 1 : 0]);
+    }
+  }
+  return out;
+}
+
+// Over the cap, keep the newest half exactly and drop every other older point.
+function thin(pts: StoredPoint[], cap = TRAIL_MAX): StoredPoint[] {
+  let out = pts;
+  while (out.length > cap) {
+    const half = Math.floor(out.length / 2);
+    out = out.slice(0, half).filter((_, i) => i % 2 === 0).concat(out.slice(half));
+  }
+  return out;
+}
+
+function writeStore(storageKey: string, store: Store) {
+  const out: Store = {};
+  for (const k of Object.keys(store)) {
+    if (!KEY_RE.test(k)) continue; // also drops the old per-tab entries
+    const pts = thin(clean(store[k]));
+    if (pts.length) out[k] = pts;
+  }
+  localStorage.setItem(storageKey, JSON.stringify(out));
+}
+
+// Only the current flight: cut at a long silence, or where the aircraft was on
+// the ground for a few minutes and then took off again.
+function currentLeg(pts: StoredPoint[]): StoredPoint[] {
+  let start = 0;
+  let seenAir = false;
+  let groundSince = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    if (i > 0 && p[3] - pts[i - 1][3] > LEG_GAP) { start = i; seenAir = false; groundSince = 0; }
+    if (p[4] === 0) {
+      if (seenAir && groundSince && p[3] - groundSince >= LANDED_MS) start = i;
+      groundSince = 0;
+      seenAir = true;
+    } else if (seenAir && !groundSince) {
+      groundSince = p[3];
+    }
+  }
+  return start ? pts.slice(start) : pts;
+}
+
+function merge(a: StoredPoint[], b: StoredPoint[]): StoredPoint[] {
+  const all = a.concat(b).sort((x, y) => x[3] - y[3]);
+  const out: StoredPoint[] = [];
+  for (const p of all) {
+    const last = out[out.length - 1];
+    if (last && p[3] - last[3] < 2000) continue; // the same reading, seen twice
+    out.push(p);
+  }
+  return thin(currentLeg(out));
+}
+
+export function getTrail(key: string): TrailPoint[] {
+  const pts = merge(clean(readStore(TRAIL_KEY)[key]), clean(readStore(SYNCED_TRAIL_KEY)[key]));
+  return pts.map(([lat, lon, alt, t]) => ({ lat, lon, alt, t }));
+}
+
+let trailsDirty = true;
+let lastSyncAt = 0;
+
+// Copies this device's trails into the synced key (merged with what other
+// devices wrote). Cloud sync then uploads that key, so it is throttled to keep
+// the number of cloud writes small.
+function syncTrails(force: boolean) {
+  if (!trailsDirty) return;
+  const now = Date.now();
+  if (now - lastSyncAt < (force ? 30000 : SYNC_EVERY)) return;
+  try {
+    const mine = readStore(TRAIL_KEY);
+    const cloud = readStore(SYNCED_TRAIL_KEY);
+    const out: Store = {};
+    for (const k of Object.keys(mine).concat(Object.keys(cloud))) {
+      if (!KEY_RE.test(k) || k in out) continue;
+      const m = merge(clean(mine[k]), clean(cloud[k]));
+      if (m.length) out[k] = m;
+    }
+    // Stay well under the cloud copy's size limit.
+    let cap = TRAIL_MAX;
+    let json = JSON.stringify(out);
+    while (json.length > 800000 && cap > 100) {
+      cap = Math.floor(cap / 2);
+      for (const k of Object.keys(out)) out[k] = thin(out[k], cap);
+      json = JSON.stringify(out);
+    }
+    if (json !== localStorage.getItem(SYNCED_TRAIL_KEY)) localStorage.setItem(SYNCED_TRAIL_KEY, json);
+    trailsDirty = false;
+    lastSyncAt = now;
+  } catch { /* storage full or unavailable: try again later */ }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => syncTrails(true));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') syncTrails(true); });
+}
+
+export function addTrailPoint(key: string, a: Aircraft) {
+  try {
+    const now = Date.now();
+    const store = readStore(TRAIL_KEY);
+    const pts = clean(store[key]);
     const last = pts[pts.length - 1];
-    if (!last || last.lat !== a.lat || last.lon !== a.lon) pts.push({ lat: a.lat, lon: a.lon, alt: a.alt, t: Date.now() });
-    all[id] = pts.slice(-TRAIL_MAX);
-    localStorage.setItem(TRAIL_KEY, JSON.stringify(all));
-  } catch { /* storage full — trail just stops growing */ }
+    // Parked or hovering: one point every few minutes is enough.
+    if (last && now - last[3] < 5 * 60 * 1000 && milesBetween(last[0], last[1], a.lat, a.lon) < 0.1) return;
+    pts.push([Math.round(a.lat * 1e5) / 1e5, Math.round(a.lon * 1e5) / 1e5, a.alt, now, isOnGround(a) ? 1 : 0]);
+    store[key] = thin(currentLeg(pts));
+    writeStore(TRAIL_KEY, store);
+    trailsDirty = true;
+    window.dispatchEvent(new Event(TRAIL_EVENT));
+    syncTrails(false);
+  } catch { /* storage full: the track just stops growing */ }
 }
 
-export function clearTrail(id: string) {
+export function clearTrail(key: string) {
   try {
-    const all = readTrails();
-    delete all[id];
-    localStorage.setItem(TRAIL_KEY, JSON.stringify(all));
+    for (const storageKey of [TRAIL_KEY, SYNCED_TRAIL_KEY]) {
+      const store = readStore(storageKey);
+      if (key in store) { delete store[key]; writeStore(storageKey, store); }
+    }
   } catch { /* not fatal */ }
 }
 
