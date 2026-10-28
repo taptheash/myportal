@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AlertCircle, Trash2, ArrowLeft, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { pickGames } from '../../lib/sportsGames';
 import TeamHistory from './TeamHistory';
 
 interface SportsProps {
@@ -140,6 +141,41 @@ export default function Sports({ config, onUpdateConfig }: SportsProps) {
         const team = data?.team;
         const record = team?.record?.items?.[0]?.summary || null;
         const nextEvent = team?.nextEvent?.[0];
+
+        // Show the same two things for every team: the live or most recent
+        // game, and the next one. ESPN's "next event" alone moves on at
+        // different times per league (see lib/sportsGames.ts), so read the full
+        // schedule and the scoreboard instead. If either can't be read, fall
+        // through to the older next-event logic below.
+        const getJson = async (path: string) => {
+          try {
+            const r = await fetch(`/api/espn?path=${encodeURIComponent(path)}`);
+            return r.ok ? await r.json() : null;
+          } catch {
+            return null;
+          }
+        };
+        const [schedData, boardData] = await Promise.all([
+          getJson(`sports/${t.sport}/${t.league}/teams/${t.team}/schedule`),
+          getJson(`sports/${t.sport}/${t.league}/scoreboard`),
+        ]);
+        const picked = schedData?.events
+          ? pickGames(schedData.events, boardData?.events ?? [], nextEvent, t.team, Date.now())
+          : null;
+        if (picked) {
+          const main = formatEvent(picked.primary);
+          let upNext: string | null = null;
+          if (picked.next) {
+            const up = formatEvent(picked.next);
+            upNext = `Next: ${up.line} — ${up.detail}`;
+          }
+          if (!cancelled) {
+            setResults((prev) => prev.map((r) => r.key === t.key
+              ? { ...r, status: 'ok', record, line: main.line, detail: main.detail, nextGame: upNext, isLive: main.isLive }
+              : r));
+          }
+          return;
+        }
 
         if (!nextEvent) {
           if (!cancelled) {
