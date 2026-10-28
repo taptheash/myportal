@@ -6,7 +6,7 @@ import { useSyncExternalStore } from 'react';
 // your changes are stored as a difference from this list, so improvements to
 // the list reach you without undoing your edits.
 export const DEFAULT_PAYWALLED = [
-  'nytimes.com', 'wsj.com', 'washingtonpost.com', 'bostonglobe.com', 'bostonherald.com',
+  'nytimes.com', 'wsj.com', 'washingtonpost.com', 'boston.com', 'bostonglobe.com', 'bostonherald.com',
   'concordmonitor.com', 'unionleader.com', 'seacoastonline.com', 'fosters.com', 'nhbr.com',
   'bloomberg.com', 'ft.com', 'economist.com', 'newyorker.com', 'theatlantic.com', 'wired.com',
   'businessinsider.com', 'barrons.com', 'latimes.com', 'theathletic.com', 'hbr.org', 'technologyreview.com',
