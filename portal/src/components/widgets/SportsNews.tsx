@@ -14,7 +14,7 @@ interface SportsNewsProps {
 interface NewsItem { title: string; link: string; pubDate: string; sourceName: string; }
 
 export const SOURCES: NewsSource[] = [
-  { name: 'Boston.com Sports', url: 'https://www.boston.com/category/sports/feed/' },
+  // Boston.com Sports removed: Boston.com is paywalled.
   { name: 'WHDH Sports', url: 'https://whdh.com/sports/feed' },
 ];
 

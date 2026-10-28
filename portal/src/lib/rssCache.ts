@@ -1,3 +1,5 @@
+import { paywallSites, siteFor } from './paywall';
+
 // Fetches an RSS feed via rss2json.com (handles CORS + XML->JSON conversion)
 // and caches the result in localStorage so repeated page loads don't
 // re-hit the API within maxAgeMs.
@@ -62,6 +64,15 @@ function recordFeedHealth(url: string, patch: FeedHealthEntry) {
   } catch { /* not fatal */ }
 }
 
+// The portal only shows articles you can read. Anything whose link is on the
+// paywalled-sites list (News > the lock button in the toolbar) is dropped, from
+// every tab, My News, the Daily Brief and custom feeds alike. It is applied
+// after the cache is read, so editing the list takes effect without a refetch.
+function dropPaywalled<T extends { link?: string }>(items: T[]): T[] {
+  const sites = paywallSites();
+  return items.filter((i) => !i.link || !siteFor(i.link, sites));
+}
+
 export async function fetchRssWithCache(
   cacheKey: string,
   feedUrl: string,
@@ -76,7 +87,7 @@ export async function fetchRssWithCache(
       if (cached) {
         const entry: CacheEntry = JSON.parse(cached);
         if (Date.now() - entry.timestamp < maxAgeMs) {
-          return entry.data;
+          return dropPaywalled(entry.data);
         }
       }
     } catch {
@@ -112,7 +123,7 @@ export async function fetchRssWithCache(
     // localStorage full — not fatal
   }
 
-  return items;
+  return dropPaywalled(items);
 }
 
 export interface NewsSource {

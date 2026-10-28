@@ -58,7 +58,6 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', genre: 'Technology' },
   { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', genre: 'Technology' },
   { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index', genre: 'Technology' },
-  { name: 'Wired', url: 'https://www.wired.com/feed/rss', genre: 'Technology' },
   { name: 'Hacker News', url: 'https://news.ycombinator.com/rss', genre: 'Technology' },
   { name: 'Engadget', url: 'https://www.engadget.com/rss.xml', genre: 'Technology' }, // PATTERN
   { name: 'Krebs on Security', url: 'https://krebsonsecurity.com/feed/', genre: 'Technology' }, // PATTERN
@@ -86,7 +85,6 @@ const BUILT_IN_SUGGESTIONS: SuggestionEntry[] = [
 
   // Science & Space
   { name: 'Phys.org', url: 'https://phys.org/rss-feed/', genre: 'Science' }, // PATTERN
-  { name: 'New Scientist', url: 'https://www.newscientist.com/feed/home/', genre: 'Science' }, // PATTERN
   { name: 'NASA Breaking News', url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', genre: 'Science' }, // PATTERN
 
   // Music
